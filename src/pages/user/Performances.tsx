@@ -5,6 +5,7 @@ import baseStyles from '../../styles/sub-pages.module.css';
 import styles from './Performances.module.css';
 import NormalSection from '../../components/ui/NormalSection';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import Modal2 from '../../components/ui/Modal2';
 
 interface ClassPerformance {
   id: number; // smallint
@@ -121,6 +122,7 @@ const Performances = () => {
   }
   return (
     <>
+      <Modal2 />
       <h1 className={baseStyles.pageTitle}>公演一覧</h1>
       <section>
         <h2 className={baseStyles.linedH2}>クラス公演</h2>

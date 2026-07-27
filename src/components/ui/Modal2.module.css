@@ -1,0 +1,78 @@
+/* モーダルダイアログスタイル */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(5px);
+  --webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modalContent {
+  position: relative;
+  background: var(--main-bg-color);
+  border-radius: 16px;
+  padding: 1rem 2rem;
+  max-width: 700px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgb(0 0 0 / 30%);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalGuide {
+  font-size: 2.2em;
+  color: red;
+  background-color: yellow;
+  margin-left: 0.2em;
+  display: inline-block;
+  font-weight: 900;
+}
+
+.modalTitle {
+  margin: 1rem 0 0 0;
+}
+
+.modalClose {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  cursor: pointer;
+  padding: 1rem;
+  z-index: 990;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.linedText {
+  background: yellow;
+  color: black;
+}

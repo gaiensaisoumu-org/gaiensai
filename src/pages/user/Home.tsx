@@ -37,7 +37,7 @@ import sign3 from '../../assets/sign/sign3.webp';
 import sign4 from '../../assets/sign/sign4.webp';
 import sign5 from '../../assets/sign/sign5.webp';
 
-import { useEffect, useMemo } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { GalleryImage } from '../../types/types';
 import { useEventConfig } from '../../hooks/useEventConfig';
 
@@ -51,6 +51,7 @@ import { PiMicrophoneStageFill } from 'react-icons/pi';
 // preload helper for code‑split routes
 import { preload, Students, Performances } from '../../routes';
 import { useTitle } from '../../hooks/useTitle';
+import Modal2 from '../../components/ui/Modal2';
 
 const prepareGallery: GalleryImage[] = [
   { src: prepare1, alt: '舞台準備の様子1', width: 300 },
@@ -87,6 +88,22 @@ const innerGallery: GalleryImage[] = [
 const Home = () => {
   useTitle('');
   const { config } = useEventConfig();
+
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    // スクロールイベントを登録
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // クリーンアップ関数（コンポーネントの破棄時にイベントを解除）
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   const formattedDateText = useMemo(() => {
     if (config.date.length === 0) {
@@ -147,6 +164,7 @@ const Home = () => {
 
   return (
     <>
+      {scrollY > 0 && <Modal2 />}
       <section className={styles.firstView}>
         <img src={poster} alt='外苑祭ポスター' fetchPriority='high' />
         <div className={styles.firstViewContent}>
@@ -201,9 +219,9 @@ const Home = () => {
         <p>
           外苑祭は
           <strong>
-            青山高校生徒から招待された人、または抽選で当選した中学生のみ
+            青高生からの招待券をお持ちの方、および事前申込をした中学生のみ
           </strong>
-          参加可能です。一般の方のご入場はお断りいたします。
+          ご来場いただけます。一般の方のご入場はお断りいたします。
         </p>
       </Alert>
       <NormalSection className={styles.scrollSection} data-scroll-section=''>

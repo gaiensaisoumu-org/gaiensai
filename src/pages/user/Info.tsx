@@ -1,3 +1,4 @@
+import Modal2 from '../../components/ui/Modal2';
 import NormalSection from '../../components/ui/NormalSection';
 import { useTitle } from '../../hooks/useTitle';
 import styles from '../../styles/sub-pages.module.css';
@@ -6,6 +7,7 @@ const Info = () => {
   useTitle('ご来場の注意');
   return (
     <>
+      <Modal2 />
       <h1 className={styles.pageTitle}>ご来場の注意</h1>
       <NormalSection>
         <h2>青山高校への入退場</h2>

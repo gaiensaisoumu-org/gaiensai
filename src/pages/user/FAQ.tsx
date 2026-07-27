@@ -3,6 +3,7 @@ import NormalSection from '../../components/ui/NormalSection';
 import { useEventConfig } from '../../hooks/useEventConfig';
 import { useTitle } from '../../hooks/useTitle';
 import styles from '../../styles/sub-pages.module.css';
+import Modal2 from '../../components/ui/Modal2';
 
 interface FAQItem {
   category: string;
@@ -788,6 +789,7 @@ const FAQ = () => {
 
   return (
     <>
+      <Modal2 />
       <h1 className={styles.pageTitle}>FAQ</h1>
       <div className={styles.searchInputWrapper}>
         <input

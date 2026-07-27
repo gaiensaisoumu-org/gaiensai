@@ -1,11 +1,13 @@
 import { useTitle } from '../../hooks/useTitle';
 import styles from '../../styles/sub-pages.module.css';
 import mapImage from '../../assets/map.jpg';
+import Modal2 from '../../components/ui/Modal2';
 
 const Map = () => {
   useTitle('校内マップ');
   return (
     <>
+      <Modal2 />
       <h1 className={styles.pageTitle}>校内マップ</h1>
 
       <img src={mapImage} alt='校内マップ' className={styles.map} />

@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import styles from '../../styles/sub-pages.module.css';
 import TimeTableContent from '../../components/ui/TimeTableContent';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import Modal2 from '../../components/ui/Modal2';
 
 // スケジュールデータの型（提示されたテーブル構造に準拠）
 interface ClassSchedule {
@@ -95,6 +96,7 @@ const TimeTable = () => {
 
   return (
     <>
+      <Modal2 />
       <h1 className={styles.pageTitle}>タイムテーブル</h1>
       {/* ─── タイムテーブルの呼び出し ─── */}
       <TimeTableContent
