@@ -5,7 +5,7 @@ const STORAGE_KEY = 'event_config';
 
 const defaultConfig: EventConfig = {
   site_url: 'gaiensai.com',
-  year: 2025,
+  year: 2026,
   name: '外苑祭',
   school: '東京都立青山高校',
   operating_organization: '外苑祭総務',

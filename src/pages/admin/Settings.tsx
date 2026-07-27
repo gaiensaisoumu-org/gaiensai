@@ -183,7 +183,7 @@ const SettingsContent = () => {
     string | null
   >(null);
   const [settings, setSettings] = useState<ControlPanelSettings>({
-    eventYear: 2025,
+    eventYear: 2026,
     showLength: 60,
     maxTicketsPerUser: 20,
     maxTicketsPerJuniorUser: 2,

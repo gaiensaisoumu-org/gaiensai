@@ -76,7 +76,7 @@ const parsed = parseConfigYaml(configRaw);
 
 const siteUrl = normalizeSiteUrl(parsed.site_url ?? 'gaiensai.com');
 const eventName = String(parsed.name ?? '外苑祭').trim();
-const year = Number(parsed.year ?? 2025);
+const year = Number(parsed.year ?? 2026);
 const school = String(parsed.school ?? '東京都立青山高校').trim();
 const operatingOrganization = String(
   parsed.operating_organization ?? '外苑祭総務',
