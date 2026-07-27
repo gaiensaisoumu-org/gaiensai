@@ -13,12 +13,6 @@
 - ネットが落ちて、どうしようもなくなった時、どうするか
 - ドメインをどうするか
 
-## 現在発生中のトラブル
-
-[https://gaiensai.pages.dev/](https://gaiensai.pages.dev/)は**校内Wi-Fiでなぜかブロック**される。原因は不明。Cloudflare Pagesでホスティングした他のサイトも表示できなかった。
-
-ドメインを変更すれば解決するかは調査中。ドメインを変更するにせよ、このURLをホワイトリストに入れてもらうにせよ、先生の協力が必要。
-
 ## 共通
 
 ### QRコードの表示
@@ -49,7 +43,7 @@
 
 ![ドロワーメニューのスクショ](./images/menu.png)
 
-[https://gaiensai.pages.dev](https://gaiensai.pages.dev)に用意しているボタン・URLの内容を表示する。優先度は低。
+[https://gaiensai.com](https://gaiensai.com)に用意しているボタン・URLの内容を表示する。優先度は低。
 
 **公演一覧で画像を使う**と、更新が難しくなるので注意。
 

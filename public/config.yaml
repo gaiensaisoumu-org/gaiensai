@@ -11,7 +11,7 @@
 #   VSCodeなどのコードエディタを使用している場合は、Gitの差分機能で変更箇所がわかります。使い方は調べてください。
 
 # サイトURL(https:// および / (スラッシュ)は不要。ドメイン部分のみ記載。)
-site_url: gaiensai.pages.dev
+site_url: gaiensai.com
 # 年
 year: 2026
 # イベント名

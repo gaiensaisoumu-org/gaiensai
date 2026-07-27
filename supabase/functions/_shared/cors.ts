@@ -1,6 +1,8 @@
 const ALLOWED_ORIGINS = new Set([
   'http://localhost:5173',
   'https://gaiensai.pages.dev',
+  'https://gaiensai.com',
+  'https://www.gaiensai.com'
 ]);
 
 export const getCorsHeaders = (req: Request): HeadersInit => {
@@ -8,7 +10,7 @@ export const getCorsHeaders = (req: Request): HeadersInit => {
   const allowOrigin =
     origin && ALLOWED_ORIGINS.has(origin)
       ? origin
-      : 'https://gaiensai.pages.dev';
+      : 'https://gaiensai.com';
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,

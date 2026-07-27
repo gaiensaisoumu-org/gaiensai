@@ -4,7 +4,7 @@ import type { EventConfig } from '../types/types';
 const STORAGE_KEY = 'event_config';
 
 const defaultConfig: EventConfig = {
-  site_url: 'gaiensai.pages.dev',
+  site_url: 'gaiensai.com',
   year: 2025,
   name: '外苑祭',
   school: '東京都立青山高校',
