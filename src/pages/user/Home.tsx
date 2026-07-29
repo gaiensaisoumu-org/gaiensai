@@ -15,7 +15,6 @@ import diamondStack from '../../assets/hero/diamond-stack.svg';
 import meshWave from '../../assets/hero/mesh-wave.svg';
 import ringOrbit from '../../assets/hero/ring-orbit.svg';
 import sparkBurst from '../../assets/hero/spark-burst.svg';
-import inner1 from '../../assets/inner/inner1.webp';
 import inner2 from '../../assets/inner/inner2.webp';
 import inner3 from '../../assets/inner/inner3.webp';
 import inner4 from '../../assets/inner/inner4.webp';
@@ -78,11 +77,10 @@ const outerGallery: GalleryImage[] = [
 ];
 
 const innerGallery: GalleryImage[] = [
-  { src: inner1, alt: '内装ディテール1', width: 300 },
-  { src: inner2, alt: '内装ディテール2', width: 300 },
-  { src: inner3, alt: '内装ディテール3', width: 300 },
-  { src: inner4, alt: '内装ディテール4', width: 300 },
-  { src: inner5, alt: '内装ディテール5', width: 300 },
+  { src: inner2, alt: '内装ディテール1', width: 300 },
+  { src: inner3, alt: '内装ディテール2', width: 300 },
+  { src: inner4, alt: '内装ディテール3', width: 300 },
+  { src: inner5, alt: '内装ディテール4', width: 300 },
 ];
 
 const Home = () => {
