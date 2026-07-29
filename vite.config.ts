@@ -163,6 +163,18 @@ export default defineConfig({
               },
             },
           },
+          {
+            urlPattern:
+              /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/performance-images\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'performance-images',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 3, // 現在は差し替えの可能性が高いので、一時的に3時間のみのキャッシュ
+              },
+            },
+          },
         ],
       },
     }),

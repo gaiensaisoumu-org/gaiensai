@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useMemo } from 'preact/hooks';
 import { useTitle } from '../../hooks/useTitle';
-import { supabase } from '../../lib/supabase';
+import performancesSnapshot from '../../generated/performances-static.json';
 import styles from '../../styles/sub-pages.module.css';
 import TimeTableContent from '../../components/ui/TimeTableContent';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal2 from '../../components/ui/Modal2';
 
 // スケジュールデータの型（提示されたテーブル構造に準拠）
@@ -21,78 +20,31 @@ interface GymPerformance {
   end_at: string;
 }
 
+type TimeTableSnapshot = {
+  schedules?: ClassSchedule[];
+  gymPerformances?: GymPerformance[];
+  showLengthMinutes?: number;
+};
+
+const snapshot = performancesSnapshot as TimeTableSnapshot;
+
 const TimeTable = () => {
   useTitle('タイムテーブル');
-  const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>([]);
-  const [gymPerformances, setGymPerformances] = useState<GymPerformance[]>([]);
-  const [showLength, setShowLength] = useState<number>(45); // クラス公演の所要時間（分）
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-
-        // 1. クラス公演スケジュールの取得
-        const { data: classData, error: classError } = await supabase
-          .from('performances_schedule')
-          .select('id, round_name, start_at')
-          .eq('is_active', true);
-
-        if (classError) {
-          throw classError;
-        }
-
-        // 2. 体育館公演スケジュールの取得
-        const { data: gymData, error: gymError } = await supabase
-          .from('gym_performances')
-          .select('id, group_name, round_name, start_at, end_at');
-
-        if (gymError) {
-          throw gymError;
-        }
-        const { data: show_length, error: configError } = await supabase
-          .from('configs')
-          .select('show_length')
-          .single();
-
-        if (configError) {
-          alert('設定データの取得に失敗しました。' + configError);
-        }
-
-        setClassSchedules(classData || []);
-        setGymPerformances(gymData || []);
-        setShowLength(show_length?.show_length || 45); // デフォルト値を45分に設定
-      } catch (err) {
-        setError('スケジュールデータの読み込みに失敗しました。');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, []);
-
-  if (loading) {
-    return (
-      <div
-        style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}
-      >
-        <p>
-          <LoadingSpinner />
-        </p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ color: '#dc2626', textAlign: 'center', padding: '4rem' }}>
-        <p>{error}</p>
-      </div>
-    );
-  }
+  const classSchedules = useMemo(
+    () =>
+      (snapshot.schedules ?? [])
+        .filter((item) => item.start_at)
+        .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()),
+    [],
+  );
+  const gymPerformances = useMemo(
+    () =>
+      (snapshot.gymPerformances ?? [])
+        .filter((item) => item.start_at && item.end_at)
+        .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()),
+    [],
+  );
+  const showLength = snapshot.showLengthMinutes || 45;
 
   return (
     <>

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useMemo } from 'preact/hooks';
 import { useTitle } from '../../hooks/useTitle';
-import { supabase, getPerformanceImageUrl } from '../../lib/supabase';
+import performancesSnapshot from '../../generated/performances-static.json';
+import { getPerformanceImageUrl } from '../../lib/supabase';
 import baseStyles from '../../styles/sub-pages.module.css';
 import styles from './Performances.module.css';
 import NormalSection from '../../components/ui/NormalSection';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal2 from '../../components/ui/Modal2';
 
 interface ClassPerformance {
@@ -33,93 +33,35 @@ interface GymPerformance {
   image_path: string | null;
 }
 
-async function getClassPerformances(): Promise<ClassPerformance[]> {
-  const { data, error } = await supabase
-    .from('class_performances')
-    .select('*')
-    .order('id', { ascending: true }); // ID順
+type PerformanceSnapshot = {
+  generatedAt?: string;
+  performances?: ClassPerformance[];
+  gymPerformances?: GymPerformance[];
+};
 
-  if (error) {
-    alert('公演データの取得に失敗しました:' + error.message);
-    throw new Error(error.message);
-  }
-
-  return data || [];
-}
-
-async function getGymPerformances(): Promise<GymPerformance[]> {
-  // PostgreSQLの "DISTINCT ON (group_name)" をシミュレートするために
-  // raw SQLのようなフィルタを指定します。
-  const { data, error } = await supabase
-    .from('gym_performances')
-    .select('*')
-    // group_nameで重複を排除するため、一番若いIDのものを取得するソートをかけます
-    .order('group_name')
-    .order('id', { ascending: true });
-
-  if (error) {
-    alert('体育館データの取得に失敗しました:' + error.message);
-    throw new Error(error.message);
-  }
-
-  if (!data) {
-    return [];
-  }
-
-  // 【重複除去ロジック】
-  // group_nameごとに最初に出現した要素（IDが最も小さいもの）だけを配列に残します
-  const uniqueGroupPerformances: GymPerformance[] = [];
-  const seenGroups = new Set<string>();
-
-  for (const item of data) {
-    if (!seenGroups.has(item.group_name)) {
-      seenGroups.add(item.group_name);
-      uniqueGroupPerformances.push(item);
-    }
-  }
-
-  // 最後に表示したい順序（例：開始時間順）にソートし直して返却
-  return uniqueGroupPerformances.sort(
-    (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
-  );
-}
+const snapshot = performancesSnapshot as unknown as PerformanceSnapshot;
 
 const Performances = () => {
   useTitle('公演一覧');
-  const [classData, setClassData] = useState<ClassPerformance[]>([]);
-  const [gymData, setGymData] = useState<GymPerformance[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const classData = useMemo(() => snapshot.performances ?? [], []);
+  const gymData = useMemo(() => {
+    // 【重複除去ロジック】
+    // group_nameごとに最初に出現した要素（IDが最も小さいもの）だけを配列に残します
+    const uniqueGroupPerformances: GymPerformance[] = [];
+    const seenGroups = new Set<string>();
 
-  useEffect(() => {
-    async function loadAllPerformances() {
-      try {
-        setLoading(true);
-        const [classes, gyms] = await Promise.all([
-          getClassPerformances(),
-          getGymPerformances(),
-        ]);
-        setClassData(classes);
-        setGymData(gyms);
-      } catch (err) {
-        setError('データの読み込みに失敗しました。');
-      } finally {
-        setLoading(false);
+    for (const item of [...(snapshot.gymPerformances ?? [])]) {
+      if (!seenGroups.has(item.group_name)) {
+        seenGroups.add(item.group_name);
+        uniqueGroupPerformances.push(item);
       }
     }
-    loadAllPerformances();
+    uniqueGroupPerformances.sort(
+      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+    );
+    return uniqueGroupPerformances;
   }, []);
 
-  if (loading) {
-    return <div className={styles.stateMessage}><LoadingSpinner /></div>;
-  }
-  if (error) {
-    return (
-      <div className={`${styles.stateMessage} ${styles.errorMessage}`}>
-        {error}
-      </div>
-    );
-  }
   return (
     <>
       <Modal2 />
@@ -139,7 +81,10 @@ const Performances = () => {
                     <>
                       {/* 背景画像（すべて表示） */}
                       <img
-                        src={getPerformanceImageUrl(perf.image_path)}
+                        src={getPerformanceImageUrl(
+                          perf.image_path,
+                          snapshot.generatedAt,
+                        )}
                         alt={perf.title || '公演画像'}
                         className={styles.cardBgImage}
                         loading='lazy'
@@ -222,7 +167,10 @@ const Performances = () => {
                     <>
                       {/* 背景画像（すべて表示） */}
                       <img
-                        src={getPerformanceImageUrl(perf.image_path)}
+                        src={getPerformanceImageUrl(
+                          perf.image_path,
+                          snapshot.generatedAt,
+                        )}
                         alt={perf.group_name || '公演画像'}
                         className={styles.cardBgImage}
                         loading='lazy'

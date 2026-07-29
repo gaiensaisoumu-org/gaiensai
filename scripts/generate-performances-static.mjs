@@ -72,6 +72,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 const buildSnapshot = async () => {
   const [
     { data: performanceData, error: performanceError },
+    { data: gymPerformanceData, error: gymPerformanceError },
     { data: scheduleData, error: scheduleError },
     { data: ticketTypeData, error: ticketTypeError },
     { data: relationshipData, error: relationshipError },
@@ -79,7 +80,16 @@ const buildSnapshot = async () => {
   ] = await Promise.all([
     supabase
       .from('class_performances')
-      .select('id, class_name, total_capacity, junior_capacity')
+      .select(
+        'id, year, class_name, title, description, created_at, junior_capacity, total_capacity, is_accepting, image_path',
+      )
+      .order('id', { ascending: true }),
+    supabase
+      .from('gym_performances')
+      .select(
+        'id, group_name, round_name, start_at, end_at, capacity, year, is_accepting, description, image_path',
+      )
+      .order('group_name', { ascending: true })
       .order('id', { ascending: true }),
     supabase
       .from('performances_schedule')
@@ -100,6 +110,7 @@ const buildSnapshot = async () => {
 
   if (
     performanceError ||
+    gymPerformanceError ||
     scheduleError ||
     ticketTypeError ||
     relationshipError ||
@@ -109,6 +120,7 @@ const buildSnapshot = async () => {
   }
 
   const performances = performanceData ?? [];
+  const gymPerformances = gymPerformanceData ?? [];
   const schedules = scheduleData ?? [];
   const ticketTypes = ticketTypeData ?? [];
   const relationships = relationshipData ?? [];
@@ -117,6 +129,7 @@ const buildSnapshot = async () => {
   return {
     generatedAt: new Date().toISOString(),
     performances,
+    gymPerformances,
     schedules,
     ticketTypes,
     relationships,
