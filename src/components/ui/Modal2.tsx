@@ -3,7 +3,11 @@ import styles from './Modal2.module.css';
 import { MdClose } from 'react-icons/md';
 
 // 1. 期限付きで保存する関数
-function setItemWithExpiry(key: string, value: string, ttlInMilliseconds: number) {
+function setItemWithExpiry(
+  key: string,
+  value: string,
+  ttlInMilliseconds: number,
+) {
   const now = new Date();
 
   // 保存するデータと有効期限（現在時刻 + TTL）をオブジェクトにする
@@ -24,34 +28,70 @@ function getItemWithExpiry(key: string) {
     return null;
   }
 
-  const item = JSON.parse(itemStr);
-  const now = new Date();
+  try {
+    const item = JSON.parse(itemStr);
+    const now = new Date();
 
-  // 現在時刻が有効期限を過ぎていたら削除して null を返す
-  if (now.getTime() > item.expiry) {
-    localStorage.removeItem(key);
+    // 現在時刻が有効期限を過ぎていたら削除して null を返す
+    if (now.getTime() > item.expiry) {
+      localStorage.removeItem(key);
+      return null;
+    }
+
+    return item.value;
+  } catch {
     return null;
   }
-
-  return item.value;
 }
 
-const isShowedVisitorGuideLimit = 3 * 24 * 60 * 60* 1000;
+// 3. 非表示対象のキーが存在するか確認する関数
+// 非表示対象のキーが存在するか確認する関数
+function hasSpecialAuthOrProfileKey(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  // 対象の接頭辞（〜から始まる）を判定する正規表現
+  const prefixRegex = /^(ticket-display-cache|sb-.*-auth-token|junior_profile_cache|students_profile_cache)/;
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && prefixRegex.test(key)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+const isShowedVisitorGuideLimit = 3 * 24 * 60 * 60 * 1000;
 
 const Modal2 = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [isAlreadyOpened, setIsAlreadyOpened] = useState(() => {
     if (typeof window !== 'undefined') {
+      // 1. 指定のキー/パターンが存在する場合は非表示にする
+      if (hasSpecialAuthOrProfileKey()) {
+        return true;
+      }
+
+      // 2. 既存の有効期限付きフラグをチェック
       const isShowedVisitorGuide = getItemWithExpiry('isShowedVisitorGuide');
-      return isShowedVisitorGuide ?? false;
+      return isShowedVisitorGuide === 'true' || isShowedVisitorGuide === true;
     }
-    return 'ゲスト';
+    return false; // ※SSR時は画面の誤チラつきを防ぐため boolean で統一
   });
+
   const handleIsOpen = () => {
     setIsOpen(false);
     setIsAlreadyOpened(true);
-    setItemWithExpiry('isShowedVisitorGuide', 'true', isShowedVisitorGuideLimit);
+    setItemWithExpiry(
+      'isShowedVisitorGuide',
+      'true',
+      isShowedVisitorGuideLimit,
+    );
   };
+
   return (
     <>
       {isOpen && !isAlreadyOpened && (
