@@ -34,6 +34,32 @@ import { useTicketStorage } from '../../../features/tickets/useTicketStorage';
 import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
 import { useTitle } from '../../../hooks/useTitle';
 
+const STUDENT_TICKETS_CACHE_PREFIX = 'ticket-display-cache:v1:';
+
+const readAllLocalStorageTickets = (): Array<
+  TicketCardItem & { relationshipId: number; affiliation: string }
+> => {
+  try {
+    const allTickets: Array<
+      TicketCardItem & { relationshipId: number; affiliation: string }
+    > = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(STUDENT_TICKETS_CACHE_PREFIX)) {
+        const raw = window.localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw).ticket as
+            TicketCardItem & { relationshipId: number; affiliation: string };
+          allTickets.push(parsed);
+        }
+      }
+    }
+    return allTickets;
+  } catch {
+    return [];
+  }
+};
+
 type DashboardProps = {
   userData: Exclude<UserData, null>;
 };
@@ -55,8 +81,9 @@ const Dashboard = ({ userData }: DashboardProps) => {
   const { config } = useEventConfig();
   const { saveTicketToCache } = useTicketStorage();
   const [ticketCards, setTicketCards] = useState<
-    (TicketCardItem & { relationshipId: number })[]
+    (TicketCardItem & { relationshipId: number; affiliation: string })[]
   >([]);
+  const [issuedTicketNumber, setIssuedTicketNumber] = useState(0);
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketNotice, setTicketNotice] = useState<string | null>(null);
@@ -310,8 +337,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
   }, []);
 
   const isIssueReceptionStopped =
-    !isTicketIssuingEnabled ||
-    !hasAnyActiveInviteTicketType;
+    !isTicketIssuingEnabled || !hasAnyActiveInviteTicketType;
 
   useEffect(() => {
     const loadTickets = async () => {
@@ -365,6 +391,15 @@ const Dashboard = ({ userData }: DashboardProps) => {
       }
       setIsOnline(true);
 
+      // Load tickets from local storage (from all users)
+      const localStorageTickets = readAllLocalStorageTickets();
+      const myAffiliation = String(userData.affiliation);
+
+      // Filter local storage tickets: only include those issued by other users
+      const otherUsersLocalStorageTickets = localStorageTickets.filter(
+        (ticket) => ticket.affiliation !== myAffiliation && ticket.status === 'valid',
+      );
+
       const tickets = (ticketsData ?? []) as Array<{
         code: string;
         signature: string;
@@ -372,7 +407,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
         created_at: string;
       }>;
 
-      if (tickets.length === 0) {
+      if (tickets.length === 0 && otherUsersLocalStorageTickets.length === 0) {
         setTicketCards([]);
         setTicketLoading(false);
         return;
@@ -608,10 +643,16 @@ const Dashboard = ({ userData }: DashboardProps) => {
             : '-',
           status: 'valid' as const,
           relationshipId,
+          affiliation: decoded?.affiliation ?? '',
         };
       });
 
-      setTicketCards(cards);
+      setIssuedTicketNumber(cards.length);
+
+      // Merge database tickets with local storage tickets from other users
+      const allCards = [...cards, ...otherUsersLocalStorageTickets];
+
+      setTicketCards(allCards);
       writeCachedTicketCards(user.id, cards);
 
       // Cache individual tickets to ticketDisplayCache
@@ -735,20 +776,40 @@ const Dashboard = ({ userData }: DashboardProps) => {
     }));
   }, [ticketCards, ticketDisplayCacheVersion]);
 
+  const myAffiliation = String(userData.affiliation);
+
   const ownUseTickets = useMemo(
-    () =>
-      ticketCardsWithLastOpenedAt.filter(
-        (ticket) => ticket.relationshipId === 1,
-      ),
-    [ticketCardsWithLastOpenedAt],
+    () => {
+      return ticketCardsWithLastOpenedAt.filter(
+        (ticket) =>
+          (ticket.relationshipId === 1 && ticket.affiliation === myAffiliation) ||
+          (ticket.relationshipId === 3 &&
+            (ticket.affiliation !== myAffiliation)),
+      );
+    },
+    [ticketCardsWithLastOpenedAt, myAffiliation],
   );
 
   const guestTickets = useMemo(
     () =>
-      ticketCardsWithLastOpenedAt.filter(
-        (ticket) => ticket.relationshipId !== 1,
-      ),
-    [ticketCardsWithLastOpenedAt],
+      ticketCardsWithLastOpenedAt.filter((ticket) => {
+        const affiliation = ticket.affiliation;
+        // Include tickets from current user with relationshipId !== 1 (original guest tickets)
+        if (affiliation === myAffiliation && ticket.relationshipId !== 1) {
+          return true;
+        }
+        // Include tickets from other users with relationshipId in {2,4,5}
+        if (
+          affiliation !== myAffiliation &&
+          (ticket.relationshipId === 2 ||
+            ticket.relationshipId === 4 ||
+            ticket.relationshipId === 5)
+        ) {
+          return true;
+        }
+        return false;
+      }),
+    [ticketCardsWithLastOpenedAt, myAffiliation],
   );
 
   const handleLogout = async () => {
@@ -823,7 +884,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
         ) : ticketCards.length > 0 ? (
           <div className={styles.ticketSummary}>
             <div className={styles.ticketSummaryItem}>
-              <p className={styles.ticketSummaryNumber}>{ticketCards.length}</p>
+              <p className={styles.ticketSummaryNumber}>{issuedTicketNumber}</p>
               <p className={styles.ticketSummaryLabel}>合計発券枚数</p>
             </div>
             <div className={styles.ticketSummaryItem}>

@@ -5,6 +5,7 @@ type StoredUserProfile = Exclude<UserData, null>;
 
 export type StoredTicketCard = TicketCardItem & {
   relationshipId: number;
+  affiliation: string;
 };
 
 const STUDENT_PROFILE_CACHE_PREFIX = 'students_profile_cache:v1:';
