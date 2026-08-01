@@ -22,7 +22,9 @@ import { useTitle } from '../../../hooks/useTitle';
 import InitialRegistration from './InitialRegistration';
 import JuniorSignUp from './JuniorSignUp';
 
-type AuthState = Session | undefined;
+type AuthState = Session | null | undefined;
+type UserDataState = UserData | null | undefined; // undefined: 読み込み前, null: 未登録
+
 const JUNIOR_AFFILIATION_THRESHOLD = 100000;
 const STUDENT_ID_MIN = 10000;
 const STUDENT_ID_MAX = 40000;
@@ -40,7 +42,7 @@ const isStudentAccountByEmail = (email?: string | null): boolean => {
 const Junior = () => {
   const { path, route } = useLocation();
   const [session, setSession] = useState<AuthState>(undefined);
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const [userData, setUserData] = useState<UserDataState>(undefined);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -114,10 +116,10 @@ const Junior = () => {
       path !== '/junior/signup' &&
       !hasAttemptedRecovery
     ) {
-      setHasAttemptedRecovery(true); // 状態を更新
+      setHasAttemptedRecovery(true);
       const recoverProfile = async () => {
-        setIsLoading(true); // 既存のLoadingSpinnerが表示されます
-        await handleRegistered(true); // 3回(最大600ms)DBの更新を待ちます
+        setIsLoading(true);
+        await handleRegistered(true);
         setIsLoading(false);
       };
       void recoverProfile();
@@ -125,7 +127,7 @@ const Junior = () => {
   }, [session, userData, isLoading, profileError, path, hasAttemptedRecovery]);
 
   useEffect(() => {
-    const loadProfile = async (nextSession: Session) => {
+    const loadProfile = async (nextSession: Session | null) => {
       setSession(nextSession);
       setProfileError(null);
       setIsLoading(true);
@@ -134,9 +136,9 @@ const Junior = () => {
         setUserData(null);
         setIsLoading(false);
         if (path === '/junior/signup') {
-          route(preserveQuery('/junior/signup'));
+          route(preserveQuery('/junior/signup'), true);
         } else if (path !== '/') {
-          route(preserveQuery('/junior/login'));
+          route(preserveQuery('/junior/login'), true);
         }
         return;
       }
@@ -156,7 +158,7 @@ const Junior = () => {
         return;
       }
 
-      setUserData(data);
+      setUserData(data ?? null);
       if (data) {
         writeCachedJuniorProfile(nextSession.user.id, data);
       }
@@ -176,8 +178,9 @@ const Junior = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Guard / Redirect Effect
   useEffect(() => {
-    if (session === undefined || userData === undefined) {
+    if (isLoading || session === undefined || userData === undefined) {
       return;
     }
 
@@ -191,16 +194,18 @@ const Junior = () => {
 
     const isStudentAccount = isStudentAccountByEmail(session.user.email);
 
+    // 高校生（生徒）アカウントの場合は /students へ置換遷移
     if (userData && userData.affiliation < JUNIOR_AFFILIATION_THRESHOLD) {
-      route(preserveQuery('/students'));
+      route(preserveQuery('/students'), true);
       return;
     }
 
     if (!userData && isStudentAccount) {
-      route(preserveQuery('/students'));
+      route(preserveQuery('/students'), true);
       return;
     }
 
+    // 中学生マイページへの自動遷移（replace: true）
     if (
       userData &&
       (path === '/junior' ||
@@ -208,9 +213,9 @@ const Junior = () => {
         path === '/junior/signup' ||
         path === '/junior/')
     ) {
-      route(preserveQuery('/junior/mypage'));
+      route(preserveQuery('/junior/mypage'), true);
     }
-  }, [path, profileError, route, session, userData]);
+  }, [path, profileError, route, session, userData, isLoading]);
 
   const retryLoadProfile = async () => {
     if (!session) {
@@ -234,7 +239,7 @@ const Junior = () => {
       return;
     }
 
-    setUserData(data);
+    setUserData(data ?? null);
     if (data) {
       writeCachedJuniorProfile(session.user.id, data);
     }
@@ -274,6 +279,7 @@ const Junior = () => {
       </JuniorLayout>
     );
   }
+
   if (profileError && userData === null) {
     return (
       <section>
@@ -294,6 +300,15 @@ const Junior = () => {
       <JuniorLayout>
         <InitialRegistration onRegistered={handleRegistered} />
       </JuniorLayout>
+    );
+  }
+
+  // TypeScript型ガード：ここより下では userData は確実に UserData 型
+  if (!userData) {
+    return (
+      <section>
+        <LoadingSpinner />
+      </section>
     );
   }
 

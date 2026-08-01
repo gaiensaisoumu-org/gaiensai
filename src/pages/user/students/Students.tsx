@@ -22,7 +22,9 @@ import Login from './Login';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useTitle } from '../../../hooks/useTitle';
 
-type AuthState = Session | undefined;
+type AuthState = Session | null | undefined;
+type UserDataState = UserData | null | undefined; // undefined: 読み込み前, null: ユーザーデータ無し
+
 const JUNIOR_AFFILIATION_THRESHOLD = 100000;
 const STUDENT_ID_MIN = 10000;
 const STUDENT_ID_MAX = 40000;
@@ -40,7 +42,8 @@ const isStudentAccountByEmail = (email?: string | null): boolean => {
 const Students = () => {
   const { path, route } = useLocation();
   const [session, setSession] = useState<AuthState>(undefined);
-  const [userData, setUserData] = useState<UserData | null>(null);
+  // 初期値を undefined にして「まだ判定中」と「本当にデータがナイ(null)」を区別する
+  const [userData, setUserData] = useState<UserDataState>(undefined);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -64,7 +67,7 @@ const Students = () => {
   };
 
   useEffect(() => {
-    const loadProfile = async (nextSession: Session) => {
+    const loadProfile = async (nextSession: Session | null) => {
       setSession(nextSession);
       setProfileError(null);
       setIsLoading(true);
@@ -72,7 +75,6 @@ const Students = () => {
       if (!nextSession) {
         setUserData(null);
         setIsLoading(false);
-        route('/students/login');
         return;
       }
 
@@ -91,7 +93,7 @@ const Students = () => {
         return;
       }
 
-      setUserData(data);
+      setUserData(data ?? null);
       if (data) {
         writeCachedStudentProfile(nextSession.user.id, data);
       }
@@ -111,7 +113,7 @@ const Students = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // register_student直後にusersの行が即時にselectで見えないタイミングがあるため
+  // ログイン直後のデータ再取得処理
   const handleRegistered = async (): Promise<boolean> => {
     if (!session) {
       return false;
@@ -134,12 +136,14 @@ const Students = () => {
     return false;
   };
 
+  // Guard / Redirect Effect
   useEffect(() => {
-    if (session === undefined || userData === undefined) {
+    if (!path.startsWith('/students')) {
       return;
     }
 
-    if (!session) {
+    // まだ認証・ユーザー情報の読込が完了していない場合はリダイレクト処理を行わない
+    if (isLoading || session === undefined || userData === undefined) {
       return;
     }
 
@@ -147,23 +151,34 @@ const Students = () => {
       return;
     }
 
+    // 未ログイン時はログイン画面へ置換遷移（バックスタックを増やさない）
+    if (!session) {
+      if (path !== '/students/login') {
+        route('/students/login', true);
+      }
+      return;
+    }
+
     const isStudentAccount = isStudentAccountByEmail(session.user.email);
 
+    // 属している属性による自動振り分け（すべて replace: true で遷移）
     if (userData && userData.affiliation >= JUNIOR_AFFILIATION_THRESHOLD) {
-      route('/junior');
+      route('/junior', true);
       return;
     }
 
     if (!userData && !isStudentAccount) {
-      route('/junior');
+      route('/junior', true);
       return;
     }
 
+    // 初回登録が必要な場合
     if (!userData && path !== '/students/initial-registration') {
-      route('/students/initial-registration');
+      route('/students/initial-registration', true);
       return;
     }
 
+    // 登録済みでルートやログインページにいる場合はダッシュボードへ
     if (
       userData &&
       (path === '/students' ||
@@ -171,9 +186,9 @@ const Students = () => {
         path === '/students/initial-registration' ||
         path === '/students/')
     ) {
-      route('/students/dashboard');
+      route('/students/dashboard', true);
     }
-  }, [location, profileError, session, userData]);
+  }, [path, profileError, session, userData, isLoading]);
 
   const retryLoadProfile = async () => {
     if (!session) {
@@ -197,7 +212,7 @@ const Students = () => {
       return;
     }
 
-    setUserData(data);
+    setUserData(data ?? null);
     if (data) {
       writeCachedStudentProfile(session.user.id, data);
     }
@@ -243,6 +258,7 @@ const Students = () => {
     );
   }
 
+  // 1. 未登録ユーザーの場合
   if (userData === null) {
     return (
       <StudentLayout>
@@ -251,6 +267,16 @@ const Students = () => {
     );
   }
 
+  // 2. まだ読み込みが終わっていない（undefined）か、型チェックを完全に通過させるためのガード
+  if (!userData) {
+    return (
+      <section>
+        <LoadingSpinner />
+      </section>
+    );
+  }
+
+  // ここに到達した時点で、registeredUserData は確実な UserData 型になります
   const registeredUserData = userData;
 
   return (
