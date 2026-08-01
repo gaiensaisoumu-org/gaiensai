@@ -324,6 +324,10 @@ const Junior = () => {
           component={() => <JuniorMyPage userData={registeredUserData} />}
         />
         <Route
+          path='/initial-registration'
+          component={() => <JuniorMyPage userData={registeredUserData} />}
+        />
+        <Route
           path='/'
           component={() => <JuniorMyPage userData={registeredUserData} />}
         />

@@ -289,6 +289,10 @@ const Students = () => {
           component={() => <Dashboard userData={registeredUserData} />}
         />
         <Route
+          path='/initial-registration'
+          component={() => <Dashboard userData={registeredUserData} />}
+        />
+        <Route
           path='/'
           component={() => <Dashboard userData={registeredUserData} />}
         />
