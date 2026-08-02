@@ -24,6 +24,7 @@ import { IoMdHelpCircleOutline } from 'react-icons/io';
 import Alert from '../../../components/ui/Alert';
 
 const SELF_RELATIONSHIP_ID = 1;
+const ALPHANUMERIC_ID_PATTERN = /^[A-Za-z0-9]+$/;
 
 interface JuniorSignUpProps {
   onRegistered?: (commit?: boolean) => Promise<boolean>;
@@ -213,8 +214,8 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
         return;
       }
 
-      if (normalizedId.includes('@')) {
-        setErrorMessage('IDに @ は使えません。');
+      if (!ALPHANUMERIC_ID_PATTERN.test(normalizedId)) {
+        setErrorMessage('IDは半角英数字のみで入力してください。');
         return;
       }
 
@@ -231,8 +232,8 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
         return;
       }
 
-      if (normalizedParentId.includes('@')) {
-        setErrorMessage('保護者のIDに @ は使えません。');
+      if (!ALPHANUMERIC_ID_PATTERN.test(normalizedParentId)) {
+        setErrorMessage('保護者のIDは半角英数字のみで入力してください。');
         return;
       }
 
@@ -707,6 +708,8 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
                   onChange={(e) => setLoginId(e.currentTarget.value)}
                   placeholder='フルネームなど忘れないもの'
                   minLength={6}
+                  pattern='[A-Za-z0-9]+'
+                  title='半角英数字のみで入力してください。'
                   required
                 />
               </div>
@@ -780,6 +783,8 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
                   onChange={(e) => setParentGuardianId(e.currentTarget.value)}
                   placeholder='フルネームなど忘れないもの'
                   minLength={6}
+                  pattern='[A-Za-z0-9]+'
+                  title='半角英数字のみで入力してください。'
                   required
                 />
               </div>
