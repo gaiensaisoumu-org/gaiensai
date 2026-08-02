@@ -21,6 +21,7 @@ import NotFound from '../../../shared/NotFound';
 import Login from './Login';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useTitle } from '../../../hooks/useTitle';
+import { withTimeout } from '../../../utils/withTimeout';
 
 type AuthState = Session | null | undefined;
 type UserDataState = UserData | null | undefined; // undefined: 読み込み前, null: ユーザーデータ無し
@@ -28,6 +29,7 @@ type UserDataState = UserData | null | undefined; // undefined: 読み込み前,
 const JUNIOR_AFFILIATION_THRESHOLD = 100000;
 const STUDENT_ID_MIN = 10000;
 const STUDENT_ID_MAX = 40000;
+const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 const isStudentAccountByEmail = (email?: string | null): boolean => {
   const localPart = email?.split('@')[0] ?? '';
@@ -57,13 +59,21 @@ const Students = () => {
   };
 
   const loadUserProfile = async (userId: string) => {
-    const { data, error }: { data: UserData; error: unknown } = await supabase
-      .from('users')
-      .select('email, affiliation, clubs')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const { data, error }: { data: UserData; error: unknown } =
+        await withTimeout(
+          supabase
+            .from('users')
+            .select('email, affiliation, clubs')
+            .eq('id', userId)
+            .maybeSingle(),
+          SUPABASE_RESPONSE_TIMEOUT_MS,
+        );
 
-    return { data, error };
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
   };
 
   useEffect(() => {
