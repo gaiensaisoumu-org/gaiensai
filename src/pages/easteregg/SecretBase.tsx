@@ -60,7 +60,7 @@ const CREDIT_LOGS = [
   ' ',
   '[DEVELOPMENT STATS]',
   '  - Development Period    : ~1 Year (365 Days)',
-  '  - Total Program Lines   : 47,345 lines',
+  '  - Total Program Lines   : 54,360 lines',
   '  - Exam Score Sacrificed : -100 pts total',
   '  - Sleeping Hours Lost   : Unknown',
   "  - Bug-to-Feature Ratio  : It's not a bug, it's a feature",
