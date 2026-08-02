@@ -4,7 +4,7 @@ import {
   JUNIOR_ISSUE_RESULT_STORAGE_KEY,
   type IssueResultPayload,
 } from '../../../features/issue/issueResultStorage';
-import IssuedTicketCardList from '../../../features/tickets/IssuedTicketCardList';
+import TicketListContent from '../../../features/tickets/TicketListContent';
 import { useDecodedSerialTickets } from '../../../features/tickets/useDecodedSerialTickets';
 import { useTicketStorage } from '../../../features/tickets/useTicketStorage';
 import { useTitle } from '../../../hooks/useTitle';
@@ -145,11 +145,12 @@ const IssueResult = () => {
         </section>
       ) : (
         <section className={styles.issuedSection}>
-          <IssuedTicketCardList
+          <TicketListContent
             title='発券したチケット一覧'
             showSortControl
             showSerialNumber
             showTicketCode
+            emptyMessage='発券したチケットはありません。'
             tickets={issuedTickets.map((ticket, index) => {
               const computed =
                 typeof juniorUsageType === 'number'

@@ -611,6 +611,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         code: string;
         signature: string;
         relationship: number;
+        ticket_name: string | null;
       }> | null = null;
 
       for (let i = 0; i < LOAD_TICKET_RETRY_MAX; i++) {
@@ -618,13 +619,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           code: string;
           signature: string;
           relationship: number;
+          ticket_name: string | null;
         }> | null = null;
         let ticketsError: unknown;
         try {
           const result = await withTimeout(
             supabase
               .from("tickets")
-              .select("code, signature, relationship")
+              .select("code, signature, relationship, ticket_name")
               .eq("user_id", user.id)
               .eq("status", "valid")
               .order("created_at", { ascending: false }),
@@ -647,6 +649,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           code: string;
           signature: string;
           relationship: number;
+          ticket_name: string | null;
         }>;
 
         if (ticketsData.length > 0) {
@@ -841,6 +844,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
               relationshipMap.get(decoded.relationshipId) ??
               `間柄${decoded.relationshipId}`)
             : "-",
+          ticketName: ticket.ticket_name,
           status: "valid" as const,
           relationshipId,
         };

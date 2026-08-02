@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import IssuedTicketCardList from '../../../features/tickets/IssuedTicketCardList';
+import TicketListContent from '../../../features/tickets/TicketListContent';
 import { useDecodedSerialTickets } from '../../../features/tickets/useDecodedSerialTickets';
 
 import {
@@ -10,6 +10,7 @@ import styles from './Issue.module.css';
 import BackButton from '../../../components/ui/BackButton';
 import { useTicketStorage } from '../../../features/tickets/useTicketStorage';
 import { useTitle } from '../../../hooks/useTitle';
+import Alert from '../../../components/ui/Alert';
 
 const IssueResult = () => {
   const [result, setResult] = useState<IssueResultPayload | null>(null);
@@ -67,6 +68,10 @@ const IssueResult = () => {
       <BackButton href='/students/issue' />
       <h1 className={styles.pageTitle}>発券完了</h1>
 
+      <Alert type='info' style={{ marginTop: '0' }}>
+        発券したチケット一覧にある鉛筆マークから、チケット名を変更できます。チケットを区別しやすい名前に変更しよう!
+      </Alert>
+
       {!result ? (
         <section className={styles.issuedSection}>
           <p>表示できる発券結果がありません。</p>
@@ -76,11 +81,12 @@ const IssueResult = () => {
         </section>
       ) : (
         <section className={styles.issuedSection}>
-          <IssuedTicketCardList
+          <TicketListContent
             title='発券したチケット一覧'
             showSortControl
             showSerialNumber
             showTicketCode
+            emptyMessage='発券したチケットはありません。'
             tickets={issuedTickets.map((ticket) => ({
               ...ticket,
               performanceName: result.performanceName,

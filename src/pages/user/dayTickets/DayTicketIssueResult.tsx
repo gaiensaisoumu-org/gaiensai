@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import IssuedTicketCardList from '../../../features/tickets/IssuedTicketCardList';
+import TicketListContent from '../../../features/tickets/TicketListContent';
 import { useDecodedSerialTickets } from '../../../features/tickets/useDecodedSerialTickets';
 
 import {
@@ -78,11 +78,12 @@ const DayTicketIssueResult = () => {
           </section>
         ) : (
           <section className={styles.issuedSection}>
-            <IssuedTicketCardList
+            <TicketListContent
               title='発券したチケット一覧'
               showSortControl
               showSerialNumber
               showTicketCode
+              emptyMessage='発券したチケットはありません。'
               tickets={issuedTickets.map((ticket) => ({
                 ...ticket,
                 performanceName: result.performanceName,

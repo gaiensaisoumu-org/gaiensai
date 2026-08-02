@@ -34,6 +34,7 @@ import type {
   TicketCardStatus,
   TicketListSortMode,
 } from '../../features/tickets/IssuedTicketCardList.tsx';
+import { getTicketDisplayName } from '../../features/tickets/IssuedTicketCardList.tsx';
 
 import { YEAR_BITS } from '../../../supabase/functions/_shared/ticketDataType.ts';
 import iconUrl from '../../assets/icon.webp';
@@ -53,6 +54,7 @@ type TicketDisplay = TicketDecodedDisplaySeed & {
   scheduleEndTime: string;
   ticketTypeLabel: string;
   relationshipName: string;
+  ticketName: string | null;
   status: TicketStatus;
 };
 
@@ -60,6 +62,7 @@ type TicketStatus = TicketCardStatus;
 
 type TicketValidityCheckResult = {
   status: TicketStatus;
+  ticketName: string | null;
   errorMessage: string | null;
 };
 
@@ -139,35 +142,42 @@ const isCurrentTicketYear = (year: unknown, currentYear: unknown): boolean => {
 const checkTicketValidity = async (
   code: string,
 ): Promise<TicketValidityCheckResult> => {
-  const cachedStatus = readTicketDisplayCache<{ status: TicketStatus }>(
-    code,
-  )?.status;
+  const cachedTicket = readTicketDisplayCache<{
+    status: TicketStatus;
+    ticketName?: string | null;
+  }>(code);
+  const cachedStatus = cachedTicket?.status;
   if (cachedStatus === 'cancelled') {
     return {
       status: 'cancelled',
+      ticketName: cachedTicket?.ticketName ?? null,
       errorMessage: 'このチケットはキャンセルされています。',
     };
   }
 
   const { data, error } = await supabase
     .from('tickets')
-    .select('status')
+    .select('status, ticket_name')
     .eq('code', code)
     .maybeSingle();
 
   if (error) {
     return {
       status: 'unknown',
+      ticketName: null,
       errorMessage: `チケットの有効性確認に失敗しました。デバイスがオフラインの場合、または障害が発生している場合は、このエラーが発生する可能性があります。
     これが正規で未使用のQRコードであれば、そのままご入場いただけます。不明点がありましたら、お気軽に外苑祭総務にお問い合わせください。`,
     };
   }
 
   const status = (data as { status?: string } | null)?.status;
+  const ticketName = (data as { ticket_name?: string | null } | null)
+    ?.ticket_name ?? null;
 
   if (status === 'used') {
     return {
       status: 'used',
+      ticketName,
       errorMessage: 'このチケットはすでに使用されています。',
     };
   }
@@ -179,24 +189,28 @@ const checkTicketValidity = async (
     }
     return {
       status: 'cancelled',
+      ticketName,
       errorMessage: 'このチケットはキャンセルされています。',
     };
   }
   if (!status) {
     return {
       status: 'missing',
+      ticketName: null,
       errorMessage: 'このチケットは存在しないか、無効です。',
     };
   }
   if (status !== 'valid') {
     return {
       status: 'unknown',
+      ticketName,
       errorMessage: 'このチケットは無効です。',
     };
   }
 
   return {
     status: 'valid',
+    ticketName,
     errorMessage: null,
   };
 };
@@ -287,6 +301,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
     scheduleEndTime: '',
     ticketTypeLabel: '-',
     relationshipName: '-',
+    ticketName: null,
     status: 'unknown',
   });
   const [loading, setLoading] = useState(true);
@@ -459,6 +474,10 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             updatedTicket.status = validityResult.status;
             hasUpdates = true;
           }
+          if (validityResult.ticketName !== cached.ticketName) {
+            updatedTicket.ticketName = validityResult.ticketName;
+            hasUpdates = true;
+          }
 
           if (hasUpdates) {
             setTicket(updatedTicket);
@@ -600,6 +619,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
         scheduleEndTime,
         ticketTypeLabel,
         relationshipName,
+        ticketName: null,
         status: 'unknown',
       };
       setTicket(snapshotTicket);
@@ -630,6 +650,10 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
         }
 
         setTicketStatus(validityResult.status);
+        setTicket((current) => ({
+          ...current,
+          ticketName: validityResult.ticketName,
+        }));
 
         try {
           if (isAdmissionOnly) {
@@ -671,6 +695,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 name: ticketTypeRes.data.name,
               }),
               relationshipName: relationshipRes.data.name ?? '-',
+              ticketName: validityResult.ticketName,
               status: validityResult.status,
             };
             setTicket(updatedTicket);
@@ -687,6 +712,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 ticketTypeLabel: updatedTicket.ticketTypeLabel,
                 relationshipName: updatedTicket.relationshipName,
                 relationshipId: updatedTicket.relationshipId,
+                ticketName: updatedTicket.ticketName,
               },
               validityResult.status,
             );
@@ -823,6 +849,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 name: ticketTypeRes.data.name,
               }),
               relationshipName: relationshipRes.data.name ?? '-',
+              ticketName: validityResult.ticketName,
               status: validityResult.status,
             };
             setTicket(updatedTicket);
@@ -839,6 +866,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 ticketTypeLabel: updatedTicket.ticketTypeLabel,
                 relationshipName: updatedTicket.relationshipName,
                 relationshipId: updatedTicket.relationshipId,
+                ticketName: updatedTicket.ticketName,
               },
               validityResult.status,
             );
@@ -1251,6 +1279,12 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                       {ticket.scheduleTime} - {ticket.scheduleEndTime}
                     </>
                   )}
+                </span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>名前</span>
+                <span className={styles.detailValue}>
+                  {getTicketDisplayName(ticket)}
                 </span>
               </div>
               <div className={styles.detailRow}>

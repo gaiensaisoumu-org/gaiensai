@@ -417,7 +417,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
         const result = await withTimeout(
           supabase
             .from("tickets")
-            .select("code, signature, relationship, created_at")
+            .select("code, signature, relationship, created_at, ticket_name")
             .eq("user_id", user.id)
             .eq("status", "valid")
             .order("created_at", { ascending: false }),
@@ -459,6 +459,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
         signature: string;
         relationship: number;
         created_at: string;
+        ticket_name: string | null;
       }>;
 
       if (tickets.length === 0 && otherUsersLocalStorageTickets.length === 0) {
@@ -717,6 +718,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
             ? (relationshipMap.get(decoded.relationshipId) ??
               `間柄${decoded.relationshipId}`)
             : "-",
+          ticketName: ticket.ticket_name,
           status: "valid" as const,
           relationshipId,
           affiliation: decoded?.affiliation ?? "",
@@ -825,6 +827,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
                   `間柄${decoded.relationshipId}`)
                 : "-",
               relationshipId: decoded?.relationshipId ?? ticket.relationship,
+              ticketName: ticket.ticket_name,
             },
             "valid",
           );

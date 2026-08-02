@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { FaCheck } from 'react-icons/fa6';
+import { RiEdit2Fill } from 'react-icons/ri';
 import styles from './IssuedTicketCardList.module.css';
 
 export type TicketCardStatus =
@@ -18,6 +20,7 @@ export type TicketCardItem = {
   scheduleName: string;
   ticketTypeLabel: string;
   relationshipName: string;
+  ticketName?: string | null;
   issuerName?: string;
   status: TicketCardStatus;
 };
@@ -36,7 +39,26 @@ type IssuedTicketCardListProps = {
   showSortControl?: boolean;
   sortMode?: TicketListSortMode;
   onSortModeChange?: (mode: TicketListSortMode) => void;
+  onTicketNameChange?: (
+    ticket: TicketCardItem,
+    name: string | null,
+  ) => Promise<void>;
 };
+
+export const getTicketDisplayName = (
+  ticket: Pick<
+    TicketCardItem,
+    'ticketName' | 'performanceName' | 'scheduleName' | 'serial'
+  >,
+): string =>
+  ticket.ticketName?.trim() ||
+  [
+    ticket.performanceName,
+    ticket.scheduleName,
+    typeof ticket.serial === 'number' ? `#${ticket.serial}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
 export const compareTicketCardItem = (
   a: TicketCardItem,
@@ -114,6 +136,7 @@ const IssuedTicketCardList = ({
   showSortControl = false,
   sortMode,
   onSortModeChange,
+  onTicketNameChange,
 }: IssuedTicketCardListProps) => {
   const [internalSortMode, setInternalSortMode] =
     useState<TicketListSortMode>('recent');
@@ -122,6 +145,10 @@ const IssuedTicketCardList = ({
     null,
   );
   const [isCollapsible, setIsCollapsible] = useState(false);
+  const [editingTicketCode, setEditingTicketCode] = useState<string | null>(
+    null,
+  );
+  const [ticketNameDraft, setTicketNameDraft] = useState('');
   const cardRefs = useRef<Array<HTMLElement | null>>([]);
   const resolvedSortMode = sortMode ?? internalSortMode;
 
@@ -130,6 +157,14 @@ const IssuedTicketCardList = ({
       setInternalSortMode(nextMode);
     }
     onSortModeChange?.(nextMode);
+  };
+
+  const saveTicketName = (ticket: TicketCardItem) => {
+    if (!onTicketNameChange) {
+      return;
+    }
+    setEditingTicketCode(null);
+    void onTicketNameChange(ticket, ticketNameDraft.trim() || null);
   };
 
   const sortedTickets = useMemo(() => {
@@ -245,6 +280,7 @@ const IssuedTicketCardList = ({
               const headlineLabel = isAdmissionOnly
                 ? '入場専用券'
                 : ticket.performanceName;
+              const isEditingName = editingTicketCode === ticket.code;
 
               return (
                 <article
@@ -254,10 +290,53 @@ const IssuedTicketCardList = ({
                     cardRefs.current[index] = element;
                   }}
                 >
-                  {showSerialNumber && typeof ticket.serial === 'number' && (
-                    <span className={styles.serialBadge}>#{ticket.serial}</span>
-                  )}
                   <div className={styles.ticketHeader}>
+                    <div className={styles.ticketNameArea}>
+                      {isEditingName ? (
+                        <input
+                          className={styles.ticketNameInput}
+                          value={ticketNameDraft}
+                          maxLength={100}
+                          aria-label='チケット名'
+                          autoFocus
+                          onInput={(event) =>
+                            setTicketNameDraft(event.currentTarget.value)
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === 'Escape') {
+                              setEditingTicketCode(null);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span className={styles.ticketNameValue}>
+                          {getTicketDisplayName(ticket)}
+                        </span>
+                      )}
+                      {onTicketNameChange && isEditingName && (
+                        <button
+                          type='button'
+                          className={styles.ticketNameEditFinishButton}
+                          aria-label='チケット名を保存'
+                          onClick={() => saveTicketName(ticket)}
+                        >
+                          <FaCheck aria-hidden='true' />
+                        </button>
+                      )}
+                      {onTicketNameChange && !isEditingName && (
+                        <button
+                          type='button'
+                          className={styles.ticketNameEditButton}
+                          aria-label='チケット名を編集'
+                          onClick={() => {
+                            setTicketNameDraft(getTicketDisplayName(ticket));
+                            setEditingTicketCode(ticket.code);
+                          }}
+                        >
+                          <RiEdit2Fill aria-hidden='true' />
+                        </button>
+                      )}
+                    </div>
                     <h3
                       className={`${styles.ticketClass} ${ticket.status !== 'valid' ? styles.isInvalid : ''}`}
                     >
@@ -273,6 +352,11 @@ const IssuedTicketCardList = ({
                     >
                       {ticket.scheduleName === '' ? '-' : ticket.scheduleName}
                     </span>
+                    {showSerialNumber && typeof ticket.serial === 'number' && (
+                      <span className={styles.serialBadge}>
+                        #{ticket.serial}
+                      </span>
+                    )}
                   </div>
                   <div className={styles.ticketMeta}>
                     {showTicketCode && (

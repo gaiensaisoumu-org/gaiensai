@@ -71,7 +71,7 @@
 
 .ticketCard {
   position: relative;
-  padding: 2.25rem 1rem 1rem;
+  padding: 1.3rem 1rem 1rem;
   border-radius: 12px;
   border: 1px solid var(--select-border-color);
   background-color: var(--normal-section-bg-color);
@@ -80,10 +80,17 @@
   gap: 1rem;
 }
 
+.ticketNameArea {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .serialBadge {
   position: absolute;
-  top: 0.7rem;
-  right: 0.9rem;
+  right: 0;
+  bottom: 1rem;
   font-size: 0.8rem;
   font-weight: 800;
   color: var(--main-text-color);
@@ -95,8 +102,9 @@
 }
 
 .ticketHeader {
+  position: relative;
   border-bottom: 1px solid var(--select-border-color);
-  padding-bottom: 1rem;
+  padding: 0 3rem 1rem 0;
 }
 
 .ticketClass {
@@ -149,6 +157,59 @@
   color: var(--heading-text-color);
   white-space: pre-line;
   text-align: right;
+}
+
+.ticketNameValue {
+  min-width: 0;
+  font-size: 1rem;
+  color: var(--heading-text-color);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.ticketNameInput {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--select-border-color);
+  border-radius: 5px;
+  background: var(--select-bg-color);
+  color: var(--main-text-color);
+  padding: 0.25rem 0.4rem;
+  font: inherit;
+}
+
+.ticketNameEditButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--main-text-color);
+  padding: 0.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 1.5rem;
+}
+
+.ticketNameEditFinishButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: var(--main-text-color);
+  padding: 0.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.ticketNameEditFinishButton:hover {
+  background: var(--brighter-primary-color);
 }
 
 .ticketCodeValue {
