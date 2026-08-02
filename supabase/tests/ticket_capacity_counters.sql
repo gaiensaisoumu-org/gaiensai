@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(21);
+SELECT plan(22);
 
 INSERT INTO public.configs (
   id,
@@ -32,6 +32,7 @@ VALUES
   (1, 'クラス公演(当日)', '招待券'),
   (3, '体育館公演', '招待券'),
   (5, 'クラス公演', '中学生券'),
+  (6, '体育館公演', '中学生券'),
   (8, 'クラス公演', '当日券')
 ON CONFLICT (id) DO UPDATE
 SET
@@ -130,6 +131,7 @@ INSERT INTO public.gym_performances (
   start_at,
   end_at,
   capacity,
+  junior_capacity,
   year,
   is_accepting
 )
@@ -140,6 +142,7 @@ VALUES (
   now(),
   now() + interval '30 minutes',
   2,
+  1,
   2026,
   true
 )
@@ -151,12 +154,14 @@ VALUES (
   now(),
   now() + interval '30 minutes',
   2,
+  1,
   2026,
   true
 )
 ON CONFLICT (id) DO UPDATE
 SET
   capacity = 2,
+  junior_capacity = 1,
   is_accepting = true;
 
 SELECT throws_like(
@@ -376,13 +381,31 @@ SELECT lives_ok(
       1::smallint,
       31001::smallint,
       0::smallint,
-      2::smallint,
-      ARRAY['GYM-CAPACITY-1', 'GYM-CAPACITY-2'],
-      ARRAY['SIG-GYM-CAPACITY-1', 'SIG-GYM-CAPACITY-2'],
+      1::smallint,
+      ARRAY['GYM-CAPACITY-1'],
+      ARRAY['SIG-GYM-CAPACITY-1'],
       1::smallint
     );
   $$,
-  'gym tickets can be issued up to the remaining capacity'
+  'gym invite tickets can be issued up to the general capacity'
+);
+
+SELECT lives_ok(
+  $$
+    SELECT *
+    FROM public.issue_gym_tickets_with_codes(
+      '00000000-0000-0000-0000-00000000c002'::uuid,
+      6::smallint,
+      1::smallint,
+      31001::smallint,
+      0::smallint,
+      1::smallint,
+      ARRAY['GYM-JUNIOR-CAPACITY-1'],
+      ARRAY['SIG-GYM-JUNIOR-CAPACITY-1'],
+      1::smallint
+    );
+  $$,
+  'gym junior ticket can use the reserved junior capacity'
 );
 
 SELECT is(
@@ -422,7 +445,7 @@ SELECT throws_like(
       1::smallint
     );
   $$,
-  '%定員%',
+  '%残席%',
   'gym tickets cannot be issued beyond remaining capacity'
 );
 
