@@ -299,10 +299,11 @@ const IssuedTicketCardList = ({
                           maxLength={100}
                           aria-label='チケット名'
                           autoFocus
-                          onInput={(event) =>
-                            setTicketNameDraft(event.currentTarget.value)
-                          }
-                          onKeyDown={(event) => {
+                        onInput={(event) =>
+                          setTicketNameDraft(event.currentTarget.value)
+                        }
+                        onBlur={() => saveTicketName(ticket)}
+                        onKeyDown={(event) => {
                             if (event.key === 'Escape') {
                               setEditingTicketCode(null);
                             }
