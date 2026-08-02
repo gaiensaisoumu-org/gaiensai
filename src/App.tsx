@@ -19,6 +19,7 @@ import {
   Pamphlet,
   Info,
   Settings,
+  Status,
   StudentAccounts,
   SecretBase,
 } from './routes';
@@ -121,6 +122,7 @@ const AdminPageLayout = () => (
         <Route path='/register' component={Register} />
         <Route path='/history' component={ScanHistory} />
         <Route path='settings' component={Settings} />
+        <Route path='/status' component={Status} />
         <Route path='/student-accounts' component={StudentAccounts} />
         <Route path='/junior-accounts' component={JuniorAccounts} />
         <Route default component={NotFound} />

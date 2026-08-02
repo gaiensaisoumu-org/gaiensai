@@ -1,0 +1,227 @@
+.pageShell {
+  padding: 0 1rem 3rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  margin: 0 0 .2rem;
+  color: var(--accent-color);
+  font-weight: 700;
+  font-size: .85rem;
+}
+
+.lead {
+  margin: .4rem 0 0;
+  color: var(--sub-text-color);
+  font-size: .9rem;
+}
+
+.subheading {
+  margin: 1.5rem 0 .5rem;
+  font-size: 1.1rem;
+}
+
+.refreshButton {
+  border: 1px solid var(--table-border-color);
+  border-radius: 9px;
+  background: var(--normal-section-bg-color);
+  padding: .55rem .9rem;
+  color: var(--main-text-color);
+  cursor: pointer;
+  font: inherit;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .75rem;
+  margin: 1rem 0;
+}
+
+.cards>div {
+  display: grid;
+  gap: .2rem;
+  padding: 1rem;
+  border: 1px solid var(--table-border-color);
+  border-radius: 14px;
+  background: var(--normal-section-bg-color);
+}
+
+.cards span,
+.cards small {
+  color: var(--sub-text-color);
+  font-size: .84rem;
+}
+
+.cards strong {
+  font-size: 1.75rem;
+  color: var(--accent-color);
+}
+
+.juniorCards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+  margin-top: 1rem;
+}
+
+.juniorCards>div {
+  display: grid;
+  gap: .2rem;
+  padding: .85rem;
+  border: 1px solid var(--table-border-color);
+  border-radius: 12px;
+}
+
+.juniorCards span,
+.juniorCards small { color: var(--sub-text-color); font-size: .8rem; }
+.juniorCards strong { color: var(--accent-color); font-size: 1.25rem; }
+
+.distributions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.distribution { min-width: 0; }
+.distribution h3 { margin: 0; font-size: 1rem; text-align: center; }
+
+.registrationGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, .9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 1rem;
+}
+
+.chart {
+  min-height: 310px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+
+th,
+td {
+  padding: .65rem .5rem;
+  border-bottom: 1px solid var(--table-border-color);
+  text-align: right;
+  white-space: nowrap;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+thead th {
+  color: var(--sub-text-color);
+  font-size: .8rem;
+}
+
+.rankings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.ranking {
+  border: 1px solid var(--table-border-color);
+  border-radius: 12px;
+  padding: .85rem;
+}
+
+.ranking h3 {
+  margin: 0 0 .45rem;
+  font-size: 1rem;
+}
+
+.rankingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rankingList li {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  gap: .35rem;
+  align-items: center;
+  padding: .45rem 0;
+  border-top: 1px solid var(--table-border-color);
+}
+
+.rank {
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+.rankName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankValue {
+  text-align: right;
+  font-weight: 700;
+}
+
+.rankValue small {
+  display: block;
+  color: var(--sub-text-color);
+  font-weight: 400;
+  font-size: .75rem;
+}
+
+.empty {
+  color: var(--sub-text-color);
+  font-size: .9rem;
+}
+
+@media (max-width: 760px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .registrationGrid,
+  .rankings,
+  .distributions {
+    grid-template-columns: 1fr;
+  }
+
+  .juniorCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.settingHint {
+  margin: 0 !important;
+  font-size: 0.8rem;
+  color: var(--settings-hint-color);
+}
+
+.inlineEditButton {
+  border: 1px solid var(--settings-border-color);
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.inlineEditButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

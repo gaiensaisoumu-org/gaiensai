@@ -77,6 +77,7 @@ type AdminAuthBody =
   | { mode: "deleteAllStudentAccounts" }
   | { mode: "deleteAccountsByType"; accountType: "student" | "junior" }
   | { mode: "deleteAllTicketsAndResetCounters" }
+  | { mode: "getStatusDashboard" }
   | { mode: "getStudentUsers" }
   | {
       mode: "resetUserPassword";
@@ -368,6 +369,10 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === "getStudentUsers") {
     return { mode: "getStudentUsers" };
+  }
+
+  if (action === "getStatusDashboard") {
+    return { mode: "getStatusDashboard" };
   }
 
   if (action === "resetUserPassword") {
@@ -1434,6 +1439,36 @@ Deno.serve(async (req) => {
         .eq("id", session.id);
 
       return new Response(JSON.stringify({ users: studentUsers }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (body.mode === "getStatusDashboard") {
+      const session = await requireValidSession(adminClient, req);
+      const [dashboardResult, juniorStatusResult] = await Promise.all([
+        adminClient.rpc("get_admin_status_dashboard"),
+        adminClient.rpc("get_admin_junior_status_dashboard"),
+      ]);
+
+      if (dashboardResult.error) {
+        throw dashboardResult.error;
+      }
+      if (juniorStatusResult.error) {
+        throw juniorStatusResult.error;
+      }
+
+      const dashboard = {
+        ...(dashboardResult.data as Record<string, unknown>),
+        juniorStatus: juniorStatusResult.data,
+      };
+
+      await adminClient
+        .from("admin_sessions")
+        .update({ last_used_at: new Date().toISOString() })
+        .eq("id", session.id);
+
+      return new Response(JSON.stringify({ dashboard }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

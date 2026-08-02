@@ -6,8 +6,6 @@ import styles from "./Settings.module.css";
 import Switch from "../../components/ui/Switch";
 import { useTitle } from "../../hooks/useTitle";
 import { useEventConfig } from "../../hooks/useEventConfig";
-import PerformancesTable from "../../features/performances/PerformancesTable";
-import GymPerformancesTable from "../../features/performances/GymPerformancesTable";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import {
   AdminAuthLayout,
@@ -1122,6 +1120,17 @@ const SettingsContent = () => {
         </p>
       </Alert>
       <NormalSection>
+        <div className={styles.headerRow}>
+          <div>
+            <h2>ステータス</h2>
+            <p className={styles.settingHint}>初回登録率・発券数・ランキングを確認できます。</p>
+          </div>
+          <a className={styles.inlineEditButton} href='/admin/status'>
+            ステータス画面を開く
+          </a>
+        </div>
+      </NormalSection>
+      <NormalSection>
         <h2>全体</h2>
         <div className={styles.formGrid}>
           <div className={styles.field}>
@@ -1264,13 +1273,6 @@ const SettingsContent = () => {
         </form>
       </NormalSection>
 
-      <NormalSection>
-        <h2>公演空き状況</h2>
-        <h3>クラス公演</h3>
-        <PerformancesTable showToggleRemainingMode={true} />
-        <h3>体育館公演</h3>
-        <GymPerformancesTable showToggleRemainingMode={true} />
-      </NormalSection>
       <NormalSection>
         <h2>チケット発券</h2>
         <div className={styles.formGrid}>
