@@ -138,9 +138,9 @@ const Issue = () => {
     useState<SelectedPerformance>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketTypeOption[]>([]);
   const [issueControls, setIssueControls] = useState<{
-    class_invite_mode: 'open' | 'only-own' | 'off';
+    class_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
     rehearsal_invite_mode: 'open' | 'only-own' | 'off';
-    gym_invite_mode: 'open' | 'only-own' | 'off';
+    gym_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
     entry_only_mode: 'open' | 'only-own' | 'off';
   } | null>(null);
   const [relationships, setRelationships] = useState<RelationshipRow[]>([]);
@@ -159,7 +159,7 @@ const Issue = () => {
   const [isIssuing, setIsIssuing] = useState(false);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
   const [classInviteMode, setClassInviteMode] = useState<
-    'open' | 'only-own' | 'off'
+    'open' | 'only-own' | 'outside-own-self-only' | 'off'
   >('open');
   const [ownClassName, setOwnClassName] = useState<string | null>(null);
   const [ownClubs, setOwnClubs] = useState<string[] | null>(null);
@@ -735,6 +735,39 @@ const Issue = () => {
       : (relationships.find(
           (relationship) => relationship.id === selectedRelationshipId,
         )?.name ?? `間柄${selectedRelationshipId}`);
+  const isOtherClassSelection = Boolean(
+    selectedTicketType?.id === CLASS_INVITE_TICKET_ID &&
+      selectedPerformance &&
+      ownClassName !== null &&
+      selectedPerformance.performanceName !== ownClassName,
+  );
+  const isOtherGymSelection = Boolean(
+    selectedTicketType?.id === GYM_INVITE_TICKET_ID &&
+      selectedPerformance &&
+      ownClubs !== null &&
+      !ownClubs.includes(selectedPerformance.performanceName),
+  );
+  const isRelationshipRestrictedToSelf =
+    (classInviteMode === 'outside-own-self-only' && isOtherClassSelection) ||
+    (issueControls?.gym_invite_mode === 'outside-own-self-only' &&
+      isOtherGymSelection);
+  const availableRelationships = useMemo(
+    () =>
+      isRelationshipRestrictedToSelf
+        ? relationships.filter((relationship) => relationship.id === 1)
+        : relationships,
+    [isRelationshipRestrictedToSelf, relationships],
+  );
+
+  useEffect(() => {
+    if (
+      isRelationshipRestrictedToSelf &&
+      selectedRelationshipId !== null &&
+      selectedRelationshipId !== 1
+    ) {
+      setSelectedRelationshipId(null);
+    }
+  }, [isRelationshipRestrictedToSelf, selectedRelationshipId]);
 
   const canSubmit =
     Boolean(selectedTicketType) &&
@@ -1166,7 +1199,7 @@ const Issue = () => {
 
         <div className={getPanelClassName(3)}>
           <IssueStepDetails
-            relationships={relationships}
+            relationships={availableRelationships}
             relationshipLoading={relationshipLoading}
             relationshipError={relationshipError}
             selectedRelationshipId={selectedRelationshipId}

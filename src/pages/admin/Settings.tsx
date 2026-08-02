@@ -32,7 +32,12 @@ type ControlPanelSettings = {
 };
 
 type TicketTypeControlValue =
-  "open" | "only-own" | "public-rehearsals" | "auto" | "off";
+  | "open"
+  | "only-own"
+  | "outside-own-self-only"
+  | "public-rehearsals"
+  | "auto"
+  | "off";
 
 type TicketTypeControlKey =
   | "classInvite"
@@ -131,6 +136,7 @@ const isTicketTypeControlValue = (
 ): value is TicketTypeControlValue =>
   value === "open" ||
   value === "only-own" ||
+  value === "outside-own-self-only" ||
   value === "public-rehearsals" ||
   value === "auto" ||
   value === "off";
@@ -1325,6 +1331,7 @@ const SettingsContent = () => {
               >
                 <option value='open'>すべて</option>
                 <option value='only-own'>自クラスのみ</option>
+                <option value='outside-own-self-only'>他クラスは間柄「本人」のみ</option>
                 <option value='off'>無効</option>
               </select>
             </div>
@@ -1375,6 +1382,7 @@ const SettingsContent = () => {
               >
                 <option value='open'>すべて</option>
                 <option value='only-own'>自部活のみ</option>
+                <option value='outside-own-self-only'>他部活は間柄「本人」のみ</option>
                 <option value='off'>無効</option>
               </select>
             </div>

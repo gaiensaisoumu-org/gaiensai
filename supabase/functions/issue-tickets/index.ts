@@ -36,7 +36,12 @@ type IssueTicketsRequest = {
 };
 
 type TicketIssueMode =
-  'open' | 'only-own' | 'public-rehearsals' | 'auto' | 'off';
+  | 'open'
+  | 'only-own'
+  | 'outside-own-self-only'
+  | 'public-rehearsals'
+  | 'auto'
+  | 'off';
 
 type TicketIssueControls = {
   classInvite: TicketIssueMode;
@@ -54,6 +59,7 @@ const DAY_TICKET_GUEST_USER_ID = '00000000-0000-0000-0000-00000000d001';
 const TICKET_ISSUE_MODE_VALUES = new Set<string>([
   'open',
   'only-own',
+  'outside-own-self-only',
   'public-rehearsals',
   'auto',
   'off',
@@ -657,6 +663,31 @@ export const handleIssueTicketsRequest = async (
           );
         }
       }
+      if (ticketIssueControls.classInvite === 'outside-own-self-only') {
+        const { grade, classNo } = getStudentGradeClass(affiliation);
+        const ownClassName = `${grade}-${classNo}`;
+        const { data: classPerformance, error: classPerformanceError } =
+          await adminClient
+            .from('class_performances')
+            .select('class_name')
+            .eq('id', body.performanceId)
+            .maybeSingle();
+        if (classPerformanceError || !classPerformance) {
+          throw new HttpError(
+            409,
+            'クラス公演情報の取得に失敗しました。ページを更新してからやり直してください。',
+          );
+        }
+        if (
+          classPerformance.class_name !== ownClassName &&
+          relationshipId !== SELF_RELATIONSHIP_ID
+        ) {
+          throw new HttpError(
+            403,
+            '他クラス公演のチケットは本人分のみ発券できます。',
+          );
+        }
+      }
     } else if (
       rehearsalInviteId !== undefined &&
       body.ticketTypeId === rehearsalInviteId
@@ -702,6 +733,17 @@ export const handleIssueTicketsRequest = async (
             'この設定では自部活の公演のみ発券できます。',
           );
         }
+      }
+      if (
+        ticketIssueControls.gymInvite === 'outside-own-self-only' &&
+        (!gymPerformanceRow ||
+          !(userRow?.clubs ?? []).includes(gymPerformanceRow.group_name)) &&
+        relationshipId !== SELF_RELATIONSHIP_ID
+      ) {
+        throw new HttpError(
+          403,
+          '他部活・他団体の公演チケットは本人分のみ発券できます。',
+        );
       }
     } else if (
       (entryOnlyId !== undefined && body.ticketTypeId === entryOnlyId) ||

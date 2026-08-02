@@ -46,7 +46,12 @@ type AdminAuthRequest = {
 };
 
 type TicketIssueMode =
-  "open" | "only-own" | "public-rehearsals" | "auto" | "off";
+  | "open"
+  | "only-own"
+  | "outside-own-self-only"
+  | "public-rehearsals"
+  | "auto"
+  | "off";
 
 type TicketIssueModes = {
   classInvite: TicketIssueMode;
@@ -160,6 +165,7 @@ const MANAGED_TICKET_TYPE_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 const TICKET_ISSUE_MODE_VALUES = [
   "open",
   "only-own",
+  "outside-own-self-only",
   "public-rehearsals",
   "auto",
   "off",
