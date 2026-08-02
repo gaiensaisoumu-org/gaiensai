@@ -5,6 +5,7 @@ import styles from "./PerformancesTable.module.css";
 import { useLocation } from "preact-iso";
 import type { AvailableSeatSelection } from "../../types/types";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { withTimeout } from "../../utils/withTimeout";
 
 type GymPerformanceRow = {
   id: number;
@@ -23,6 +24,8 @@ type GymTicketCounterRow = {
 };
 
 const cellKeySeparator = "\u0000";
+const GYM_PERFORMANCES_CACHE_KEY = "gym-performances-table-cache:v1";
+const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 const toCellKey = (roundName: string, groupName: string) =>
   `${roundName}${cellKeySeparator}${groupName}`;
@@ -62,6 +65,7 @@ const GymPerformancesTable = ({
   >(new Map());
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [cacheNotice, setCacheNotice] = useState<string | null>(null);
   const [currentRemainingMode, setCurrentRemainingMode] = useState<
     "general" | "total" | "junior"
   >(remainingMode);
@@ -77,6 +81,39 @@ const GymPerformancesTable = ({
     const load = async () => {
       setLoading(true);
       setErrorMessage(null);
+      setCacheNotice(null);
+
+      // 日付ごとの関数フィルターは復元できないため除外する。ほかの条件は
+      // キーに含め、別画面の結果が混ざらないようにする。
+      const canUseCache = !scheduleFilter;
+      const restrictedGroupsKey = restrictedGroupNames
+        ? [...restrictedGroupNames].sort().map(encodeURIComponent).join(",")
+        : "all";
+      const cacheKey = `${GYM_PERFORMANCES_CACHE_KEY}:${currentRemainingMode}:${filterAccepting ? "accepting" : "all"}:${restrictedGroupsKey}`;
+
+      const restoreCache = () => {
+        if (!canUseCache) return false;
+        try {
+          const raw = window.localStorage.getItem(cacheKey);
+          if (!raw) return false;
+          const cached = JSON.parse(raw) as {
+            performances?: GymPerformanceRow[];
+            remaining?: Array<[number, number]>;
+          };
+          if (!Array.isArray(cached.performances) || !Array.isArray(cached.remaining)) {
+            return false;
+          }
+          setPerformances(cached.performances);
+          setRemainingByPerformanceId(new Map(cached.remaining));
+          setCacheNotice(
+            "残席情報の取得が遅延しているため、前回の表示を使用しています。",
+          );
+          setLoading(false);
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       let query = supabase
         .from("gym_performances")
@@ -90,7 +127,19 @@ const GymPerformancesTable = ({
         query = query.eq("is_accepting", true);
       }
 
-      const { data: performanceData, error: performanceError } = await query;
+      let performanceData: unknown;
+      let performanceError: unknown;
+      try {
+        const result = await withTimeout(query, SUPABASE_RESPONSE_TIMEOUT_MS);
+        performanceData = result.data;
+        performanceError = result.error;
+      } catch {
+        if (!restoreCache()) {
+          setErrorMessage("体育館公演の取得がタイムアウトしました。");
+          setLoading(false);
+        }
+        return;
+      }
 
       if (performanceError) {
         setErrorMessage("体育館公演の取得に失敗しました。");
@@ -116,21 +165,37 @@ const GymPerformancesTable = ({
 
       const performanceIds = loadedPerformances.map((p) => p.id);
 
-      const [
-        { data: counterData, error: counterError },
-        { data: configData, error: configError },
-      ] = await Promise.all([
-        supabase
-          .from("gym_ticket_counters")
-          .select("performance_id, issued_general, issued_junior, issued_other")
-          .in("performance_id", performanceIds),
-        supabase
-          .from("configs")
-          .select("junior_release_open")
-          .order("id", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      let counterData: unknown;
+      let configData: { junior_release_open?: boolean | null } | null = null;
+      let counterError: unknown;
+      let configError: unknown;
+      try {
+        const [
+          { data: loadedCounterData, error: loadedCounterError },
+          { data: loadedConfigData, error: loadedConfigError },
+        ] = await withTimeout(Promise.all([
+          supabase
+            .from("gym_ticket_counters")
+            .select("performance_id, issued_general, issued_junior, issued_other")
+            .in("performance_id", performanceIds),
+          supabase
+            .from("configs")
+            .select("junior_release_open")
+            .order("id", { ascending: true })
+            .limit(1)
+            .maybeSingle(),
+        ]), SUPABASE_RESPONSE_TIMEOUT_MS);
+        counterData = loadedCounterData;
+        configData = loadedConfigData;
+        counterError = loadedCounterError;
+        configError = loadedConfigError;
+      } catch {
+        if (!restoreCache()) {
+          setErrorMessage("体育館公演の残席情報の取得がタイムアウトしました。");
+          setLoading(false);
+        }
+        return;
+      }
 
       if (counterError || configError) {
         setErrorMessage("体育館公演の残席情報の取得に失敗しました。");
@@ -177,6 +242,19 @@ const GymPerformancesTable = ({
       }
 
       setRemainingByPerformanceId(remainingMap);
+      if (canUseCache) {
+        try {
+          window.localStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              performances: loadedPerformances,
+              remaining: [...remainingMap.entries()],
+            }),
+          );
+        } catch {
+          // キャッシュ書き込み失敗は表示に影響させない
+        }
+      }
       setLoading(false);
     };
 
@@ -436,6 +514,7 @@ const GymPerformancesTable = ({
 
   return (
     <div className={styles.container}>
+      {cacheNotice && <p>{cacheNotice}</p>}
       <div className={styles.filters}>
         <label className={styles.filterLabel} htmlFor="gym-group-filter">
           団体

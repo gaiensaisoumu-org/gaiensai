@@ -6,6 +6,7 @@ import { useLocation } from 'preact-iso';
 
 import type { AvailableSeatSelection } from '../../types/types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { withTimeout } from '../../utils/withTimeout';
 
 type PerformanceRow = {
   id: number;
@@ -26,6 +27,9 @@ type ClassTicketCounterRow = {
   issued_junior: number | null;
   issued_other: number | null;
 };
+
+const PERFORMANCES_CACHE_KEY = 'performances-table-cache:v1';
+const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 type PerformancesTableProps = {
   enableIssueJump?: boolean;
@@ -64,6 +68,7 @@ const PerformancesTable = ({
   );
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [cacheNotice, setCacheNotice] = useState<string | null>(null);
   const [currentRemainingMode, setCurrentRemainingMode] = useState<
     'general' | 'junior' | 'total'
   >(remainingMode);
@@ -144,6 +149,43 @@ const PerformancesTable = ({
     const load = async () => {
       setLoading(true);
       setErrorMessage(null);
+      setCacheNotice(null);
+
+      // 日付ごとの関数フィルターは復元できないため除外する。ほかの条件は
+      // キーに含め、別画面の結果が混ざらないようにする。
+      const canUseCache = !scheduleFilter;
+      const cacheKey = `${PERFORMANCES_CACHE_KEY}:${currentRemainingMode}:${filterAccepting ? 'accepting' : 'all'}:${encodeURIComponent(restrictedClassName ?? 'all')}`;
+      const restoreCache = () => {
+        if (!canUseCache) return false;
+
+        try {
+          const raw = window.localStorage.getItem(cacheKey);
+          if (!raw) return false;
+          const cached = JSON.parse(raw) as {
+            performances?: PerformanceRow[];
+            schedules?: PerformanceSchedule[];
+            remaining?: Array<[string, number]>;
+          };
+          if (
+            !Array.isArray(cached.performances) ||
+            !Array.isArray(cached.schedules) ||
+            !Array.isArray(cached.remaining)
+          ) {
+            return false;
+          }
+
+          setPerformances(cached.performances);
+          setSchedules(cached.schedules);
+          setRemainingSeatMap(new Map(cached.remaining));
+          setCacheNotice(
+            '残席情報の取得が遅延しているため、前回の表示を使用しています。',
+          );
+          setLoading(false);
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       let perfQuery = supabase
         .from('class_performances')
@@ -163,10 +205,26 @@ const PerformancesTable = ({
         schQuery = schQuery.eq('is_active', true);
       }
 
-      const [
-        { data: performanceData, error: performanceError },
-        { data: scheduleData, error: scheduleError },
-      ] = await Promise.all([perfQuery, schQuery]);
+      let performanceData: unknown;
+      let scheduleData: unknown;
+      let performanceError: unknown;
+      let scheduleError: unknown;
+      try {
+        const [performanceResult, scheduleResult] = await withTimeout(
+          Promise.all([perfQuery, schQuery]),
+          SUPABASE_RESPONSE_TIMEOUT_MS,
+        );
+        performanceData = performanceResult.data;
+        performanceError = performanceResult.error;
+        scheduleData = scheduleResult.data;
+        scheduleError = scheduleResult.error;
+      } catch {
+        if (isMounted && !restoreCache()) {
+          setErrorMessage('公演空き状況の取得がタイムアウトしました。');
+          setLoading(false);
+        }
+        return;
+      }
 
       if (!isMounted) {
         return;
@@ -206,18 +264,34 @@ const PerformancesTable = ({
               .in('round_id', scheduleIds)
           : Promise.resolve({ data: [], error: null });
 
-      const [
-        { data: counterData, error: counterError },
-        { data: configData, error: configError },
-      ] = await Promise.all([
-        countersQuery,
-        supabase
-          .from('configs')
-          .select('junior_release_open')
-          .order('id', { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      let counterData: unknown;
+      let configData: { junior_release_open?: boolean | null } | null = null;
+      let counterError: unknown;
+      let configError: unknown;
+      try {
+        const [counterResult, configResult] = await withTimeout(
+          Promise.all([
+            countersQuery,
+            supabase
+              .from('configs')
+              .select('junior_release_open')
+              .order('id', { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+          ]),
+          SUPABASE_RESPONSE_TIMEOUT_MS,
+        );
+        counterData = counterResult.data;
+        counterError = counterResult.error;
+        configData = configResult.data;
+        configError = configResult.error;
+      } catch {
+        if (isMounted && !restoreCache()) {
+          setErrorMessage('残席情報の取得がタイムアウトしました。');
+          setLoading(false);
+        }
+        return;
+      }
 
       if ((counterError || configError) && isMounted) {
         setErrorMessage('残席情報の取得に失敗しました。');
@@ -278,6 +352,20 @@ const PerformancesTable = ({
       setRemainingSeatMap(seatMap);
       setPerformances(loadedPerformances);
       setSchedules(loadedSchedules);
+      if (canUseCache) {
+        try {
+          window.localStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              performances: loadedPerformances,
+              schedules: loadedSchedules,
+              remaining: [...seatMap.entries()],
+            }),
+          );
+        } catch {
+          // キャッシュ書き込み失敗は表示に影響させない
+        }
+      }
       setLoading(false);
     };
 
@@ -541,6 +629,7 @@ const PerformancesTable = ({
 
   return (
     <div className={styles.container}>
+      {cacheNotice && <p>{cacheNotice}</p>}
       <div className={styles.filters}>
         <label className={styles.filterLabel} htmlFor='class-filter'>
           クラス

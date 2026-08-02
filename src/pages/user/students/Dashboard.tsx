@@ -33,8 +33,10 @@ import LoadingSpinner from "../../../components/ui/LoadingSpinner";
 import { useTicketStorage } from "../../../features/tickets/useTicketStorage";
 import { formatTicketTypeLabel } from "../../../features/tickets/formatTicketTypeLabel";
 import { useTitle } from "../../../hooks/useTitle";
+import { withTimeout } from "../../../utils/withTimeout";
 
 const STUDENT_TICKETS_CACHE_PREFIX = "ticket-display-cache:v1:";
+const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 const readAllLocalStorageTickets = (): Array<
   TicketCardItem & { relationshipId: number; affiliation: string }
@@ -331,11 +333,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
           .select("id, tickets!inner(id)", { count: "exact", head: true })
           .eq("tickets.user_id", userId)
           .eq("tickets.status", "valid"),
-        supabase
-          .from("users")
-          .select("clubs")
-          .eq("id", userId)
-          .maybeSingle(),
+        supabase.from("users").select("clubs").eq("id", userId).maybeSingle(),
       ]);
 
       if (
@@ -413,14 +411,28 @@ const Dashboard = ({ userData }: DashboardProps) => {
         return false;
       };
 
-      const [{ data: ticketsData, error: ticketsError }] = await Promise.all([
-        supabase
-          .from("tickets")
-          .select("code, signature, relationship, created_at")
-          .eq("user_id", user.id)
-          .eq("status", "valid")
-          .order("created_at", { ascending: false }),
-      ]);
+      let ticketsData: unknown;
+      let ticketsError: unknown;
+      try {
+        const result = await withTimeout(
+          supabase
+            .from("tickets")
+            .select("code, signature, relationship, created_at")
+            .eq("user_id", user.id)
+            .eq("status", "valid")
+            .order("created_at", { ascending: false }),
+          SUPABASE_RESPONSE_TIMEOUT_MS,
+        );
+        ticketsData = result.data;
+        ticketsError = result.error;
+      } catch {
+        if (fallbackToCachedTickets()) {
+          return;
+        }
+        setTicketError("チケット情報の取得がタイムアウトしました。");
+        setTicketLoading(false);
+        return;
+      }
 
       if (ticketsError) {
         if (fallbackToCachedTickets()) {
@@ -500,37 +512,52 @@ const Dashboard = ({ userData }: DashboardProps) => {
         ),
       ];
 
-      const [
-        { data: classPerformanceData },
-        { data: gymPerformanceData },
-        { data: scheduleData },
-        { data: configData },
-      ] = await Promise.all([
-        classPerformanceIds.length > 0
-          ? supabase
-              .from("class_performances")
-              .select("id, class_name, title")
-              .in("id", classPerformanceIds)
-          : { data: [] },
-        gymPerformanceIds.length > 0
-          ? supabase
-              .from("gym_performances")
-              .select("id, group_name, round_name, start_at, end_at")
-              .in("id", gymPerformanceIds)
-          : { data: [] },
-        scheduleIds.length > 0
-          ? supabase
-              .from("performances_schedule")
-              .select("id, start_at")
-              .in("id", scheduleIds)
-          : { data: [] },
-        supabase
-          .from("configs")
-          .select("show_length")
-          .order("id", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      let classPerformanceData: unknown;
+      let gymPerformanceData: unknown;
+      let scheduleData: unknown;
+      let configData: { show_length?: number | null } | null = null;
+      try {
+        const results = await withTimeout(
+          Promise.all([
+            classPerformanceIds.length > 0
+              ? supabase
+                  .from("class_performances")
+                  .select("id, class_name, title")
+                  .in("id", classPerformanceIds)
+              : { data: [] },
+            gymPerformanceIds.length > 0
+              ? supabase
+                  .from("gym_performances")
+                  .select("id, group_name, round_name, start_at, end_at")
+                  .in("id", gymPerformanceIds)
+              : { data: [] },
+            scheduleIds.length > 0
+              ? supabase
+                  .from("performances_schedule")
+                  .select("id, start_at")
+                  .in("id", scheduleIds)
+              : { data: [] },
+            supabase
+              .from("configs")
+              .select("show_length")
+              .order("id", { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+          ]),
+          SUPABASE_RESPONSE_TIMEOUT_MS,
+        );
+        classPerformanceData = results[0].data;
+        gymPerformanceData = results[1].data;
+        scheduleData = results[2].data;
+        configData = results[3].data;
+      } catch {
+        if (fallbackToCachedTickets()) {
+          return;
+        }
+        setTicketError("チケット詳細の取得がタイムアウトしました。");
+        setTicketLoading(false);
+        return;
+      }
 
       const classPerformanceMap = new Map(
         (

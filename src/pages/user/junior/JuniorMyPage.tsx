@@ -30,6 +30,11 @@ import {
 } from "./applicationDay";
 import { createClient } from "@supabase/supabase-js";
 import { useLocation } from "preact-iso";
+import {
+  readCachedJuniorTicketCards,
+  writeCachedJuniorTicketCards,
+} from "./offlineCache";
+import { withTimeout } from "../../../utils/withTimeout";
 
 type TicketSnapshot = {
   performances?: Array<{
@@ -50,6 +55,7 @@ const ISSUE_POLL_MAX_RETRIES = 20;
 const ISSUE_POLL_INTERVAL_MS = 300;
 const LOAD_TICKET_RETRY_MAX = 20;
 const LOAD_TICKET_RETRY_INTERVAL_MS = 300;
+const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 type AccountSplitState = {
   showConfirmation: boolean;
@@ -67,6 +73,9 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   >([]);
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
+  const [ticketCacheNotice, setTicketCacheNotice] = useState<string | null>(
+    null,
+  );
   const [isOnline, setIsOnline] = useState(true);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
@@ -568,6 +577,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     const loadTickets = async () => {
       setTicketLoading(true);
       setTicketError(null);
+      setTicketCacheNotice(null);
 
       const {
         data: { session },
@@ -581,6 +591,22 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         return;
       }
 
+      const fallbackToCachedTickets = (message: string) => {
+        const cachedTickets = readCachedJuniorTicketCards(user.id);
+        if (!cachedTickets) {
+          setTicketError(message);
+          setTicketLoading(false);
+          return false;
+        }
+
+        setTicketCards(cachedTickets);
+        setTicketCacheNotice(
+          "チケット情報の取得が遅延しているため、前回の表示を使用しています。",
+        );
+        setTicketLoading(false);
+        return true;
+      };
+
       let ticketsData: Array<{
         code: string;
         signature: string;
@@ -588,12 +614,28 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       }> | null = null;
 
       for (let i = 0; i < LOAD_TICKET_RETRY_MAX; i++) {
-        const { data, error: ticketsError } = await supabase
-          .from("tickets")
-          .select("code, signature, relationship")
-          .eq("user_id", user.id)
-          .eq("status", "valid")
-          .order("created_at", { ascending: false });
+        let data: Array<{
+          code: string;
+          signature: string;
+          relationship: number;
+        }> | null = null;
+        let ticketsError: unknown;
+        try {
+          const result = await withTimeout(
+            supabase
+              .from("tickets")
+              .select("code, signature, relationship")
+              .eq("user_id", user.id)
+              .eq("status", "valid")
+              .order("created_at", { ascending: false }),
+            SUPABASE_RESPONSE_TIMEOUT_MS,
+          );
+          data = result.data as typeof data;
+          ticketsError = result.error;
+        } catch {
+          fallbackToCachedTickets("チケット情報の取得がタイムアウトしました。");
+          return;
+        }
 
         if (ticketsError) {
           setTicketError("チケット情報の取得に失敗しました。");
@@ -621,6 +663,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
 
       if (tickets.length === 0) {
         setTicketCards([]);
+        writeCachedJuniorTicketCards(user.id, []);
         setTicketLoading(false);
         return;
       }
@@ -660,21 +703,33 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         ),
       ];
 
-      const [{ data: classPerformanceData }, { data: gymPerformanceData }] =
-        await Promise.all([
-          classPerformanceIds.length > 0
-            ? supabase
-                .from("class_performances")
-                .select("id, class_name, title")
-                .in("id", classPerformanceIds)
-            : { data: [] },
-          gymPerformanceIds.length > 0
-            ? supabase
-                .from("gym_performances")
-                .select("id, group_name, round_name")
-                .in("id", gymPerformanceIds)
-            : { data: [] },
-        ]);
+      let classPerformanceData: unknown;
+      let gymPerformanceData: unknown;
+      try {
+        const [classPerformanceResult, gymPerformanceResult] =
+          await withTimeout(
+            Promise.all([
+              classPerformanceIds.length > 0
+                ? supabase
+                    .from("class_performances")
+                    .select("id, class_name, title")
+                    .in("id", classPerformanceIds)
+                : Promise.resolve({ data: [] }),
+              gymPerformanceIds.length > 0
+                ? supabase
+                    .from("gym_performances")
+                    .select("id, group_name, round_name")
+                    .in("id", gymPerformanceIds)
+                : Promise.resolve({ data: [] }),
+            ]),
+            SUPABASE_RESPONSE_TIMEOUT_MS,
+          );
+        classPerformanceData = classPerformanceResult.data;
+        gymPerformanceData = gymPerformanceResult.data;
+      } catch {
+        fallbackToCachedTickets("チケット情報の取得がタイムアウトしました。");
+        return;
+      }
 
       const classPerformanceMap = new Map(
         (
@@ -792,6 +847,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       });
 
       setTicketCards(cards);
+      writeCachedJuniorTicketCards(user.id, cards);
       setTicketLoading(false);
     };
 
@@ -855,6 +911,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       </section>
       <NormalSection>
         <h2>自分が使うチケット</h2>
+        {ticketCacheNotice && <p>{ticketCacheNotice}</p>}
         <TicketListContent
           loading={ticketLoading}
           error={ticketError}
