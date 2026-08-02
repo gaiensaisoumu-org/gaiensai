@@ -785,10 +785,12 @@ export const handleIssueTicketsRequest = async (
       }
     }
 
+    const gymTicketLimitMultiplier = Math.max(userRow?.clubs?.length ?? 0, 1);
     const maxTicketsPerUser = isJuniorUser
       ? Number(configRow.max_tickets_per_junior_user)
       : issueMode === 'gym'
-        ? Number(configRow.max_tickets_per_gym_user)
+        ? Number(configRow.max_tickets_per_gym_user) *
+          gymTicketLimitMultiplier
         : Number(configRow.max_tickets_per_user);
     const configuredYear = Number(configRow.event_year);
     if (!Number.isInteger(configuredYear) || configuredYear < 0) {

@@ -207,6 +207,7 @@ const Issue = () => {
         { data: configData, error: configError },
         { count: classCount, error: classCountError },
         { count: gymCount, error: gymCountError },
+        { data: userData, error: userError },
       ] = await Promise.all([
         supabase
           .from('configs')
@@ -224,15 +225,20 @@ const Issue = () => {
           .select('id, tickets!inner(id)', { count: 'exact', head: true })
           .eq('tickets.user_id', userId)
           .eq('tickets.status', 'valid'),
+        supabase.from('users').select('clubs').eq('id', userId).maybeSingle(),
       ]);
 
-      if (configError || classCountError || gymCountError) {
+      if (configError || classCountError || gymCountError || userError) {
         return;
       }
 
       const maxTicketsPerUser = Number(configData?.max_tickets_per_user ?? -1);
       const maxTicketsPerGymUser = Number(
         configData?.max_tickets_per_gym_user ?? -1,
+      );
+      const gymTicketLimitMultiplier = Math.max(
+        Array.isArray(userData?.clubs) ? userData.clubs.length : 0,
+        1,
       );
       if (
         !Number.isInteger(maxTicketsPerUser) ||
@@ -245,7 +251,11 @@ const Issue = () => {
 
       setRemainingIssueCapacity({
         class: Math.max(0, maxTicketsPerUser - Number(classCount ?? 0)),
-        gym: Math.max(0, maxTicketsPerGymUser - Number(gymCount ?? 0)),
+        gym: Math.max(
+          0,
+          maxTicketsPerGymUser * gymTicketLimitMultiplier -
+            Number(gymCount ?? 0),
+        ),
       });
     };
 
