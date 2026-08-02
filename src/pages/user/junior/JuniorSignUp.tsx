@@ -494,10 +494,9 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
         } catch (parentIssueErr) {
           // 保護者側の発券失敗は無視
         }
-      } else if (juniorUsageType === 3) {
-        // 保護者のみの場合はチケットを発行しない（中学生用チケットではないため）
-        // 必要に応じて別のチケットタイプを発行するロジックを追加
       } else {
+        // 共通・中学生のみ・保護者のみは、登録したアカウント自身に
+        // 入場専用券を1枚発行する。保護者のみでも校内入場用に必要。
         const { error: issueError } = await supabase.functions.invoke(
           'issue-tickets',
           {
