@@ -1331,7 +1331,9 @@ const SettingsContent = () => {
               >
                 <option value='open'>すべて</option>
                 <option value='only-own'>自クラスのみ</option>
-                <option value='outside-own-self-only'>他クラスは間柄「本人」のみ</option>
+                <option value='outside-own-self-only'>
+                  他クラスは間柄「本人」のみ
+                </option>
                 <option value='off'>無効</option>
               </select>
             </div>
@@ -1382,7 +1384,9 @@ const SettingsContent = () => {
               >
                 <option value='open'>すべて</option>
                 <option value='only-own'>自部活のみ</option>
-                <option value='outside-own-self-only'>他部活は間柄「本人」のみ</option>
+                <option value='outside-own-self-only'>
+                  他部活は間柄「本人」のみ
+                </option>
                 <option value='off'>無効</option>
               </select>
             </div>
@@ -2036,6 +2040,14 @@ const SettingsContent = () => {
             現在の管理者パスワード
           </label>
           <input
+            type='text'
+            name='username'
+            value='admin'
+            autocomplete='username'
+            style='display: none;'
+            aria-hidden='true'
+          />
+          <input
             id='admin-current-password'
             type='password'
             className={styles.authInput}
@@ -2098,7 +2110,11 @@ const SettingsContent = () => {
         <div
           className={styles.settingModalOverlay}
           role='presentation'
-          onClick={closeNumericEditModal}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeNumericEditModal();
+            }
+          }}
         >
           <div
             className={styles.settingModal}
@@ -2163,7 +2179,11 @@ const SettingsContent = () => {
         <div
           className={styles.settingModalOverlay}
           role='presentation'
-          onClick={() => setShowDeleteAllAccountsModal(false)}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowDeleteAllAccountsModal(false);
+            }
+          }}
         >
           <div
             className={styles.settingModal}
@@ -2213,7 +2233,11 @@ const SettingsContent = () => {
         <div
           className={styles.settingModalOverlay}
           role='presentation'
-          onClick={() => setShowDeleteAllTicketsModal(false)}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowDeleteAllTicketsModal(false);
+            }
+          }}
         >
           <div
             className={styles.settingModal}

@@ -28,7 +28,11 @@ const Modal = ({
     <div
       className={styles.modalOverlay}
       role='presentation'
-      onClick={() => setIsOpen(false)}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          setIsOpen(false);
+        }
+      }}
     >
       <div
         className={styles.modal}

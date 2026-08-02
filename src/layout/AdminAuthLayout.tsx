@@ -229,6 +229,14 @@ export const AdminAuthLayout = ({
         <NormalSection className={styles.authForm}>
           <h2>管理者ログイン</h2>
           <form className={styles.authLoginForm} onSubmit={handleUnlock}>
+            <input
+              type='text'
+              name='username'
+              value='admin'
+              autocomplete='username'
+              style='display: none;'
+              aria-hidden='true'
+            />
             <label
               className={styles.authLabel}
               htmlFor='admin-control-password'

@@ -14,6 +14,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
   const [selectedClubs, setSelectedClubs] = useState<string[]>([]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -34,6 +35,17 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
       }
     };
     void fetchClubs();
+  }, []);
+
+  useEffect(() => {
+    const loadUsername = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUsername(user?.email?.replace('@gaiensai.local', '') ?? '');
+    };
+
+    void loadUsername();
   }, []);
 
   const handleSubmit = async (event: Event) => {
@@ -154,6 +166,14 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
         </div>
 
         <div className={styles.passwordSelection}>
+          <input
+            type='text'
+            name='username'
+            value={username}
+            autocomplete='username'
+            style='display: none;'
+            aria-hidden='true'
+          />
           <p className={styles.label}>新しいパスワード (8文字以上)</p>
           <input
             type='password'

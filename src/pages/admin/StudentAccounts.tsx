@@ -41,6 +41,8 @@ type BulkCreateResponse = {
   failedUsers?: { id: string; password: string }[];
 };
 
+type PasswordResetMode = 'random' | 'manual';
+
 const isStudentAccountId = (id: string): boolean => {
   const numericId = Number(id);
   return (
@@ -82,7 +84,24 @@ const StudentAccountsContent = () => {
     type: 'success' | 'error';
   } | null>(null);
   const [generationErrors, setGenerationErrors] = useState<string[]>([]);
-  const [passwordResetInfo, setPasswordResetInfo] = useState<string | null>(
+  const [passwordResetTarget, setPasswordResetTarget] = useState<{
+    studentId: string;
+    randomPassword: string;
+  } | null>(null);
+  const [passwordResetMode, setPasswordResetMode] =
+    useState<PasswordResetMode>('random');
+  const [manualResetPassword, setManualResetPassword] = useState('');
+  const [manualResetPasswordConfirm, setManualResetPasswordConfirm] =
+    useState('');
+  const [passwordResetError, setPasswordResetError] = useState<string | null>(
+    null,
+  );
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [passwordResetResult, setPasswordResetResult] = useState<{
+    studentId: string;
+    password: string;
+  } | null>(null);
+  const [passwordCopyMessage, setPasswordCopyMessage] = useState<string | null>(
     null,
   );
 
@@ -296,38 +315,87 @@ const StudentAccountsContent = () => {
     }
   };
 
-  const handleResetPassword = async (studentId: string) => {
-    const newPassword = generateBase58Password();
-    if (
-      !window.confirm(
-        `ID: ${studentId} のパスワードをリセットして "${newPassword}" に変更します。よろしいですか？\n変更後、このパスワードを生徒に伝えてください。`,
-      )
-    ) {
+  const openPasswordResetModal = (studentId: string) => {
+    setPasswordResetTarget({
+      studentId,
+      randomPassword: generateBase58Password(),
+    });
+    setPasswordResetMode('random');
+    setManualResetPassword('');
+    setManualResetPasswordConfirm('');
+    setPasswordResetError(null);
+  };
+
+  const closePasswordResetModal = () => {
+    if (!isResettingPassword) {
+      setPasswordResetTarget(null);
+    }
+  };
+
+  const handleResetPassword = async (event: Event) => {
+    event.preventDefault();
+    if (!passwordResetTarget) {
       return;
     }
 
-    setIsGenerating(true);
+    setPasswordResetError(null);
+    const newPassword =
+      passwordResetMode === 'random'
+        ? passwordResetTarget.randomPassword
+        : manualResetPassword;
+
+    if (passwordResetMode === 'manual') {
+      if (newPassword.length < 8) {
+        setPasswordResetError('パスワードは8文字以上で入力してください。');
+        return;
+      }
+      if (newPassword !== manualResetPasswordConfirm) {
+        setPasswordResetError('パスワードと確認用パスワードが一致しません。');
+        return;
+      }
+    }
+
+    setIsResettingPassword(true);
     try {
       const token = getSessionToken();
       const { error } = await supabase.functions.invoke('admin-auth', {
-        body: { action: 'resetUserPassword', studentId, newPassword },
+        body: {
+          action: 'resetUserPassword',
+          studentId: passwordResetTarget.studentId,
+          newPassword,
+        },
         headers: { 'x-admin-session-token': token ?? '' },
       });
       if (error) {
         throw error;
       }
 
-      alert(
-        `ID: ${studentId} のパスワードを "${newPassword}" に更新しました。`,
-      );
-      setPasswordResetInfo(
-        `ID: ${studentId} のパスワードをリセットしました。新パスワード: ${newPassword}`,
-      );
+      setPasswordResetTarget(null);
+      setPasswordResetResult({
+        studentId: passwordResetTarget.studentId,
+        password: newPassword,
+      });
+      setPasswordCopyMessage(null);
     } catch (err) {
       const errorMsg = await readErrorMessage(err);
-      alert(`失敗しました: ${errorMsg}`);
+      setPasswordResetError(`変更に失敗しました: ${errorMsg}`);
     } finally {
-      setIsGenerating(false);
+      setIsResettingPassword(false);
+    }
+  };
+
+  const copyResetPassword = async () => {
+    if (!passwordResetResult) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(passwordResetResult.password);
+      setPasswordCopyMessage('パスワードをコピーしました。');
+    } catch {
+      setPasswordCopyMessage(
+        'コピーできませんでした。表示欄からパスワードを選択してコピーしてください。',
+      );
     }
   };
 
@@ -669,10 +737,6 @@ const StudentAccountsContent = () => {
             </span>
           </div>
 
-          {passwordResetInfo && (
-            <p className={styles.authSuccess}>{passwordResetInfo}</p>
-          )}
-
           <div className={styles.tableWrapper}>
             <table className={styles.managementTable}>
               <thead>
@@ -702,8 +766,8 @@ const StudentAccountsContent = () => {
                         <button
                           type='button'
                           className={styles.inlineEditButton}
-                          onClick={() => handleResetPassword(user.studentId)}
-                          disabled={isGenerating}
+                          onClick={() => openPasswordResetModal(user.studentId)}
+                          disabled={isGenerating || isResettingPassword}
                         >
                           パスワードリセット
                         </button>
@@ -725,6 +789,176 @@ const StudentAccountsContent = () => {
           <LoadingSpinner
             message={`アカウントを生成・登録中です。5分以上時間がかかる場合があります。 (${progress.current} / ${progress.total}) ...`}
           />
+        </div>
+      )}
+
+      {passwordResetTarget && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closePasswordResetModal();
+            }
+          }}
+        >
+          <form
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='student-password-reset-title'
+            onSubmit={handleResetPassword}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='student-password-reset-title'
+              className={styles.settingModalTitle}
+            >
+              ID: {passwordResetTarget.studentId} のパスワードをリセット
+            </h3>
+            <label className={styles.settingLabel}>
+              <input
+                type='radio'
+                name='password-reset-mode'
+                checked={passwordResetMode === 'random'}
+                onChange={() => setPasswordResetMode('random')}
+                disabled={isResettingPassword}
+              />{' '}
+              ランダムなパスワードを使う
+            </label>
+            {passwordResetMode === 'random' && (
+              <input
+                className={styles.authInput}
+                type='text'
+                value={passwordResetTarget.randomPassword}
+                readOnly
+                aria-label='生成されたパスワード'
+              />
+            )}
+            <label className={styles.settingLabel}>
+              <input
+                type='radio'
+                name='password-reset-mode'
+                checked={passwordResetMode === 'manual'}
+                onChange={() => setPasswordResetMode('manual')}
+                disabled={isResettingPassword}
+              />{' '}
+              パスワードを入力する
+            </label>
+            {passwordResetMode === 'manual' && (
+              <>
+                <label className={styles.authLabel} htmlFor='student-reset-password'>
+                  新しいパスワード
+                </label>
+                <input
+                  id='student-reset-password'
+                  className={styles.authInput}
+                  type='text'
+                  value={manualResetPassword}
+                  onInput={(event) =>
+                    setManualResetPassword(
+                      (event.target as HTMLInputElement).value,
+                    )
+                  }
+                  autoComplete='new-password'
+                  minLength={8}
+                  required
+                />
+                <label
+                  className={styles.authLabel}
+                  htmlFor='student-reset-password-confirm'
+                >
+                  新しいパスワード（確認）
+                </label>
+                <input
+                  id='student-reset-password-confirm'
+                  className={styles.authInput}
+                  type='text'
+                  value={manualResetPasswordConfirm}
+                  onInput={(event) =>
+                    setManualResetPasswordConfirm(
+                      (event.target as HTMLInputElement).value,
+                    )
+                  }
+                  autoComplete='new-password'
+                  minLength={8}
+                  required
+                />
+              </>
+            )}
+            {passwordResetError && (
+              <p className={styles.authError} role='alert'>
+                {passwordResetError}
+              </p>
+            )}
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={closePasswordResetModal}
+                disabled={isResettingPassword}
+              >
+                キャンセル
+              </button>
+              <button
+                type='submit'
+                className={styles.settingModalConfirm}
+                disabled={isResettingPassword}
+              >
+                {isResettingPassword ? '変更中...' : '変更する'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {passwordResetResult && (
+        <div className={styles.settingModalOverlay} role='presentation'>
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='student-password-reset-complete-title'
+          >
+            <h3
+              id='student-password-reset-complete-title'
+              className={styles.settingModalTitle}
+            >
+              パスワードを変更しました
+            </h3>
+            <p>
+              ID: {passwordResetResult.studentId} の新しいパスワードです。
+            </p>
+            <input
+              className={styles.authInput}
+              type='text'
+              value={passwordResetResult.password}
+              readOnly
+              onFocus={(event) => event.currentTarget.select()}
+              aria-label='変更後のパスワード'
+            />
+            {passwordCopyMessage && (
+              <p className={styles.authSuccess} role='status'>
+                {passwordCopyMessage}
+              </p>
+            )}
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={() => setPasswordResetResult(null)}
+              >
+                閉じる
+              </button>
+              <button
+                type='button'
+                className={styles.settingModalConfirm}
+                onClick={copyResetPassword}
+              >
+                コピー
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1775,7 +1775,11 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
             {mode === 'scan' ? (
               <div
                 className={styles.modalOverlay}
-                onClick={() => setIsManualInputOverride(false)}
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget) {
+                    setIsManualInputOverride(false);
+                  }
+                }}
               >
                 <div
                   className={styles.modalContainer}

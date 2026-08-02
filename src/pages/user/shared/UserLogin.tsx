@@ -85,7 +85,11 @@ const UserLogin = ({ basePath, pageTitle }: UserLoginProps) => {
     });
 
     if (error) {
-      alert(`ログインに失敗しました: ${error.message}`);
+      if (error.message.includes('Invalid login credentials')) {
+        alert('ログインに失敗しました: IDまたはパスワードが正しくありません。');
+      } else {
+        alert(`ログインに失敗しました: ${error.message}`);
+      }
     }
     setLoading(false);
   };
@@ -144,32 +148,37 @@ const UserLogin = ({ basePath, pageTitle }: UserLoginProps) => {
       <h1 className={subPageStyles.pageTitle}>ようこそ</h1>
       <div className={styles.loginContainer}>
         <h2>ログイン</h2>
-        <p>事前配布されたログインID・パスワードを使ってログインしてください。</p>
+        <p>
+          事前配布されたログインID・パスワードを使ってログインしてください。
+        </p>
         <form onSubmit={handleLogin} className={styles.loginForm}>
-          <label>ID</label>
+          <label htmlFor='username'>ID</label>
           <input
             type='text'
             placeholder='Your ID'
             value={email}
             required={true}
             className={styles.loginInput}
+            autocomplete='username'
+            name='username'
+            id='username'
             onChange={(e) => setEmail(e.currentTarget.value)}
           />
           <br />
-          <label>パスワード</label>
+          <label htmlFor='password'>パスワード</label>
           <input
             type='password'
             placeholder='Your Password'
             value={password}
             required={true}
             className={styles.loginInput}
+            autocomplete='current-password'
+            name='password'
+            id='password'
             onChange={(e) => setPassword(e.currentTarget.value)}
           />
 
-          <button
-            className={styles.loginButton}
-            disabled={loading}
-          >
+          <button className={styles.loginButton} disabled={loading}>
             {loading ? <span>読み込み中</span> : <span>ログイン</span>}
           </button>
         </form>

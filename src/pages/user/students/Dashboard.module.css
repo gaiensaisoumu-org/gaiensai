@@ -43,6 +43,44 @@
   margin: 0.5rem auto;
 }
 
+.passwordForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.passwordLabel {
+  font-weight: bold;
+}
+
+.passwordInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--login-input-border);
+  border-radius: 5px;
+}
+
+.passwordError,
+.passwordSuccess {
+  margin: 0;
+}
+
+.passwordError {
+  color: #c62828;
+}
+
+.passwordSuccess {
+  color: #2e7d32;
+}
+
+.passwordButton {
+  align-self: flex-start;
+  margin-top: 0.4rem;
+}
+
 .ticketSummary {
   display: flex;
   gap: 2rem;

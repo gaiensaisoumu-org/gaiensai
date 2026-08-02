@@ -1384,7 +1384,11 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
           <div
             className={`${styles.shortUrlModalOverlay} ${styles.noPrint}`}
             role='presentation'
-            onClick={() => setIsShortUrlModalOpen(false)}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setIsShortUrlModalOpen(false);
+              }
+            }}
           >
             <div
               className={styles.shortUrlModal}
@@ -1487,8 +1491,11 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
           <div
             className={`${styles.relationshipModalOverlay} ${styles.noPrint}`}
             role='presentation'
-            onClick={() => {
-              if (!isChangingRelationship) {
+            onMouseDown={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                !isChangingRelationship
+              ) {
                 setIsRelationshipModalOpen(false);
               }
             }}
