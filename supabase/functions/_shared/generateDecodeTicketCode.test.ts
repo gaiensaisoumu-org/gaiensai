@@ -191,7 +191,7 @@ Deno.test({
         eligibility: 'middle-school',
       },
       {
-        affiliation: 101919, // 中学生モードの上限値
+        affiliation: 103839, // 中学生モードの上限値
         relationship: 5,
         eligibility: 'both',
       },
@@ -205,11 +205,18 @@ Deno.test({
         relationship: 5,
         eligibility: 'both',
       },
+      {
+        affiliation: 103839, // 中学生モード: ID 3839 (最大)
+        relationship: 5, // 入場資格2 + juniorId Bit10
+        eligibility: 'both',
+      },
     ];
 
     for (const { affiliation, relationship, eligibility } of cases) {
       const encoded = encodeAffiliation(affiliation);
-      const decoded = decodeAffiliation(encoded, relationship);
+      const serialExtraBit =
+        affiliation >= 100001 ? ((affiliation - 100000) >> 11) & 0x1 : 0;
+      const decoded = decodeAffiliation(encoded, relationship, serialExtraBit);
       if (decoded !== affiliation) {
         throw new Error(
           `Affiliation round-trip mismatch: original=${affiliation} decoded=${decoded}`,
@@ -377,6 +384,26 @@ Deno.test({
           schedule: 1,
           year: 2025,
           serial: 4,
+        },
+      },
+      {
+        source: {
+          affiliation: 103839, // 中学生モード: ID 3839（Bit11を使用）
+          relationship: 2,
+          type: 1,
+          performance: 1,
+          schedule: 1,
+          year: 2025,
+          serial: 15,
+        },
+        expected: {
+          affiliation: 103839,
+          relationship: 2,
+          type: 1,
+          performance: 1,
+          schedule: 1,
+          year: 2025,
+          serial: 15,
         },
       },
       {
@@ -626,7 +653,7 @@ Deno.test({
         serial: 1,
       },
       {
-        affiliation: 101920, // junior affiliation upper bound exceeded
+        affiliation: 103840, // junior affiliation upper bound exceeded
         relationship: 1,
         type: 1,
         performance: 1,
@@ -678,6 +705,15 @@ Deno.test({
         schedule: 1,
         year: 2026,
         serial: 32, // 5bit max is 31
+      },
+      {
+        affiliation: 100001,
+        relationship: 1,
+        type: 1,
+        performance: 1,
+        schedule: 1,
+        year: 2026,
+        serial: 16, // 中学生モードは4bit
       },
     ];
 

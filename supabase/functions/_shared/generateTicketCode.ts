@@ -43,6 +43,8 @@ import {
   isDayTicketAffiliation,
 } from './ticketDataType.ts';
 
+const JUNIOR_SERIAL_BITS = 4n;
+
 // ---------------------------------------------------------
 // チケットコード生成関数
 // ---------------------------------------------------------
@@ -68,9 +70,19 @@ function generateDayTicketAffiliation(relationship: number): number {
  */
 export function packTicket(data: TicketData): bigint {
   const affiliationBits = encodeAffiliation(data.affiliation);
-  const serialBits = data.serial & Number(SERIAL_MASK);
+  let serialBits = data.serial & Number(SERIAL_MASK);
   let relationshipBits: number;
   let finalAffiliationBits = affiliationBits;
+
+  const grade = (affiliationBits >> 10) & 0x3;
+  const isJunior =
+    affiliationBits !== 0 && grade === 0 && !isDayTicketAffiliation(affiliationBits);
+
+  if (isJunior) {
+    const juniorId = data.affiliation - JUNIOR_AFFILIATION_PREFIX;
+    // serial Bit4 は中学生ID Bit11。入力serialの一部ではない。
+    serialBits = (serialBits & 0xf) | (((juniorId >> 11) & 0x1) << 4);
+  }
 
   if (isDayTicketAffiliation(affiliationBits)) {
     // 当日券モード: grade=0 かつ class=16 の affiliation をフラグとして扱う
@@ -79,9 +91,8 @@ export function packTicket(data: TicketData): bigint {
     const serialHigh = (data.serial >> Number(SERIAL_BITS)) & 0x3f;
     finalAffiliationBits = (affiliationBits & ~0x3f) | serialHigh;
   } else {
-    const grade = (affiliationBits >> 10) & 0x3;
-    if (grade === 0) {
-      // 中学生モード: affiliation の下位11bitに ID を持たせ、relationship には入場属性フラグを詰める
+    if (isJunior) {
+      // 中学生モード: IDの下位10bitをaffiliationに置き、上位ビットをrelationship/serialへ分散する
       relationshipBits = generateJuniorRelationship(
         data.affiliation,
         data.relationship,
@@ -98,10 +109,12 @@ export function packTicket(data: TicketData): bigint {
   assertBitRange('schedule', data.schedule, SCHEDULE_BITS);
   assertBitRange('year', data.year, YEAR_BITS);
 
-  // シリアル番号のバリデーション (当日券モードなら11bit、通常なら5bit)
+  // 中学生モードではBit4をIDのBit11として使うため、シリアル値は4bit。
   const serialMaxBits = isDayTicketAffiliation(affiliationBits)
     ? SERIAL_BITS + 6n
-    : SERIAL_BITS;
+    : isJunior
+      ? JUNIOR_SERIAL_BITS
+      : SERIAL_BITS;
   assertBitRange('serial', data.serial, serialMaxBits);
 
   let packed = 0n;

@@ -320,7 +320,7 @@ CREATE OR REPLACE FUNCTION "public"."issue_junior_id"() RETURNS integer
 declare
   next_id int;
   min_id int := 100001;
-  max_id int := 101919;
+  max_id int := 103839;
 begin
   -- 同時実行による重複採番を防ぐ
   lock table public.users in share row exclusive mode;
@@ -1808,4 +1808,3 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 --
 -- Dumped schema changes for auth and storage
 --
-

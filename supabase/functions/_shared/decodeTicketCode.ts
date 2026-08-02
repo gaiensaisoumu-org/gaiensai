@@ -63,6 +63,10 @@ export function unpackTicket(packed: bigint): TicketData {
     finalAffiliationBits !== 0 &&
     grade === 0 &&
     !isDayTicketAffiliation(finalAffiliationBits);
+  const juniorSerialExtraBit = isJuniorAffiliation ? (serial >> 4) & 0x1 : 0;
+  if (isJuniorAffiliation) {
+    serial &= 0xf;
+  }
   const relationship = isJuniorAffiliation
     ? (relationshipBits >> 1) & 0x3
     : relationshipBits;
@@ -74,7 +78,11 @@ export function unpackTicket(packed: bigint): TicketData {
     performance,
     type,
     relationship,
-    affiliation: decodeAffiliation(finalAffiliationBits, relationshipBits),
+    affiliation: decodeAffiliation(
+      finalAffiliationBits,
+      relationshipBits,
+      juniorSerialExtraBit,
+    ),
   };
 
   return data;

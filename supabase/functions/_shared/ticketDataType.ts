@@ -5,7 +5,7 @@ export interface TicketData {
   performance: number; // 5 bit
   schedule: number; // 4 bit
   year: number; // 3 bit
-  serial: number; // 5 bit
+  serial: number; // 通常5bit / 中学生モード4bit（Bit4はID拡張用）
 }
 
 // チケットデータのビット割り当て（合計36ビット + MAC 10ビット = 46ビット）
@@ -36,7 +36,7 @@ export const AFFILIATION_CLASS_DIVIDER = 100; // 5桁表示の100の位
 // 中学生モードの表示用接頭辞
 export const JUNIOR_AFFILIATION_PREFIX = 100000;
 export const JUNIOR_AFFILIATION_MIN = 100001;
-export const JUNIOR_AFFILIATION_MAX = 101919;
+export const JUNIOR_AFFILIATION_MAX = 103839; // (2^4 - 1) * 2^6 * 2 * 2 - 1 = 3839 + 100000
 
 // 当日券モード（Grade 0, Class 16。内部0始まりでは Class 15）
 export const DAY_TICKET_FLAG_GRADE = 0;

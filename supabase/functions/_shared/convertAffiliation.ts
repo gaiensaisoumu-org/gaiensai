@@ -100,7 +100,11 @@ export function encodeAffiliation(affiliation: number): number {
   );
 }
 
-export function decodeAffiliation(bits: number, relationship = 0): number {
+export function decodeAffiliation(
+  bits: number,
+  relationship = 0,
+  serialExtraBit = 0,
+): number {
   if (bits === 0) {
     return 0; // 無所属は全ビット0
   }
@@ -112,7 +116,11 @@ export function decodeAffiliation(bits: number, relationship = 0): number {
   const number = bits & AFFILIATION_NUMBER_MAX;
 
   if (grade === 0 && classBits !== DAY_TICKET_FLAG_CLASS) {
-    const juniorId = ((relationship & 0x1) << 10) | (classBits << 6) | number;
+    const juniorId =
+      ((serialExtraBit & 0x1) << 11) |
+      ((relationship & 0x1) << 10) |
+      (classBits << 6) |
+      number;
     return JUNIOR_AFFILIATION_PREFIX + juniorId;
   }
 
