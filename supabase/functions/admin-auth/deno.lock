@@ -22,12 +22,12 @@
     "links": {
       "npm:gaiensai@0.0.0": {
         "dependencies": [
-          "npm:@supabase/supabase-js@^2.110.8",
-          "npm:preact-iso@^2.12.0",
+          "npm:@supabase/supabase-js@^2.111.0",
+          "npm:preact-iso@^2.12.1",
           "npm:preact@^10.29.7",
           "npm:qr-scanner@^1.4.2",
           "npm:react-icons@^5.7.0",
-          "npm:recharts@^3.10.0",
+          "npm:recharts@^3.10.1",
           "npm:uqr@~0.1.2"
         ]
       }

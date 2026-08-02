@@ -1,6 +1,9 @@
 .normalSection {
   margin: 1em;
   padding: 1em;
+  min-width: 0;
+  max-width: calc(100% - 2em);
+  box-sizing: border-box;
   background-color: var(--normal-section-bg-color);
   border-radius: 12px;
   box-shadow: 0 4px 8px var(--translucent-b-bg-color);

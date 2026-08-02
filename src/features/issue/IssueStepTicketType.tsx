@@ -5,12 +5,14 @@ import styles from '../../pages/user/students/Issue.module.css';
 type IssueStepTicketTypeProps = {
   options: TicketTypeOption[];
   selectedTicketTypeId: number;
+  showType?: boolean;
   onSelectTicketType: (ticketTypeId: number) => void;
 };
 
 const IssueStepTicketType = ({
   options,
   selectedTicketTypeId,
+  showType = false,
   onSelectTicketType,
 }: IssueStepTicketTypeProps) => {
   return (
@@ -37,6 +39,7 @@ const IssueStepTicketType = ({
                 className={styles.srOnly}
               />
               {option.name}
+              {showType && option.type ? `（${option.type}）` : ''}
             </label>
           );
         })}

@@ -1,17 +1,17 @@
-import Alert from "../../components/ui/Alert";
-import NormalSection from "../../components/ui/NormalSection";
-import { useEffect, useState } from "preact/hooks";
-import { supabase } from "../../lib/supabase";
-import styles from "./Settings.module.css";
-import Switch from "../../components/ui/Switch";
-import { useTitle } from "../../hooks/useTitle";
-import { useEventConfig } from "../../hooks/useEventConfig";
-import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import Alert from '../../components/ui/Alert';
+import NormalSection from '../../components/ui/NormalSection';
+import { useEffect, useState } from 'preact/hooks';
+import { supabase } from '../../lib/supabase';
+import styles from './Settings.module.css';
+import Switch from '../../components/ui/Switch';
+import { useTitle } from '../../hooks/useTitle';
+import { useEventConfig } from '../../hooks/useEventConfig';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import {
   AdminAuthLayout,
   getSessionToken,
   readErrorMessage,
-} from "../../layout/AdminAuthLayout";
+} from '../../layout/AdminAuthLayout';
 
 type ControlPanelSettings = {
   eventYear: number;
@@ -30,23 +30,23 @@ type ControlPanelSettings = {
 };
 
 type TicketTypeControlValue =
-  | "open"
-  | "only-own"
-  | "outside-own-self-only"
-  | "public-rehearsals"
-  | "auto"
-  | "off";
+  | 'open'
+  | 'only-own'
+  | 'outside-own-self-only'
+  | 'public-rehearsals'
+  | 'auto'
+  | 'off';
 
 type TicketTypeControlKey =
-  | "classInvite"
-  | "rehearsalInvite"
-  | "gymInvite"
-  | "entryOnly"
-  | "sameDayClass"
-  | "sameDayGym"
-  | "juniorClass"
-  | "juniorGym"
-  | "juniorEntryOnly";
+  | 'classInvite'
+  | 'rehearsalInvite'
+  | 'gymInvite'
+  | 'entryOnly'
+  | 'sameDayClass'
+  | 'sameDayGym'
+  | 'juniorClass'
+  | 'juniorGym'
+  | 'juniorEntryOnly';
 
 type TicketTypeControls = Record<TicketTypeControlKey, TicketTypeControlValue>;
 
@@ -63,44 +63,44 @@ const TICKET_TYPE_IDS = {
 } as const;
 
 const DEFAULT_TICKET_TYPE_CONTROLS: TicketTypeControls = {
-  classInvite: "open",
-  rehearsalInvite: "open",
-  gymInvite: "open",
-  entryOnly: "open",
-  sameDayClass: "open",
-  sameDayGym: "open",
-  juniorClass: "open",
-  juniorGym: "open",
-  juniorEntryOnly: "open",
+  classInvite: 'open',
+  rehearsalInvite: 'open',
+  gymInvite: 'open',
+  entryOnly: 'open',
+  sameDayClass: 'open',
+  sameDayGym: 'open',
+  juniorClass: 'open',
+  juniorGym: 'open',
+  juniorEntryOnly: 'open',
 };
 
 const buildActiveTicketTypeIds = (controls: TicketTypeControls): number[] => {
   const activeIds = new Set<number>();
-  if (controls.classInvite !== "off") {
+  if (controls.classInvite !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.classInvite);
   }
-  if (controls.rehearsalInvite !== "off") {
+  if (controls.rehearsalInvite !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.rehearsalInvite);
   }
-  if (controls.gymInvite !== "off") {
+  if (controls.gymInvite !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.gymInvite);
   }
-  if (controls.entryOnly !== "off") {
+  if (controls.entryOnly !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.entryOnly);
   }
-  if (controls.sameDayClass !== "off") {
+  if (controls.sameDayClass !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.sameDayClass);
   }
-  if (controls.sameDayGym !== "off") {
+  if (controls.sameDayGym !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.sameDayGym);
   }
-  if (controls.juniorClass !== "off") {
+  if (controls.juniorClass !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.juniorClass);
   }
-  if (controls.juniorGym !== "off") {
+  if (controls.juniorGym !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.juniorGym);
   }
-  if (controls.juniorEntryOnly !== "off") {
+  if (controls.juniorEntryOnly !== 'off') {
     activeIds.add(TICKET_TYPE_IDS.juniorEntryOnly);
   }
   return Array.from(activeIds);
@@ -111,70 +111,70 @@ const mapActiveIdsToTicketTypeControls = (
 ): TicketTypeControls => {
   const activeIdSet = new Set(activeTicketTypeIds);
   return {
-    classInvite: activeIdSet.has(TICKET_TYPE_IDS.classInvite) ? "open" : "off",
+    classInvite: activeIdSet.has(TICKET_TYPE_IDS.classInvite) ? 'open' : 'off',
     rehearsalInvite: activeIdSet.has(TICKET_TYPE_IDS.rehearsalInvite)
-      ? "open"
-      : "off",
-    gymInvite: activeIdSet.has(TICKET_TYPE_IDS.gymInvite) ? "open" : "off",
-    entryOnly: activeIdSet.has(TICKET_TYPE_IDS.entryOnly) ? "open" : "off",
+      ? 'open'
+      : 'off',
+    gymInvite: activeIdSet.has(TICKET_TYPE_IDS.gymInvite) ? 'open' : 'off',
+    entryOnly: activeIdSet.has(TICKET_TYPE_IDS.entryOnly) ? 'open' : 'off',
     sameDayClass: activeIdSet.has(TICKET_TYPE_IDS.sameDayClass)
-      ? "open"
-      : "off",
-    sameDayGym: activeIdSet.has(TICKET_TYPE_IDS.sameDayGym) ? "open" : "off",
-    juniorClass: activeIdSet.has(TICKET_TYPE_IDS.juniorClass) ? "open" : "off",
-    juniorGym: activeIdSet.has(TICKET_TYPE_IDS.juniorGym) ? "open" : "off",
+      ? 'open'
+      : 'off',
+    sameDayGym: activeIdSet.has(TICKET_TYPE_IDS.sameDayGym) ? 'open' : 'off',
+    juniorClass: activeIdSet.has(TICKET_TYPE_IDS.juniorClass) ? 'open' : 'off',
+    juniorGym: activeIdSet.has(TICKET_TYPE_IDS.juniorGym) ? 'open' : 'off',
     juniorEntryOnly: activeIdSet.has(TICKET_TYPE_IDS.juniorEntryOnly)
-      ? "open"
-      : "off",
+      ? 'open'
+      : 'off',
   };
 };
 
 const isTicketTypeControlValue = (
   value: unknown,
 ): value is TicketTypeControlValue =>
-  value === "open" ||
-  value === "only-own" ||
-  value === "outside-own-self-only" ||
-  value === "public-rehearsals" ||
-  value === "auto" ||
-  value === "off";
+  value === 'open' ||
+  value === 'only-own' ||
+  value === 'outside-own-self-only' ||
+  value === 'public-rehearsals' ||
+  value === 'auto' ||
+  value === 'off';
 
 const NUMERIC_SETTING_META = {
-  eventYear: { label: "年度", min: 2020, max: 2100 },
-  showLength: { label: "1公演の長さ（分）", min: 1, max: 300 },
+  eventYear: { label: '年度', min: 2020, max: 2100 },
+  showLength: { label: '1公演の長さ（分）', min: 1, max: 300 },
   maxTicketsPerUser: {
-    label: "1人あたりのクラス公演チケット発行上限",
+    label: '1人あたりのクラス公演チケット発行上限',
     min: 1,
     max: 100,
   },
   maxTicketsPerGymUser: {
-    label: "1人あたりの体育館公演チケット発行上限",
+    label: '1人あたりの体育館公演チケット発行上限',
     min: 1,
     max: 100,
   },
   maxTicketsPerJuniorUser: {
-    label: "中学生のチケット購入上限",
+    label: '中学生のチケット購入上限',
     min: 1,
     max: 100,
   },
   maxAdmissionOnlyJuniorAccounts: {
-    label: "入場専用券のみ登録可能な中学生アカウント上限",
+    label: '入場専用券のみ登録可能な中学生アカウント上限',
     min: 0,
     max: 150,
   },
   defaultClassTotalCapacity: {
-    label: "クラス公演の定員(合計)",
+    label: 'クラス公演の定員(合計)',
     min: 1,
     max: 1000,
   },
   defaultClassJuniorCapacity: {
-    label: "クラス公演の中学生枠",
+    label: 'クラス公演の中学生枠',
     min: 0,
     max: 1000,
   },
-  defaultGymCapacity: { label: "体育館公演の定員", min: 1, max: 2000 },
+  defaultGymCapacity: { label: '体育館公演の定員', min: 1, max: 2000 },
   defaultGymJuniorCapacity: {
-    label: "体育館公演の中学生枠",
+    label: '体育館公演の中学生枠',
     min: 0,
     max: 2000,
   },
@@ -182,19 +182,19 @@ const NUMERIC_SETTING_META = {
 
 type NumericSettingKey = keyof typeof NUMERIC_SETTING_META;
 type SettingsMessageScope =
-  | "modal"
-  | "globalSection"
-  | "ticketSection"
-  | "detailSection"
-  | "deletionTool"
+  | 'modal'
+  | 'globalSection'
+  | 'ticketSection'
+  | 'detailSection'
+  | 'deletionTool'
   | null;
-type AccountDeletionType = "student" | "junior";
+type AccountDeletionType = 'student' | 'junior';
 
 const SettingsContent = () => {
   const { config } = useEventConfig();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(
     null,
@@ -259,9 +259,9 @@ const SettingsContent = () => {
   >([]);
   const [editingNumericKey, setEditingNumericKey] =
     useState<NumericSettingKey | null>(null);
-  const [editingNumericValue, setEditingNumericValue] = useState("");
+  const [editingNumericValue, setEditingNumericValue] = useState('');
   const [editingPerformanceInfo, setEditingPerformanceInfo] = useState<{
-    table: "class_performances" | "gym_performances";
+    table: 'class_performances' | 'gym_performances';
     id: number;
     column: string;
     label: string;
@@ -269,11 +269,11 @@ const SettingsContent = () => {
     max: number;
   } | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<
-    "performances" | "gym_performances" | "schedules" | "relationships"
-  >("performances");
+    'performances' | 'gym_performances' | 'schedules' | 'relationships'
+  >('performances');
   const [isModalSubmitting, setIsModalSubmitting] = useState(false);
-  const [juniorPassword, setJuniorPassword] = useState("");
-  const [juniorPasswordConfirm, setJuniorPasswordConfirm] = useState("");
+  const [juniorPassword, setJuniorPassword] = useState('');
+  const [juniorPasswordConfirm, setJuniorPasswordConfirm] = useState('');
   const [hasJuniorPassword, setHasJuniorPassword] = useState(false);
   const [isUpdatingJuniorPassword, setIsUpdatingJuniorPassword] =
     useState(false);
@@ -284,7 +284,7 @@ const SettingsContent = () => {
     string | null
   >(null);
 
-  useTitle("コントロールパネル - 管理画面");
+  useTitle('コントロールパネル - 管理画面');
 
   const handlePasswordChange = async (event: Event) => {
     setSettingsMessageScope(null); // Clear any previous messages
@@ -294,13 +294,13 @@ const SettingsContent = () => {
     setPasswordChangeSuccess(null);
 
     if (newPassword.length < 8) {
-      setPasswordChangeError("新しいパスワードは8文字以上で入力してください。");
+      setPasswordChangeError('新しいパスワードは8文字以上で入力してください。');
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
       setPasswordChangeError(
-        "新しいパスワードと確認用パスワードが一致しません。",
+        '新しいパスワードと確認用パスワードが一致しません。',
       );
       return;
     }
@@ -308,14 +308,14 @@ const SettingsContent = () => {
     setIsChangingPassword(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("admin-auth", {
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: {
-          action: "changePassword",
+          action: 'changePassword',
           currentPassword,
           newPassword,
         },
         headers: {
-          "x-admin-session-token": getSessionToken() ?? "",
+          'x-admin-session-token': getSessionToken() ?? '',
         },
       });
 
@@ -325,15 +325,15 @@ const SettingsContent = () => {
 
       if (!data?.changed) {
         setPasswordChangeError(
-          "パスワード変更に失敗しました。時間をおいて再度お試しください。",
+          'パスワード変更に失敗しました。時間をおいて再度お試しください。',
         );
         return;
       }
 
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setPasswordChangeSuccess("管理者パスワードを変更しました。");
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setPasswordChangeSuccess('管理者パスワードを変更しました。');
     } catch (error) {
       const message = await readErrorMessage(error);
       setPasswordChangeError(`パスワード変更に失敗しました。${message}`);
@@ -347,12 +347,12 @@ const SettingsContent = () => {
   const [showDeleteAllTicketsModal, setShowDeleteAllTicketsModal] =
     useState(false);
   const [pendingDeleteAccountType, setPendingDeleteAccountType] =
-    useState<AccountDeletionType>("student");
+    useState<AccountDeletionType>('student');
   const [isDeletingAllAccounts, setIsDeletingAllAccounts] = useState(false);
   const [isDeletingAllTickets, setIsDeletingAllTickets] = useState(false);
 
   const handleDeleteAllAccounts = async () => {
-    setSettingsMessageScope("deletionTool");
+    setSettingsMessageScope('deletionTool');
     setSettingsError(null);
     setSettingsSuccess(null);
     setIsDeletingAllAccounts(true);
@@ -360,22 +360,22 @@ const SettingsContent = () => {
     let totalDeletedSoFar = 0;
     const accountType = pendingDeleteAccountType;
     const accountLabel =
-      accountType === "student" ? "生徒アカウント" : "中学生アカウント";
+      accountType === 'student' ? '生徒アカウント' : '中学生アカウント';
 
     try {
       const token = getSessionToken();
       if (!token) {
-        throw new Error("セッションがありません。再ログインしてください。");
+        throw new Error('セッションがありません。再ログインしてください。');
       }
 
       while (true) {
-        const { data, error } = await supabase.functions.invoke("admin-auth", {
+        const { data, error } = await supabase.functions.invoke('admin-auth', {
           body: {
-            action: "deleteAccountsByType",
+            action: 'deleteAccountsByType',
             accountType,
           },
           headers: {
-            "x-admin-session-token": token,
+            'x-admin-session-token': token,
           },
         });
 
@@ -384,7 +384,7 @@ const SettingsContent = () => {
         }
 
         if (!data?.deleted) {
-          throw new Error("削除に失敗しました。");
+          throw new Error('削除に失敗しました。');
         }
 
         totalDeletedSoFar += data.count;
@@ -414,7 +414,7 @@ const SettingsContent = () => {
   };
 
   const handleDeleteAllTickets = async () => {
-    setSettingsMessageScope("deletionTool");
+    setSettingsMessageScope('deletionTool');
     setSettingsError(null);
     setSettingsSuccess(null);
     setIsDeletingAllTickets(true);
@@ -423,15 +423,15 @@ const SettingsContent = () => {
     try {
       const token = getSessionToken();
       if (!token) {
-        throw new Error("セッションがありません。再ログインしてください。");
+        throw new Error('セッションがありません。再ログインしてください。');
       }
 
-      const { data, error } = await supabase.functions.invoke("admin-auth", {
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: {
-          action: "deleteAllTicketsAndResetCounters",
+          action: 'deleteAllTicketsAndResetCounters',
         },
         headers: {
-          "x-admin-session-token": token,
+          'x-admin-session-token': token,
         },
       });
 
@@ -440,11 +440,11 @@ const SettingsContent = () => {
       }
 
       if (!data?.deleted || !data?.countersReset) {
-        throw new Error("チケット削除またはカウンターリセットに失敗しました。");
+        throw new Error('チケット削除またはカウンターリセットに失敗しました。');
       }
 
       const deletedTicketCount =
-        typeof data.deletedTicketCount === "number"
+        typeof data.deletedTicketCount === 'number'
           ? data.deletedTicketCount
           : 0;
       setSettingsSuccess(
@@ -474,10 +474,10 @@ const SettingsContent = () => {
       setSettingsMessageScope(null);
 
       try {
-        const { data, error } = await supabase.functions.invoke("admin-auth", {
-          body: { action: "getSettings" },
+        const { data, error } = await supabase.functions.invoke('admin-auth', {
+          body: { action: 'getSettings' },
           headers: {
-            "x-admin-session-token": token,
+            'x-admin-session-token': token,
           },
         });
 
@@ -488,20 +488,20 @@ const SettingsContent = () => {
         const nextSettings = data?.settings;
         if (
           !nextSettings ||
-          typeof nextSettings.eventYear !== "number" ||
-          typeof nextSettings.showLength !== "number" ||
-          typeof nextSettings.maxTicketsPerUser !== "number" ||
-          typeof nextSettings.maxTicketsPerGymUser !== "number" ||
-          typeof nextSettings.maxAdmissionOnlyJuniorAccounts !== "number" ||
-          typeof nextSettings.juniorReleaseOpen !== "boolean" ||
-          typeof nextSettings.ticketIssuingEnabled !== "boolean" ||
-          typeof nextSettings.defaultClassTotalCapacity !== "number" ||
-          typeof nextSettings.defaultClassJuniorCapacity !== "number" ||
-          typeof nextSettings.defaultGymCapacity !== "number" ||
-          typeof nextSettings.defaultGymJuniorCapacity !== "number" ||
+          typeof nextSettings.eventYear !== 'number' ||
+          typeof nextSettings.showLength !== 'number' ||
+          typeof nextSettings.maxTicketsPerUser !== 'number' ||
+          typeof nextSettings.maxTicketsPerGymUser !== 'number' ||
+          typeof nextSettings.maxAdmissionOnlyJuniorAccounts !== 'number' ||
+          typeof nextSettings.juniorReleaseOpen !== 'boolean' ||
+          typeof nextSettings.ticketIssuingEnabled !== 'boolean' ||
+          typeof nextSettings.defaultClassTotalCapacity !== 'number' ||
+          typeof nextSettings.defaultClassJuniorCapacity !== 'number' ||
+          typeof nextSettings.defaultGymCapacity !== 'number' ||
+          typeof nextSettings.defaultGymJuniorCapacity !== 'number' ||
           !Array.isArray(nextSettings.activeTicketTypeIds)
         ) {
-          throw new Error("設定データの形式が不正です。");
+          throw new Error('設定データの形式が不正です。');
         }
 
         if (isActive) {
@@ -514,29 +514,29 @@ const SettingsContent = () => {
             { data: jp },
           ] = await Promise.all([
             supabase
-              .from("class_performances")
+              .from('class_performances')
               .select(
-                "id, class_name, is_accepting, total_capacity, junior_capacity",
+                'id, class_name, is_accepting, total_capacity, junior_capacity',
               )
-              .order("class_name"),
+              .order('class_name'),
             supabase
-              .from("gym_performances")
+              .from('gym_performances')
               .select(
-                "id, group_name, round_name, is_accepting, capacity, junior_capacity",
+                'id, group_name, round_name, is_accepting, capacity, junior_capacity',
               )
-              .order("id"),
+              .order('id'),
             supabase
-              .from("performances_schedule")
-              .select("id, round_name, is_active")
-              .order("id"),
+              .from('performances_schedule')
+              .select('id, round_name, is_active')
+              .order('id'),
             supabase
-              .from("relationships")
-              .select("id, name, is_accepting")
-              .order("id"),
-            supabase.functions.invoke("admin-auth", {
-              body: { action: "getJuniorPassword" },
+              .from('relationships')
+              .select('id, name, is_accepting')
+              .order('id'),
+            supabase.functions.invoke('admin-auth', {
+              body: { action: 'getJuniorPassword' },
               headers: {
-                "x-admin-session-token": token,
+                'x-admin-session-token': token,
               },
             }),
           ]);
@@ -558,12 +558,12 @@ const SettingsContent = () => {
           }
 
           const activeTicketTypeIds = nextSettings.activeTicketTypeIds
-            .filter((id: unknown) => typeof id === "number")
+            .filter((id: unknown) => typeof id === 'number')
             .map((id: number) => Math.trunc(id));
           const controlsFromApi = nextSettings.ticketIssueModes;
           const nextControls: TicketTypeControls =
             controlsFromApi &&
-            typeof controlsFromApi === "object" &&
+            typeof controlsFromApi === 'object' &&
             isTicketTypeControlValue(
               (controlsFromApi as Record<string, unknown>).classInvite,
             ) &&
@@ -630,7 +630,7 @@ const SettingsContent = () => {
       } catch (error) {
         const message = await readErrorMessage(error);
         if (isActive) {
-          setSettingsMessageScope("globalSection");
+          setSettingsMessageScope('globalSection');
           setSettingsError(`設定の読み込みに失敗しました。${message}`);
         }
       } finally {
@@ -649,13 +649,13 @@ const SettingsContent = () => {
 
   const syncSettings = async (
     nextSettings: ControlPanelSettings,
-    successMessage = "設定を更新しました。",
-    messageScope: Exclude<SettingsMessageScope, null> = "ticketSection",
+    successMessage = '設定を更新しました。',
+    messageScope: Exclude<SettingsMessageScope, null> = 'ticketSection',
   ) => {
     const token = getSessionToken();
     if (!token) {
       setSettingsMessageScope(messageScope);
-      setSettingsError("セッションがありません。再ログインしてください。");
+      setSettingsError('セッションがありません。再ログインしてください。');
       return false;
     }
 
@@ -665,9 +665,9 @@ const SettingsContent = () => {
     setIsSyncingSetting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("admin-auth", {
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: {
-          action: "updateSettings",
+          action: 'updateSettings',
           eventYear: nextSettings.eventYear,
           showLength: nextSettings.showLength,
           maxTicketsPerUser: nextSettings.maxTicketsPerUser,
@@ -683,7 +683,7 @@ const SettingsContent = () => {
           defaultGymJuniorCapacity: nextSettings.defaultGymJuniorCapacity,
         },
         headers: {
-          "x-admin-session-token": token,
+          'x-admin-session-token': token,
         },
       });
 
@@ -692,7 +692,7 @@ const SettingsContent = () => {
       }
 
       if (!data?.updated) {
-        throw new Error("設定の保存に失敗しました。");
+        throw new Error('設定の保存に失敗しました。');
       }
 
       setSettings(nextSettings);
@@ -709,14 +709,14 @@ const SettingsContent = () => {
 
   const handleToggleTableValue = async (
     table:
-      | "class_performances"
-      | "gym_performances"
-      | "performances_schedule"
-      | "relationships",
+      | 'class_performances'
+      | 'gym_performances'
+      | 'performances_schedule'
+      | 'relationships',
     id: number,
     column: string,
     nextValue: boolean | number,
-    messageScope: SettingsMessageScope = "globalSection",
+    messageScope: SettingsMessageScope = 'globalSection',
   ): Promise<boolean> => {
     if (isSettingsLoading || isSyncingSetting) {
       return false;
@@ -724,7 +724,7 @@ const SettingsContent = () => {
 
     const token = getSessionToken();
     if (!token) {
-      setSettingsError("セッションがありません。再ログインしてください。");
+      setSettingsError('セッションがありません。再ログインしてください。');
       return false;
     }
 
@@ -734,16 +734,16 @@ const SettingsContent = () => {
     setIsSyncingSetting(true);
 
     try {
-      const { error } = await supabase.functions.invoke("admin-auth", {
+      const { error } = await supabase.functions.invoke('admin-auth', {
         body: {
-          action: "updateAcceptingStatus",
+          action: 'updateAcceptingStatus',
           table,
           recordId: id,
           column,
           value: nextValue,
         },
         headers: {
-          "x-admin-session-token": token,
+          'x-admin-session-token': token,
         },
       });
 
@@ -752,32 +752,32 @@ const SettingsContent = () => {
       }
 
       // ローカルステートの更新
-      if (table === "class_performances") {
+      if (table === 'class_performances') {
         setClassPerformances((prev) =>
           prev.map((p) =>
             p.id === id ? ({ ...p, [column]: nextValue } as typeof p) : p,
           ),
         );
-      } else if (table === "gym_performances") {
+      } else if (table === 'gym_performances') {
         setGymPerformances((prev) =>
           prev.map((p) =>
             p.id === id ? ({ ...p, [column]: nextValue } as typeof p) : p,
           ),
         );
-      } else if (table === "performances_schedule") {
+      } else if (table === 'performances_schedule') {
         setSchedules((prev) =>
           prev.map((s) =>
             s.id === id ? { ...s, is_active: nextValue as boolean } : s,
           ),
         );
-      } else if (table === "relationships") {
+      } else if (table === 'relationships') {
         setRelationships((prev) =>
           prev.map((r) =>
             r.id === id ? { ...r, is_accepting: nextValue as boolean } : r,
           ),
         );
       }
-      setSettingsSuccess("設定を更新しました。");
+      setSettingsSuccess('設定を更新しました。');
       return true;
     } catch (error) {
       const message = await readErrorMessage(error);
@@ -790,19 +790,19 @@ const SettingsContent = () => {
 
   const syncTicketTypeControls = async (
     nextControls: TicketTypeControls,
-    successMessage = "券種別の受付設定を更新しました。",
+    successMessage = '券種別の受付設定を更新しました。',
   ) => {
     const token = getSessionToken();
     if (!token) {
-      setSettingsMessageScope("ticketSection");
-      setSettingsError("セッションがありません。再ログインしてください。");
+      setSettingsMessageScope('ticketSection');
+      setSettingsError('セッションがありません。再ログインしてください。');
       return false;
     }
 
     const activeTicketTypeIds = buildActiveTicketTypeIds(nextControls);
     const previousActiveTicketTypeIds = settings.activeTicketTypeIds;
 
-    setSettingsMessageScope("ticketSection");
+    setSettingsMessageScope('ticketSection');
     setSettingsError(null);
     setSettingsSuccess(null);
     setIsSyncingSetting(true);
@@ -813,9 +813,9 @@ const SettingsContent = () => {
     }));
 
     try {
-      const { data, error } = await supabase.functions.invoke("admin-auth", {
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: {
-          action: "updateTicketTypeSettings",
+          action: 'updateTicketTypeSettings',
           activeTicketTypeIds,
           ticketIssueModes: {
             classInvite: nextControls.classInvite,
@@ -830,7 +830,7 @@ const SettingsContent = () => {
           },
         },
         headers: {
-          "x-admin-session-token": token,
+          'x-admin-session-token': token,
         },
       });
 
@@ -839,7 +839,7 @@ const SettingsContent = () => {
       }
 
       if (!data?.updated) {
-        throw new Error("券種別設定の保存に失敗しました。");
+        throw new Error('券種別設定の保存に失敗しました。');
       }
 
       setSettingsSuccess(successMessage);
@@ -860,13 +860,13 @@ const SettingsContent = () => {
   const openNumericEditModal = (key: NumericSettingKey) => {
     setEditingNumericKey(key);
     setEditingNumericValue(String(settings[key]));
-    setSettingsMessageScope("modal");
+    setSettingsMessageScope('modal');
     setSettingsError(null);
     setSettingsSuccess(null);
   };
 
   const openIndividualNumericEditModal = (
-    table: "class_performances" | "gym_performances",
+    table: 'class_performances' | 'gym_performances',
     id: number,
     column: string,
     label: string,
@@ -876,7 +876,7 @@ const SettingsContent = () => {
   ) => {
     setEditingPerformanceInfo({ table, id, column, label, min, max });
     setEditingNumericValue(String(currentValue));
-    setSettingsMessageScope("modal");
+    setSettingsMessageScope('modal');
     setSettingsError(null);
     setSettingsSuccess(null);
   };
@@ -884,7 +884,7 @@ const SettingsContent = () => {
   const closeNumericEditModal = () => {
     setEditingNumericKey(null);
     setEditingPerformanceInfo(null);
-    setEditingNumericValue("");
+    setEditingNumericValue('');
     setSettingsMessageScope(null);
     setSettingsError(null);
     setSettingsSuccess(null);
@@ -902,30 +902,30 @@ const SettingsContent = () => {
       }
 
       // 公演ごとの中学生枠と合計定員の整合性チェック
-      if (table === "class_performances" || table === "gym_performances") {
+      if (table === 'class_performances' || table === 'gym_performances') {
         const targetPerf =
-          table === "class_performances"
+          table === 'class_performances'
             ? classPerformances.find((p) => p.id === id)
             : gymPerformances.find((p) => p.id === id);
         if (targetPerf) {
           if (
-            (column === "total_capacity" || column === "capacity") &&
+            (column === 'total_capacity' || column === 'capacity') &&
             parsed < targetPerf.junior_capacity
           ) {
             setSettingsError(
-              "合計定員は現在の中学生枠より少なく設定できません。",
+              '合計定員は現在の中学生枠より少なく設定できません。',
             );
             return;
           }
           if (
-            column === "junior_capacity" &&
+            column === 'junior_capacity' &&
             parsed >
-              (table === "class_performances"
+              (table === 'class_performances'
                 ? classPerformances.find((p) => p.id === id)!.total_capacity
                 : gymPerformances.find((p) => p.id === id)!.capacity)
           ) {
             setSettingsError(
-              "中学生枠は現在の合計定員より多く設定できません。",
+              '中学生枠は現在の合計定員より多く設定できません。',
             );
             return;
           }
@@ -938,7 +938,7 @@ const SettingsContent = () => {
         id,
         column,
         parsed,
-        "detailSection",
+        'detailSection',
       );
       setIsModalSubmitting(false);
       if (success) {
@@ -963,38 +963,38 @@ const SettingsContent = () => {
 
     // 全体デフォルト設定：中学生枠と合計定員の整合性チェック
     if (
-      key === "defaultClassTotalCapacity" &&
+      key === 'defaultClassTotalCapacity' &&
       parsed < settings.defaultClassJuniorCapacity
     ) {
       setSettingsError(
-        "合計定員のデフォルト値は現在の中学生枠のデフォルト値より少なく設定できません。",
+        '合計定員のデフォルト値は現在の中学生枠のデフォルト値より少なく設定できません。',
       );
       return;
     }
     if (
-      key === "defaultClassJuniorCapacity" &&
+      key === 'defaultClassJuniorCapacity' &&
       parsed > settings.defaultClassTotalCapacity
     ) {
       setSettingsError(
-        "中学生枠のデフォルト値は現在の合計定員のデフォルト値より多く設定できません。",
+        '中学生枠のデフォルト値は現在の合計定員のデフォルト値より多く設定できません。',
       );
       return;
     }
     if (
-      key === "defaultGymJuniorCapacity" &&
+      key === 'defaultGymJuniorCapacity' &&
       parsed > settings.defaultGymCapacity
     ) {
       setSettingsError(
-        "中学生枠のデフォルト値は現在の体育館公演定員より多く設定できません。",
+        '中学生枠のデフォルト値は現在の体育館公演定員より多く設定できません。',
       );
       return;
     }
     if (
-      key === "defaultGymCapacity" &&
+      key === 'defaultGymCapacity' &&
       parsed < settings.defaultGymJuniorCapacity
     ) {
       setSettingsError(
-        "体育館公演定員は現在の中学生枠のデフォルト値より少なく設定できません。",
+        '体育館公演定員は現在の中学生枠のデフォルト値より少なく設定できません。',
       );
       return;
     }
@@ -1003,9 +1003,9 @@ const SettingsContent = () => {
     const success = await syncSettings(
       nextSettings,
       `${meta.label}を更新しました。`,
-      key === "eventYear" || key === "showLength"
-        ? "globalSection"
-        : "ticketSection",
+      key === 'eventYear' || key === 'showLength'
+        ? 'globalSection'
+        : 'ticketSection',
     );
     setIsModalSubmitting(false);
     if (success) {
@@ -1029,15 +1029,15 @@ const SettingsContent = () => {
     setTicketTypeControls(nextControls);
 
     const labelByKey: Record<TicketTypeControlKey, string> = {
-      classInvite: "招待券(クラス公演)受付",
-      rehearsalInvite: "招待券(リハーサル)受付",
-      gymInvite: "招待券(体育館公演)受付",
-      entryOnly: "招待券(入場専用券)受付",
-      sameDayClass: "当日券(クラス公演)受付",
-      sameDayGym: "当日券(体育館公演)受付",
-      juniorClass: "中学生券(クラス公演)受付",
-      juniorGym: "中学生券(体育館公演)受付",
-      juniorEntryOnly: "中学生券(入場専用券)受付",
+      classInvite: '招待券(クラス公演)受付',
+      rehearsalInvite: '招待券(リハーサル)受付',
+      gymInvite: '招待券(体育館公演)受付',
+      entryOnly: '招待券(入場専用券)受付',
+      sameDayClass: '当日券(クラス公演)受付',
+      sameDayGym: '当日券(体育館公演)受付',
+      juniorClass: '中学生券(クラス公演)受付',
+      juniorGym: '中学生券(体育館公演)受付',
+      juniorEntryOnly: '中学生券(入場専用券)受付',
     };
 
     void syncTicketTypeControls(
@@ -1056,12 +1056,12 @@ const SettingsContent = () => {
     setJuniorPasswordSuccess(null);
 
     if (juniorPassword.length < 4) {
-      setJuniorPasswordError("合言葉は4文字以上で入力してください。");
+      setJuniorPasswordError('合言葉は4文字以上で入力してください。');
       return;
     }
 
     if (juniorPassword !== juniorPasswordConfirm) {
-      setJuniorPasswordError("合言葉と確認用合言葉が一致しません。");
+      setJuniorPasswordError('合言葉と確認用合言葉が一致しません。');
       return;
     }
 
@@ -1070,16 +1070,16 @@ const SettingsContent = () => {
     try {
       const token = getSessionToken();
       if (!token) {
-        throw new Error("セッションがありません。再ログインしてください。");
+        throw new Error('セッションがありません。再ログインしてください。');
       }
 
-      const { data, error } = await supabase.functions.invoke("admin-auth", {
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
         body: {
-          action: "updateJuniorPassword",
+          action: 'updateJuniorPassword',
           juniorPassword,
         },
         headers: {
-          "x-admin-session-token": token,
+          'x-admin-session-token': token,
         },
       });
 
@@ -1088,13 +1088,13 @@ const SettingsContent = () => {
       }
 
       if (!data?.updated) {
-        throw new Error("合言葉の更新に失敗しました。");
+        throw new Error('合言葉の更新に失敗しました。');
       }
 
-      setJuniorPassword("");
-      setJuniorPasswordConfirm("");
+      setJuniorPassword('');
+      setJuniorPasswordConfirm('');
       setHasJuniorPassword(true);
-      setJuniorPasswordSuccess("合言葉を更新しました。");
+      setJuniorPasswordSuccess('合言葉を更新しました。');
     } catch (error) {
       const message = await readErrorMessage(error);
       setJuniorPasswordError(`合言葉の更新に失敗しました。${message}`);
@@ -1123,7 +1123,9 @@ const SettingsContent = () => {
         <div className={styles.headerRow}>
           <div>
             <h2>ステータス</h2>
-            <p className={styles.settingHint}>初回登録率・発券数・ランキングを確認できます。</p>
+            <p className={styles.settingHint}>
+              初回登録率・発券数・ランキングを確認できます。
+            </p>
           </div>
           <a className={styles.inlineEditButton} href='/admin/status'>
             ステータス画面を開く
@@ -1193,6 +1195,16 @@ const SettingsContent = () => {
         {settingsMessageScope === 'globalSection' && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
+      </NormalSection>
+
+      <NormalSection>
+        <h2>チケット管理</h2>
+        <p className={styles.noteText}>
+          発券済みチケットの検索、状態確認、取消、チケットページへの移動を行えます。
+        </p>
+        <a className={styles.linkButton} href='/admin/tickets'>
+          チケット管理を開く
+        </a>
       </NormalSection>
 
       <NormalSection>
@@ -2301,11 +2313,11 @@ const SettingsContent = () => {
 };
 
 const Settings = () => {
-  useTitle("コントロールパネル - 管理画面");
+  useTitle('コントロールパネル - 管理画面');
   return (
     <AdminAuthLayout
-      title="コントロールパネル"
-      description="システム全体設定と管理者セキュリティをここで管理します。"
+      title='コントロールパネル'
+      description='システム全体設定と管理者セキュリティをここで管理します。'
     >
       <SettingsContent />
     </AdminAuthLayout>

@@ -30,6 +30,12 @@ export const Register = lazy(() => import('./pages/admin/Register'));
 export const ScanHistory = lazy(() => import('./pages/admin/ScanHistory'));
 export const Settings = lazy(() => import('./pages/admin/Settings'));
 export const Status = lazy(() => import('./pages/admin/Status'));
+export const TicketManagement = lazy(
+  () => import('./pages/admin/TicketManagement'),
+);
+export const AdminTicketIssue = lazy(
+  () => import('./pages/admin/AdminTicketIssue'),
+);
 export const StudentAccounts = lazy(
   () => import('./pages/admin/StudentAccounts'),
 );

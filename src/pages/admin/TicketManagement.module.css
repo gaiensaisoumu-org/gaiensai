@@ -1,0 +1,182 @@
+.header,
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1rem
+}
+
+.header {
+  margin-top: 1rem;
+}
+
+.header h2,
+.sectionHeading h2 {
+  margin: 0;
+}
+
+.header p,
+.sectionHeading p {
+  margin: .35rem 0 0;
+  color: var(--sub-text-color);
+}
+
+.header button,
+.issueButton,
+.clearButton,
+.cancelButton {
+  border: 0;
+  border-radius: .5rem;
+  padding: .65rem .9rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.header button,
+.issueButton {
+  background: var(--primary-color);
+  color: var(--heading-text-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .85rem;
+  align-items: end;
+}
+
+.filters label {
+  display: grid;
+  gap: .35rem;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.filters input,
+.filters select {
+  min-width: 0;
+  padding: .6rem;
+  border: 1px solid var(--select-border-color);
+  border-radius: .4rem;
+  background: var(--normal-section-bg-color);
+  color: var(--main-text-color);
+  font: inherit;
+}
+
+.clearButton {
+  background: color-mix(in srgb, var(--main-text-color) 12%, transparent);
+  color: var(--main-text-color);
+}
+
+.resultCount {
+  margin: 1rem 0 .5rem;
+  color: var(--sub-text-color);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.tableWrap table {
+  width: 100%;
+  min-width: 1300px;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: .7rem;
+  border-bottom: 1px solid var(--table-border-color);
+  text-align: left;
+  vertical-align: top;
+}
+
+.tableWrap th {
+  background: color-mix(in srgb, var(--main-bg-color) 72%, transparent);
+  white-space: nowrap;
+}
+
+.tableWrap small {
+  display: block;
+  margin-top: .25rem;
+  color: var(--sub-text-color);
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.status {
+  display: inline-block;
+  padding: .2rem .45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--main-text-color) 10%, transparent);
+  white-space: nowrap;
+}
+
+.valid {
+  background: var(--success-bg-color);
+  color: var(--success-text-color);
+}
+
+.used {
+  background: var(--reentry-bg-color);
+  color: var(--reentry-text-color);
+}
+
+.cancelled {
+  background: var(--error-bg-color);
+  color: var(--error-text-color);
+}
+
+.actions {
+  display: grid;
+  gap: .45rem;
+  white-space: nowrap;
+}
+
+.actions a {
+  color: var(--url-text-color);
+}
+
+.cancelButton {
+  background: transparent;
+  color: var(--error-text-color);
+  border: 1px solid var(--error-border-color);
+  padding: .35rem .55rem;
+}
+
+.cancelButton:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.empty {
+  text-align: center !important;
+  color: var(--sub-text-color);
+  padding: 2rem !important;
+}
+
+@media (max-width: 760px) {
+
+  .header,
+  .sectionHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .issueButton {
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+  }
+}

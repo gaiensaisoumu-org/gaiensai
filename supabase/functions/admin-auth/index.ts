@@ -8,6 +8,9 @@ import { compare, hash } from "bcryptjs";
 import { getCorsHeaders } from "@shared/cors.ts";
 import { getEnv } from "@shared/getEnv.ts";
 import HttpError from "@shared/HttpError.ts";
+import { generateManualCode, generateTicketCode, signCode } from "@shared/generateTicketCode.ts";
+import { YEAR_BITS, SERIAL_BITS } from "@shared/ticketDataType.ts";
+import { issueWithRollback, type RpcClient } from "../issue-tickets/issueWithRollback.ts";
 
 const ADMIN_CONTROL_PANEL_SESSION_DURATION_MS = 1000 * 60 * 60 * 8;
 const ADMIN_AUTH_MAX_FAILED_ATTEMPTS = 5;
@@ -43,6 +46,14 @@ type AdminAuthRequest = {
   juniorPassword?: unknown;
   secretCode?: unknown;
   maxAdmissionOnlyJuniorAccounts?: unknown;
+  code?: unknown;
+  affiliation?: unknown;
+  ticketTypeId?: unknown;
+  relationshipId?: unknown;
+  performanceId?: unknown;
+  scheduleId?: unknown;
+  issueCount?: unknown;
+  juniorRelationshipId?: unknown;
 };
 
 type TicketIssueMode =
@@ -78,6 +89,9 @@ type AdminAuthBody =
   | { mode: "deleteAccountsByType"; accountType: "student" | "junior" }
   | { mode: "deleteAllTicketsAndResetCounters" }
   | { mode: "getStatusDashboard" }
+  | { mode: "getTicketManagementData" }
+  | { mode: "cancelTicket"; code: string }
+  | { mode: "adminIssueTickets"; affiliation: number; ticketTypeId: number; relationshipId: number; juniorRelationshipId: number | null; performanceId: number; scheduleId: number; issueCount: number }
   | { mode: "getStudentUsers" }
   | {
       mode: "resetUserPassword";
@@ -373,6 +387,34 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === "getStatusDashboard") {
     return { mode: "getStatusDashboard" };
+  }
+
+  if (action === "getTicketManagementData") {
+    return { mode: "getTicketManagementData" };
+  }
+
+  if (action === "cancelTicket") {
+    const { code } = body as AdminAuthRequest;
+    if (typeof code !== "string" || code.trim().length === 0 || code.length > 200) {
+      throw new HttpError(400, "チケットコードを指定してください。");
+    }
+    return { mode: "cancelTicket", code: code.trim() };
+  }
+
+  if (action === "adminIssueTickets") {
+    const values = body as AdminAuthRequest;
+    return {
+      mode: "adminIssueTickets",
+      affiliation: normalizeInteger(values.affiliation, "affiliation", 0, 999999),
+      ticketTypeId: normalizeInteger(values.ticketTypeId, "ticketTypeId", 1, 100),
+      relationshipId: normalizeInteger(values.relationshipId, "relationshipId", 1, 100),
+      juniorRelationshipId: values.juniorRelationshipId === undefined || values.juniorRelationshipId === null
+        ? null
+        : normalizeInteger(values.juniorRelationshipId, "juniorRelationshipId", 0, 2),
+      performanceId: normalizeInteger(values.performanceId, "performanceId", 0, 10000),
+      scheduleId: normalizeInteger(values.scheduleId, "scheduleId", 0, 10000),
+      issueCount: normalizeInteger(values.issueCount, "issueCount", 1, 20),
+    };
   }
 
   if (action === "resetUserPassword") {
@@ -1472,6 +1514,94 @@ Deno.serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (body.mode === "getTicketManagementData") {
+      const session = await requireValidSession(adminClient, req);
+      const [ticketsResult, usersResult, relationshipsResult, typesResult, classTicketsResult, gymTicketsResult, classesResult, schedulesResult, gymsResult] = await Promise.all([
+        adminClient.from("tickets").select("id, code, signature, status, created_at, user_id, relationship, ticket_type, person_count, ticket_name").order("created_at", { ascending: false }).limit(1000),
+        adminClient.from("users").select("id, email, affiliation"),
+        adminClient.from("relationships").select("id, name"),
+        adminClient.from("ticket_types").select("id, name, type"),
+        adminClient.from("class_tickets").select("id, class_id, round_id"),
+        adminClient.from("gym_tickets").select("id, performance_id"),
+        adminClient.from("class_performances").select("id, class_name, title"),
+        adminClient.from("performances_schedule").select("id, round_name, start_at"),
+        adminClient.from("gym_performances").select("id, group_name, round_name, start_at"),
+      ]);
+      const results = [ticketsResult, usersResult, relationshipsResult, typesResult, classTicketsResult, gymTicketsResult, classesResult, schedulesResult, gymsResult];
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
+
+      await adminClient.from("admin_sessions").update({ last_used_at: new Date().toISOString() }).eq("id", session.id);
+      return new Response(JSON.stringify({
+        tickets: ticketsResult.data ?? [], users: usersResult.data ?? [], relationships: relationshipsResult.data ?? [],
+        ticketTypes: typesResult.data ?? [], classTickets: classTicketsResult.data ?? [], gymTickets: gymTicketsResult.data ?? [],
+        classes: classesResult.data ?? [], schedules: schedulesResult.data ?? [], gyms: gymsResult.data ?? [],
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (body.mode === "cancelTicket") {
+      const session = await requireValidSession(adminClient, req);
+      const { data: ticket, error: findError } = await adminClient
+        .from("tickets").select("status").eq("code", body.code).maybeSingle();
+      if (findError) throw findError;
+      if (!ticket) throw new HttpError(404, "チケットが見つかりません。");
+      if ((ticket as { status: string }).status !== "valid") {
+        throw new HttpError(409, "有効なチケットのみ取り消せます。");
+      }
+      const { error: updateError } = await adminClient.from("tickets")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("code", body.code);
+      if (updateError) throw updateError;
+      await adminClient.from("admin_sessions").update({ last_used_at: new Date().toISOString() }).eq("id", session.id);
+      return new Response(JSON.stringify({ cancelled: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (body.mode === "adminIssueTickets") {
+      const session = await requireValidSession(adminClient, req);
+      const [{ data: user, error: userError }, { data: ticketType, error: typeError }, { data: config, error: configError }] = await Promise.all([
+        adminClient.from("users").select("id, affiliation").eq("affiliation", body.affiliation).maybeSingle(),
+        adminClient.from("ticket_types").select("id, name, type").eq("id", body.ticketTypeId).maybeSingle(),
+        adminClient.from("configs").select("event_year").order("id", { ascending: true }).maybeSingle(),
+      ]);
+      if (userError || typeError || configError) throw userError ?? typeError ?? configError;
+      if (!user) throw new HttpError(404, "指定した affiliation の利用者が見つかりません。先に利用者登録を確認してください。");
+      if (!ticketType) throw new HttpError(404, "チケット種別が見つかりません。");
+      if (ticketType.name === "クラス公演(リハーサル)" && ticketType.type === "招待券") {
+        throw new HttpError(400, "クラス公演(リハーサル)（招待券）は管理者発券に対応していません。");
+      }
+      const isJuniorTicket = ticketType.type === "中学生券";
+      if (isJuniorTicket && body.juniorRelationshipId === null) {
+        throw new HttpError(400, "中学生券の利用者区分を選択してください。");
+      }
+      const databaseRelationshipId = isJuniorTicket ? 1 : body.relationshipId;
+      const isAdmission = ticketType.name === "入場専用券";
+      const isGym = String(ticketType.name ?? "").includes("体育館");
+      if (isAdmission) {
+        if (body.performanceId !== 0 || body.scheduleId !== 0) throw new HttpError(400, "入場専用券には公演を指定できません。");
+      } else if (isGym) {
+        if (body.performanceId < 1) throw new HttpError(400, "体育館公演を選択してください。");
+      } else if (body.performanceId < 1 || body.scheduleId < 1) {
+        throw new HttpError(400, "公演と公演回を選択してください。");
+      }
+      const issuedYear = Number(config?.event_year);
+      if (!Number.isInteger(issuedYear)) throw new HttpError(500, "年度設定を取得できませんでした。");
+      const yearForCode = issuedYear % 2 ** Number(YEAR_BITS);
+      const prefixDigits = `${String(body.affiliation).padStart(5, "0")}${String(body.ticketTypeId).padStart(1, "0")}${String(databaseRelationshipId).padStart(1, "0")}${String(body.performanceId).padStart(2, "0")}${String(body.scheduleId).padStart(2, "0")}${String(yearForCode).padStart(2, "0")}`;
+      const basePrefix = generateManualCode(BigInt(prefixDigits));
+      const { data: endSerial, error: counterError } = await adminClient.rpc("increment_ticket_code_counter", {
+        p_prefix: basePrefix, p_increment: body.issueCount, p_max_value: 2 ** Number(SERIAL_BITS),
+      });
+      if (counterError) throw new HttpError(409, counterError.message);
+      const issuedTickets = await issueWithRollback({
+        adminClient: adminClient as unknown as RpcClient, userId: user.id, issueCount: body.issueCount,
+        issueMode: isGym ? "gym" : "class", ticketTypeId: body.ticketTypeId, relationshipId: databaseRelationshipId,
+        performanceId: body.performanceId, scheduleId: body.scheduleId, affiliation: body.affiliation,
+        issuedYear, basePrefix, endSerial: Number(endSerial), encodingRelationshipId: body.juniorRelationshipId ?? undefined,
+        generateCode: generateTicketCode, signTicketCode: signCode,
+      });
+      await adminClient.from("admin_sessions").update({ last_used_at: new Date().toISOString() }).eq("id", session.id);
+      return new Response(JSON.stringify({ issuedTickets }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (body.mode === "resetUserPassword") {

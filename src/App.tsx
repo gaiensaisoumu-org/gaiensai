@@ -20,6 +20,8 @@ import {
   Info,
   Settings,
   Status,
+  TicketManagement,
+  AdminTicketIssue,
   StudentAccounts,
   SecretBase,
 } from './routes';
@@ -123,6 +125,8 @@ const AdminPageLayout = () => (
         <Route path='/history' component={ScanHistory} />
         <Route path='settings' component={Settings} />
         <Route path='/status' component={Status} />
+        <Route path='/tickets' component={TicketManagement} />
+        <Route path='/tickets/issue' component={AdminTicketIssue} />
         <Route path='/student-accounts' component={StudentAccounts} />
         <Route path='/junior-accounts' component={JuniorAccounts} />
         <Route default component={NotFound} />

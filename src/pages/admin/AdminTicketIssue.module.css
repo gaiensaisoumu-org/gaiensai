@@ -1,0 +1,65 @@
+.issuePage {
+  width: 100%;
+  margin-inline: auto;
+  min-width: 0;
+}
+
+.issueForm {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.issueForm > section {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.actions {
+  margin-inline: 0;
+  justify-content: flex-end;
+}
+
+.submitButton {
+  width: min(100%, 24rem);
+  min-height: 3.25rem;
+  padding: .8rem 1rem;
+  margin: 1rem;
+  border: 0;
+  border-radius: .65rem;
+  background: var(--darker-accent-color);
+  color: var(--heading-text-color);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitButton:disabled {
+  cursor: not-allowed;
+  opacity: .46;
+}
+
+@media (max-width: 720px) {
+  .issuePage {
+    gap: .75rem;
+  }
+
+  .actions {
+    margin: .25rem 0 0;
+  }
+
+  .submitButton {
+    width: 100%;
+  }
+}
+
+.input {
+  border: 1px solid var(--select-border-color);
+  background: var(--select-bg-color);
+  border-radius: 8px;
+  padding: 0.7rem;
+  font-size: 1rem;
+}
