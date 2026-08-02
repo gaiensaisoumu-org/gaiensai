@@ -5,12 +5,14 @@ type AlertProps = {
   children: preact.ComponentChildren;
   className?: string;
   type?: 'warning' | 'error' | 'info';
+  style?: typeof styles;
 };
 
 const Alert = ({
   children,
   className,
   type = 'warning',
+  style: alertStyles,
   ...props
 }: AlertProps) => {
   const classes = className
@@ -29,7 +31,7 @@ const Alert = ({
   }
 
   return (
-    <div className={classes} {...props}>
+    <div className={classes} {...props} style={alertStyles}>
       <h2>
         <Icon />
         {title}

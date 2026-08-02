@@ -3,6 +3,7 @@ import { useLocation } from 'preact-iso';
 import { supabase } from '../../../lib/supabase';
 import styles from './InitialRegistration.module.css';
 import { useTitle } from '../../../hooks/useTitle';
+import Alert from '../../../components/ui/Alert';
 
 type InitialRegistrationProps = {
   onRegistered: () => Promise<boolean>;
@@ -124,6 +125,9 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
       </p>
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.clubSelection}>
+          <Alert type='info' style={{ marginTop: '0' }}>
+            部活は、引退した3年生は選択する必要はありません。
+          </Alert>
           <p className={styles.label}>
             部活(所属しているものをすべて選択してください)
           </p>
