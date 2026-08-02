@@ -1,19 +1,19 @@
-import Alert from '../../components/ui/Alert';
-import NormalSection from '../../components/ui/NormalSection';
-import { useEffect, useState } from 'preact/hooks';
-import { supabase } from '../../lib/supabase';
-import styles from './Settings.module.css';
-import Switch from '../../components/ui/Switch';
-import { useTitle } from '../../hooks/useTitle';
-import { useEventConfig } from '../../hooks/useEventConfig';
-import PerformancesTable from '../../features/performances/PerformancesTable';
-import GymPerformancesTable from '../../features/performances/GymPerformancesTable';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import Alert from "../../components/ui/Alert";
+import NormalSection from "../../components/ui/NormalSection";
+import { useEffect, useState } from "preact/hooks";
+import { supabase } from "../../lib/supabase";
+import styles from "./Settings.module.css";
+import Switch from "../../components/ui/Switch";
+import { useTitle } from "../../hooks/useTitle";
+import { useEventConfig } from "../../hooks/useEventConfig";
+import PerformancesTable from "../../features/performances/PerformancesTable";
+import GymPerformancesTable from "../../features/performances/GymPerformancesTable";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import {
   AdminAuthLayout,
   getSessionToken,
   readErrorMessage,
-} from '../../layout/AdminAuthLayout';
+} from "../../layout/AdminAuthLayout";
 
 type ControlPanelSettings = {
   eventYear: number;
@@ -27,21 +27,22 @@ type ControlPanelSettings = {
   defaultClassTotalCapacity: number;
   defaultClassJuniorCapacity: number;
   defaultGymCapacity: number;
+  defaultGymJuniorCapacity: number;
 };
 
 type TicketTypeControlValue =
-  'open' | 'only-own' | 'public-rehearsals' | 'auto' | 'off';
+  "open" | "only-own" | "public-rehearsals" | "auto" | "off";
 
 type TicketTypeControlKey =
-  | 'classInvite'
-  | 'rehearsalInvite'
-  | 'gymInvite'
-  | 'entryOnly'
-  | 'sameDayClass'
-  | 'sameDayGym'
-  | 'juniorClass'
-  | 'juniorGym'
-  | 'juniorEntryOnly';
+  | "classInvite"
+  | "rehearsalInvite"
+  | "gymInvite"
+  | "entryOnly"
+  | "sameDayClass"
+  | "sameDayGym"
+  | "juniorClass"
+  | "juniorGym"
+  | "juniorEntryOnly";
 
 type TicketTypeControls = Record<TicketTypeControlKey, TicketTypeControlValue>;
 
@@ -58,44 +59,44 @@ const TICKET_TYPE_IDS = {
 } as const;
 
 const DEFAULT_TICKET_TYPE_CONTROLS: TicketTypeControls = {
-  classInvite: 'open',
-  rehearsalInvite: 'open',
-  gymInvite: 'open',
-  entryOnly: 'open',
-  sameDayClass: 'open',
-  sameDayGym: 'open',
-  juniorClass: 'open',
-  juniorGym: 'open',
-  juniorEntryOnly: 'open',
+  classInvite: "open",
+  rehearsalInvite: "open",
+  gymInvite: "open",
+  entryOnly: "open",
+  sameDayClass: "open",
+  sameDayGym: "open",
+  juniorClass: "open",
+  juniorGym: "open",
+  juniorEntryOnly: "open",
 };
 
 const buildActiveTicketTypeIds = (controls: TicketTypeControls): number[] => {
   const activeIds = new Set<number>();
-  if (controls.classInvite !== 'off') {
+  if (controls.classInvite !== "off") {
     activeIds.add(TICKET_TYPE_IDS.classInvite);
   }
-  if (controls.rehearsalInvite !== 'off') {
+  if (controls.rehearsalInvite !== "off") {
     activeIds.add(TICKET_TYPE_IDS.rehearsalInvite);
   }
-  if (controls.gymInvite !== 'off') {
+  if (controls.gymInvite !== "off") {
     activeIds.add(TICKET_TYPE_IDS.gymInvite);
   }
-  if (controls.entryOnly !== 'off') {
+  if (controls.entryOnly !== "off") {
     activeIds.add(TICKET_TYPE_IDS.entryOnly);
   }
-  if (controls.sameDayClass !== 'off') {
+  if (controls.sameDayClass !== "off") {
     activeIds.add(TICKET_TYPE_IDS.sameDayClass);
   }
-  if (controls.sameDayGym !== 'off') {
+  if (controls.sameDayGym !== "off") {
     activeIds.add(TICKET_TYPE_IDS.sameDayGym);
   }
-  if (controls.juniorClass !== 'off') {
+  if (controls.juniorClass !== "off") {
     activeIds.add(TICKET_TYPE_IDS.juniorClass);
   }
-  if (controls.juniorGym !== 'off') {
+  if (controls.juniorGym !== "off") {
     activeIds.add(TICKET_TYPE_IDS.juniorGym);
   }
-  if (controls.juniorEntryOnly !== 'off') {
+  if (controls.juniorEntryOnly !== "off") {
     activeIds.add(TICKET_TYPE_IDS.juniorEntryOnly);
   }
   return Array.from(activeIds);
@@ -106,75 +107,80 @@ const mapActiveIdsToTicketTypeControls = (
 ): TicketTypeControls => {
   const activeIdSet = new Set(activeTicketTypeIds);
   return {
-    classInvite: activeIdSet.has(TICKET_TYPE_IDS.classInvite) ? 'open' : 'off',
+    classInvite: activeIdSet.has(TICKET_TYPE_IDS.classInvite) ? "open" : "off",
     rehearsalInvite: activeIdSet.has(TICKET_TYPE_IDS.rehearsalInvite)
-      ? 'open'
-      : 'off',
-    gymInvite: activeIdSet.has(TICKET_TYPE_IDS.gymInvite) ? 'open' : 'off',
-    entryOnly: activeIdSet.has(TICKET_TYPE_IDS.entryOnly) ? 'open' : 'off',
+      ? "open"
+      : "off",
+    gymInvite: activeIdSet.has(TICKET_TYPE_IDS.gymInvite) ? "open" : "off",
+    entryOnly: activeIdSet.has(TICKET_TYPE_IDS.entryOnly) ? "open" : "off",
     sameDayClass: activeIdSet.has(TICKET_TYPE_IDS.sameDayClass)
-      ? 'open'
-      : 'off',
-    sameDayGym: activeIdSet.has(TICKET_TYPE_IDS.sameDayGym) ? 'open' : 'off',
-    juniorClass: activeIdSet.has(TICKET_TYPE_IDS.juniorClass) ? 'open' : 'off',
-    juniorGym: activeIdSet.has(TICKET_TYPE_IDS.juniorGym) ? 'open' : 'off',
+      ? "open"
+      : "off",
+    sameDayGym: activeIdSet.has(TICKET_TYPE_IDS.sameDayGym) ? "open" : "off",
+    juniorClass: activeIdSet.has(TICKET_TYPE_IDS.juniorClass) ? "open" : "off",
+    juniorGym: activeIdSet.has(TICKET_TYPE_IDS.juniorGym) ? "open" : "off",
     juniorEntryOnly: activeIdSet.has(TICKET_TYPE_IDS.juniorEntryOnly)
-      ? 'open'
-      : 'off',
+      ? "open"
+      : "off",
   };
 };
 
 const isTicketTypeControlValue = (
   value: unknown,
 ): value is TicketTypeControlValue =>
-  value === 'open' ||
-  value === 'only-own' ||
-  value === 'public-rehearsals' ||
-  value === 'auto' ||
-  value === 'off';
+  value === "open" ||
+  value === "only-own" ||
+  value === "public-rehearsals" ||
+  value === "auto" ||
+  value === "off";
 
 const NUMERIC_SETTING_META = {
-  eventYear: { label: '年度', min: 2020, max: 2100 },
-  showLength: { label: '1公演の長さ（分）', min: 1, max: 300 },
-  maxTicketsPerUser: { label: '1人あたりのチケット購入上限', min: 1, max: 100 },
+  eventYear: { label: "年度", min: 2020, max: 2100 },
+  showLength: { label: "1公演の長さ（分）", min: 1, max: 300 },
+  maxTicketsPerUser: { label: "1人あたりのチケット購入上限", min: 1, max: 100 },
   maxTicketsPerJuniorUser: {
-    label: '中学生のチケット購入上限',
+    label: "中学生のチケット購入上限",
     min: 1,
     max: 100,
   },
   maxAdmissionOnlyJuniorAccounts: {
-    label: '入場専用券のみ登録可能な中学生アカウント上限',
+    label: "入場専用券のみ登録可能な中学生アカウント上限",
     min: 0,
     max: 150,
   },
   defaultClassTotalCapacity: {
-    label: 'クラス公演の定員(合計)',
+    label: "クラス公演の定員(合計)",
     min: 1,
     max: 1000,
   },
   defaultClassJuniorCapacity: {
-    label: 'クラス公演の中学生枠',
+    label: "クラス公演の中学生枠",
     min: 0,
     max: 1000,
   },
-  defaultGymCapacity: { label: '体育館公演の定員', min: 1, max: 2000 },
+  defaultGymCapacity: { label: "体育館公演の定員", min: 1, max: 2000 },
+  defaultGymJuniorCapacity: {
+    label: "体育館公演の中学生枠",
+    min: 0,
+    max: 2000,
+  },
 } as const;
 
 type NumericSettingKey = keyof typeof NUMERIC_SETTING_META;
 type SettingsMessageScope =
-  | 'modal'
-  | 'globalSection'
-  | 'ticketSection'
-  | 'detailSection'
-  | 'deletionTool'
+  | "modal"
+  | "globalSection"
+  | "ticketSection"
+  | "detailSection"
+  | "deletionTool"
   | null;
-type AccountDeletionType = 'student' | 'junior';
+type AccountDeletionType = "student" | "junior";
 
 const SettingsContent = () => {
   const { config } = useEventConfig();
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(
     null,
@@ -201,6 +207,7 @@ const SettingsContent = () => {
     defaultClassTotalCapacity: 40,
     defaultClassJuniorCapacity: 5,
     defaultGymCapacity: 300,
+    defaultGymJuniorCapacity: 0,
   });
   const [ticketTypeControls, setTicketTypeControls] =
     useState<TicketTypeControls>(DEFAULT_TICKET_TYPE_CONTROLS);
@@ -226,6 +233,7 @@ const SettingsContent = () => {
       round_name: string;
       is_accepting: boolean;
       capacity: number;
+      junior_capacity: number;
     }[]
   >([]);
   const [schedules, setSchedules] = useState<
@@ -236,9 +244,9 @@ const SettingsContent = () => {
   >([]);
   const [editingNumericKey, setEditingNumericKey] =
     useState<NumericSettingKey | null>(null);
-  const [editingNumericValue, setEditingNumericValue] = useState('');
+  const [editingNumericValue, setEditingNumericValue] = useState("");
   const [editingPerformanceInfo, setEditingPerformanceInfo] = useState<{
-    table: 'class_performances' | 'gym_performances';
+    table: "class_performances" | "gym_performances";
     id: number;
     column: string;
     label: string;
@@ -246,11 +254,11 @@ const SettingsContent = () => {
     max: number;
   } | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<
-    'performances' | 'gym_performances' | 'schedules' | 'relationships'
-  >('performances');
+    "performances" | "gym_performances" | "schedules" | "relationships"
+  >("performances");
   const [isModalSubmitting, setIsModalSubmitting] = useState(false);
-  const [juniorPassword, setJuniorPassword] = useState('');
-  const [juniorPasswordConfirm, setJuniorPasswordConfirm] = useState('');
+  const [juniorPassword, setJuniorPassword] = useState("");
+  const [juniorPasswordConfirm, setJuniorPasswordConfirm] = useState("");
   const [hasJuniorPassword, setHasJuniorPassword] = useState(false);
   const [isUpdatingJuniorPassword, setIsUpdatingJuniorPassword] =
     useState(false);
@@ -261,7 +269,7 @@ const SettingsContent = () => {
     string | null
   >(null);
 
-  useTitle('コントロールパネル - 管理画面');
+  useTitle("コントロールパネル - 管理画面");
 
   const handlePasswordChange = async (event: Event) => {
     setSettingsMessageScope(null); // Clear any previous messages
@@ -271,13 +279,13 @@ const SettingsContent = () => {
     setPasswordChangeSuccess(null);
 
     if (newPassword.length < 8) {
-      setPasswordChangeError('新しいパスワードは8文字以上で入力してください。');
+      setPasswordChangeError("新しいパスワードは8文字以上で入力してください。");
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
       setPasswordChangeError(
-        '新しいパスワードと確認用パスワードが一致しません。',
+        "新しいパスワードと確認用パスワードが一致しません。",
       );
       return;
     }
@@ -285,14 +293,14 @@ const SettingsContent = () => {
     setIsChangingPassword(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
+      const { data, error } = await supabase.functions.invoke("admin-auth", {
         body: {
-          action: 'changePassword',
+          action: "changePassword",
           currentPassword,
           newPassword,
         },
         headers: {
-          'x-admin-session-token': getSessionToken() ?? '',
+          "x-admin-session-token": getSessionToken() ?? "",
         },
       });
 
@@ -302,15 +310,15 @@ const SettingsContent = () => {
 
       if (!data?.changed) {
         setPasswordChangeError(
-          'パスワード変更に失敗しました。時間をおいて再度お試しください。',
+          "パスワード変更に失敗しました。時間をおいて再度お試しください。",
         );
         return;
       }
 
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setPasswordChangeSuccess('管理者パスワードを変更しました。');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordChangeSuccess("管理者パスワードを変更しました。");
     } catch (error) {
       const message = await readErrorMessage(error);
       setPasswordChangeError(`パスワード変更に失敗しました。${message}`);
@@ -324,12 +332,12 @@ const SettingsContent = () => {
   const [showDeleteAllTicketsModal, setShowDeleteAllTicketsModal] =
     useState(false);
   const [pendingDeleteAccountType, setPendingDeleteAccountType] =
-    useState<AccountDeletionType>('student');
+    useState<AccountDeletionType>("student");
   const [isDeletingAllAccounts, setIsDeletingAllAccounts] = useState(false);
   const [isDeletingAllTickets, setIsDeletingAllTickets] = useState(false);
 
   const handleDeleteAllAccounts = async () => {
-    setSettingsMessageScope('deletionTool');
+    setSettingsMessageScope("deletionTool");
     setSettingsError(null);
     setSettingsSuccess(null);
     setIsDeletingAllAccounts(true);
@@ -337,22 +345,22 @@ const SettingsContent = () => {
     let totalDeletedSoFar = 0;
     const accountType = pendingDeleteAccountType;
     const accountLabel =
-      accountType === 'student' ? '生徒アカウント' : '中学生アカウント';
+      accountType === "student" ? "生徒アカウント" : "中学生アカウント";
 
     try {
       const token = getSessionToken();
       if (!token) {
-        throw new Error('セッションがありません。再ログインしてください。');
+        throw new Error("セッションがありません。再ログインしてください。");
       }
 
       while (true) {
-        const { data, error } = await supabase.functions.invoke('admin-auth', {
+        const { data, error } = await supabase.functions.invoke("admin-auth", {
           body: {
-            action: 'deleteAccountsByType',
+            action: "deleteAccountsByType",
             accountType,
           },
           headers: {
-            'x-admin-session-token': token,
+            "x-admin-session-token": token,
           },
         });
 
@@ -361,7 +369,7 @@ const SettingsContent = () => {
         }
 
         if (!data?.deleted) {
-          throw new Error('削除に失敗しました。');
+          throw new Error("削除に失敗しました。");
         }
 
         totalDeletedSoFar += data.count;
@@ -391,7 +399,7 @@ const SettingsContent = () => {
   };
 
   const handleDeleteAllTickets = async () => {
-    setSettingsMessageScope('deletionTool');
+    setSettingsMessageScope("deletionTool");
     setSettingsError(null);
     setSettingsSuccess(null);
     setIsDeletingAllTickets(true);
@@ -400,15 +408,15 @@ const SettingsContent = () => {
     try {
       const token = getSessionToken();
       if (!token) {
-        throw new Error('セッションがありません。再ログインしてください。');
+        throw new Error("セッションがありません。再ログインしてください。");
       }
 
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
+      const { data, error } = await supabase.functions.invoke("admin-auth", {
         body: {
-          action: 'deleteAllTicketsAndResetCounters',
+          action: "deleteAllTicketsAndResetCounters",
         },
         headers: {
-          'x-admin-session-token': token,
+          "x-admin-session-token": token,
         },
       });
 
@@ -417,11 +425,11 @@ const SettingsContent = () => {
       }
 
       if (!data?.deleted || !data?.countersReset) {
-        throw new Error('チケット削除またはカウンターリセットに失敗しました。');
+        throw new Error("チケット削除またはカウンターリセットに失敗しました。");
       }
 
       const deletedTicketCount =
-        typeof data.deletedTicketCount === 'number'
+        typeof data.deletedTicketCount === "number"
           ? data.deletedTicketCount
           : 0;
       setSettingsSuccess(
@@ -451,10 +459,10 @@ const SettingsContent = () => {
       setSettingsMessageScope(null);
 
       try {
-        const { data, error } = await supabase.functions.invoke('admin-auth', {
-          body: { action: 'getSettings' },
+        const { data, error } = await supabase.functions.invoke("admin-auth", {
+          body: { action: "getSettings" },
           headers: {
-            'x-admin-session-token': token,
+            "x-admin-session-token": token,
           },
         });
 
@@ -465,18 +473,19 @@ const SettingsContent = () => {
         const nextSettings = data?.settings;
         if (
           !nextSettings ||
-          typeof nextSettings.eventYear !== 'number' ||
-          typeof nextSettings.showLength !== 'number' ||
-          typeof nextSettings.maxTicketsPerUser !== 'number' ||
-          typeof nextSettings.maxAdmissionOnlyJuniorAccounts !== 'number' ||
-          typeof nextSettings.juniorReleaseOpen !== 'boolean' ||
-          typeof nextSettings.ticketIssuingEnabled !== 'boolean' ||
-          typeof nextSettings.defaultClassTotalCapacity !== 'number' ||
-          typeof nextSettings.defaultClassJuniorCapacity !== 'number' ||
-          typeof nextSettings.defaultGymCapacity !== 'number' ||
+          typeof nextSettings.eventYear !== "number" ||
+          typeof nextSettings.showLength !== "number" ||
+          typeof nextSettings.maxTicketsPerUser !== "number" ||
+          typeof nextSettings.maxAdmissionOnlyJuniorAccounts !== "number" ||
+          typeof nextSettings.juniorReleaseOpen !== "boolean" ||
+          typeof nextSettings.ticketIssuingEnabled !== "boolean" ||
+          typeof nextSettings.defaultClassTotalCapacity !== "number" ||
+          typeof nextSettings.defaultClassJuniorCapacity !== "number" ||
+          typeof nextSettings.defaultGymCapacity !== "number" ||
+          typeof nextSettings.defaultGymJuniorCapacity !== "number" ||
           !Array.isArray(nextSettings.activeTicketTypeIds)
         ) {
-          throw new Error('設定データの形式が不正です。');
+          throw new Error("設定データの形式が不正です。");
         }
 
         if (isActive) {
@@ -489,27 +498,29 @@ const SettingsContent = () => {
             { data: jp },
           ] = await Promise.all([
             supabase
-              .from('class_performances')
+              .from("class_performances")
               .select(
-                'id, class_name, is_accepting, total_capacity, junior_capacity',
+                "id, class_name, is_accepting, total_capacity, junior_capacity",
               )
-              .order('class_name'),
+              .order("class_name"),
             supabase
-              .from('gym_performances')
-              .select('id, group_name, round_name, is_accepting, capacity')
-              .order('id'),
+              .from("gym_performances")
+              .select(
+                "id, group_name, round_name, is_accepting, capacity, junior_capacity",
+              )
+              .order("id"),
             supabase
-              .from('performances_schedule')
-              .select('id, round_name, is_active')
-              .order('id'),
+              .from("performances_schedule")
+              .select("id, round_name, is_active")
+              .order("id"),
             supabase
-              .from('relationships')
-              .select('id, name, is_accepting')
-              .order('id'),
-            supabase.functions.invoke('admin-auth', {
-              body: { action: 'getJuniorPassword' },
+              .from("relationships")
+              .select("id, name, is_accepting")
+              .order("id"),
+            supabase.functions.invoke("admin-auth", {
+              body: { action: "getJuniorPassword" },
               headers: {
-                'x-admin-session-token': token,
+                "x-admin-session-token": token,
               },
             }),
           ]);
@@ -531,12 +542,12 @@ const SettingsContent = () => {
           }
 
           const activeTicketTypeIds = nextSettings.activeTicketTypeIds
-            .filter((id: unknown) => typeof id === 'number')
+            .filter((id: unknown) => typeof id === "number")
             .map((id: number) => Math.trunc(id));
           const controlsFromApi = nextSettings.ticketIssueModes;
           const nextControls: TicketTypeControls =
             controlsFromApi &&
-            typeof controlsFromApi === 'object' &&
+            typeof controlsFromApi === "object" &&
             isTicketTypeControlValue(
               (controlsFromApi as Record<string, unknown>).classInvite,
             ) &&
@@ -603,7 +614,7 @@ const SettingsContent = () => {
       } catch (error) {
         const message = await readErrorMessage(error);
         if (isActive) {
-          setSettingsMessageScope('globalSection');
+          setSettingsMessageScope("globalSection");
           setSettingsError(`設定の読み込みに失敗しました。${message}`);
         }
       } finally {
@@ -622,13 +633,13 @@ const SettingsContent = () => {
 
   const syncSettings = async (
     nextSettings: ControlPanelSettings,
-    successMessage = '設定を更新しました。',
-    messageScope: Exclude<SettingsMessageScope, null> = 'ticketSection',
+    successMessage = "設定を更新しました。",
+    messageScope: Exclude<SettingsMessageScope, null> = "ticketSection",
   ) => {
     const token = getSessionToken();
     if (!token) {
       setSettingsMessageScope(messageScope);
-      setSettingsError('セッションがありません。再ログインしてください。');
+      setSettingsError("セッションがありません。再ログインしてください。");
       return false;
     }
 
@@ -638,9 +649,9 @@ const SettingsContent = () => {
     setIsSyncingSetting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
+      const { data, error } = await supabase.functions.invoke("admin-auth", {
         body: {
-          action: 'updateSettings',
+          action: "updateSettings",
           eventYear: nextSettings.eventYear,
           showLength: nextSettings.showLength,
           maxTicketsPerUser: nextSettings.maxTicketsPerUser,
@@ -652,9 +663,10 @@ const SettingsContent = () => {
           defaultClassTotalCapacity: nextSettings.defaultClassTotalCapacity,
           defaultClassJuniorCapacity: nextSettings.defaultClassJuniorCapacity,
           defaultGymCapacity: nextSettings.defaultGymCapacity,
+          defaultGymJuniorCapacity: nextSettings.defaultGymJuniorCapacity,
         },
         headers: {
-          'x-admin-session-token': token,
+          "x-admin-session-token": token,
         },
       });
 
@@ -663,7 +675,7 @@ const SettingsContent = () => {
       }
 
       if (!data?.updated) {
-        throw new Error('設定の保存に失敗しました。');
+        throw new Error("設定の保存に失敗しました。");
       }
 
       setSettings(nextSettings);
@@ -680,14 +692,14 @@ const SettingsContent = () => {
 
   const handleToggleTableValue = async (
     table:
-      | 'class_performances'
-      | 'gym_performances'
-      | 'performances_schedule'
-      | 'relationships',
+      | "class_performances"
+      | "gym_performances"
+      | "performances_schedule"
+      | "relationships",
     id: number,
     column: string,
     nextValue: boolean | number,
-    messageScope: SettingsMessageScope = 'globalSection',
+    messageScope: SettingsMessageScope = "globalSection",
   ): Promise<boolean> => {
     if (isSettingsLoading || isSyncingSetting) {
       return false;
@@ -695,7 +707,7 @@ const SettingsContent = () => {
 
     const token = getSessionToken();
     if (!token) {
-      setSettingsError('セッションがありません。再ログインしてください。');
+      setSettingsError("セッションがありません。再ログインしてください。");
       return false;
     }
 
@@ -705,16 +717,16 @@ const SettingsContent = () => {
     setIsSyncingSetting(true);
 
     try {
-      const { error } = await supabase.functions.invoke('admin-auth', {
+      const { error } = await supabase.functions.invoke("admin-auth", {
         body: {
-          action: 'updateAcceptingStatus',
+          action: "updateAcceptingStatus",
           table,
           recordId: id,
           column,
           value: nextValue,
         },
         headers: {
-          'x-admin-session-token': token,
+          "x-admin-session-token": token,
         },
       });
 
@@ -723,32 +735,32 @@ const SettingsContent = () => {
       }
 
       // ローカルステートの更新
-      if (table === 'class_performances') {
+      if (table === "class_performances") {
         setClassPerformances((prev) =>
           prev.map((p) =>
             p.id === id ? ({ ...p, [column]: nextValue } as typeof p) : p,
           ),
         );
-      } else if (table === 'gym_performances') {
+      } else if (table === "gym_performances") {
         setGymPerformances((prev) =>
           prev.map((p) =>
             p.id === id ? ({ ...p, [column]: nextValue } as typeof p) : p,
           ),
         );
-      } else if (table === 'performances_schedule') {
+      } else if (table === "performances_schedule") {
         setSchedules((prev) =>
           prev.map((s) =>
             s.id === id ? { ...s, is_active: nextValue as boolean } : s,
           ),
         );
-      } else if (table === 'relationships') {
+      } else if (table === "relationships") {
         setRelationships((prev) =>
           prev.map((r) =>
             r.id === id ? { ...r, is_accepting: nextValue as boolean } : r,
           ),
         );
       }
-      setSettingsSuccess('設定を更新しました。');
+      setSettingsSuccess("設定を更新しました。");
       return true;
     } catch (error) {
       const message = await readErrorMessage(error);
@@ -761,19 +773,19 @@ const SettingsContent = () => {
 
   const syncTicketTypeControls = async (
     nextControls: TicketTypeControls,
-    successMessage = '券種別の受付設定を更新しました。',
+    successMessage = "券種別の受付設定を更新しました。",
   ) => {
     const token = getSessionToken();
     if (!token) {
-      setSettingsMessageScope('ticketSection');
-      setSettingsError('セッションがありません。再ログインしてください。');
+      setSettingsMessageScope("ticketSection");
+      setSettingsError("セッションがありません。再ログインしてください。");
       return false;
     }
 
     const activeTicketTypeIds = buildActiveTicketTypeIds(nextControls);
     const previousActiveTicketTypeIds = settings.activeTicketTypeIds;
 
-    setSettingsMessageScope('ticketSection');
+    setSettingsMessageScope("ticketSection");
     setSettingsError(null);
     setSettingsSuccess(null);
     setIsSyncingSetting(true);
@@ -784,9 +796,9 @@ const SettingsContent = () => {
     }));
 
     try {
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
+      const { data, error } = await supabase.functions.invoke("admin-auth", {
         body: {
-          action: 'updateTicketTypeSettings',
+          action: "updateTicketTypeSettings",
           activeTicketTypeIds,
           ticketIssueModes: {
             classInvite: nextControls.classInvite,
@@ -801,7 +813,7 @@ const SettingsContent = () => {
           },
         },
         headers: {
-          'x-admin-session-token': token,
+          "x-admin-session-token": token,
         },
       });
 
@@ -810,7 +822,7 @@ const SettingsContent = () => {
       }
 
       if (!data?.updated) {
-        throw new Error('券種別設定の保存に失敗しました。');
+        throw new Error("券種別設定の保存に失敗しました。");
       }
 
       setSettingsSuccess(successMessage);
@@ -831,13 +843,13 @@ const SettingsContent = () => {
   const openNumericEditModal = (key: NumericSettingKey) => {
     setEditingNumericKey(key);
     setEditingNumericValue(String(settings[key]));
-    setSettingsMessageScope('modal');
+    setSettingsMessageScope("modal");
     setSettingsError(null);
     setSettingsSuccess(null);
   };
 
   const openIndividualNumericEditModal = (
-    table: 'class_performances' | 'gym_performances',
+    table: "class_performances" | "gym_performances",
     id: number,
     column: string,
     label: string,
@@ -847,7 +859,7 @@ const SettingsContent = () => {
   ) => {
     setEditingPerformanceInfo({ table, id, column, label, min, max });
     setEditingNumericValue(String(currentValue));
-    setSettingsMessageScope('modal');
+    setSettingsMessageScope("modal");
     setSettingsError(null);
     setSettingsSuccess(null);
   };
@@ -855,7 +867,7 @@ const SettingsContent = () => {
   const closeNumericEditModal = () => {
     setEditingNumericKey(null);
     setEditingPerformanceInfo(null);
-    setEditingNumericValue('');
+    setEditingNumericValue("");
     setSettingsMessageScope(null);
     setSettingsError(null);
     setSettingsSuccess(null);
@@ -872,25 +884,31 @@ const SettingsContent = () => {
         return;
       }
 
-      // 個別クラス設定：中学生枠と合計定員の整合性チェック
-      if (table === 'class_performances') {
-        const targetPerf = classPerformances.find((p) => p.id === id);
+      // 公演ごとの中学生枠と合計定員の整合性チェック
+      if (table === "class_performances" || table === "gym_performances") {
+        const targetPerf =
+          table === "class_performances"
+            ? classPerformances.find((p) => p.id === id)
+            : gymPerformances.find((p) => p.id === id);
         if (targetPerf) {
           if (
-            column === 'total_capacity' &&
+            (column === "total_capacity" || column === "capacity") &&
             parsed < targetPerf.junior_capacity
           ) {
             setSettingsError(
-              '合計定員は現在の中学生枠より少なく設定できません。',
+              "合計定員は現在の中学生枠より少なく設定できません。",
             );
             return;
           }
           if (
-            column === 'junior_capacity' &&
-            parsed > targetPerf.total_capacity
+            column === "junior_capacity" &&
+            parsed >
+              (table === "class_performances"
+                ? classPerformances.find((p) => p.id === id)!.total_capacity
+                : gymPerformances.find((p) => p.id === id)!.capacity)
           ) {
             setSettingsError(
-              '中学生枠は現在の合計定員より多く設定できません。',
+              "中学生枠は現在の合計定員より多く設定できません。",
             );
             return;
           }
@@ -903,7 +921,7 @@ const SettingsContent = () => {
         id,
         column,
         parsed,
-        'detailSection',
+        "detailSection",
       );
       setIsModalSubmitting(false);
       if (success) {
@@ -928,20 +946,38 @@ const SettingsContent = () => {
 
     // 全体デフォルト設定：中学生枠と合計定員の整合性チェック
     if (
-      key === 'defaultClassTotalCapacity' &&
+      key === "defaultClassTotalCapacity" &&
       parsed < settings.defaultClassJuniorCapacity
     ) {
       setSettingsError(
-        '合計定員のデフォルト値は現在の中学生枠のデフォルト値より少なく設定できません。',
+        "合計定員のデフォルト値は現在の中学生枠のデフォルト値より少なく設定できません。",
       );
       return;
     }
     if (
-      key === 'defaultClassJuniorCapacity' &&
+      key === "defaultClassJuniorCapacity" &&
       parsed > settings.defaultClassTotalCapacity
     ) {
       setSettingsError(
-        '中学生枠のデフォルト値は現在の合計定員のデフォルト値より多く設定できません。',
+        "中学生枠のデフォルト値は現在の合計定員のデフォルト値より多く設定できません。",
+      );
+      return;
+    }
+    if (
+      key === "defaultGymJuniorCapacity" &&
+      parsed > settings.defaultGymCapacity
+    ) {
+      setSettingsError(
+        "中学生枠のデフォルト値は現在の体育館公演定員より多く設定できません。",
+      );
+      return;
+    }
+    if (
+      key === "defaultGymCapacity" &&
+      parsed < settings.defaultGymJuniorCapacity
+    ) {
+      setSettingsError(
+        "体育館公演定員は現在の中学生枠のデフォルト値より少なく設定できません。",
       );
       return;
     }
@@ -950,9 +986,9 @@ const SettingsContent = () => {
     const success = await syncSettings(
       nextSettings,
       `${meta.label}を更新しました。`,
-      key === 'eventYear' || key === 'showLength'
-        ? 'globalSection'
-        : 'ticketSection',
+      key === "eventYear" || key === "showLength"
+        ? "globalSection"
+        : "ticketSection",
     );
     setIsModalSubmitting(false);
     if (success) {
@@ -976,15 +1012,15 @@ const SettingsContent = () => {
     setTicketTypeControls(nextControls);
 
     const labelByKey: Record<TicketTypeControlKey, string> = {
-      classInvite: '招待券(クラス公演)受付',
-      rehearsalInvite: '招待券(リハーサル)受付',
-      gymInvite: '招待券(体育館公演)受付',
-      entryOnly: '招待券(入場専用券)受付',
-      sameDayClass: '当日券(クラス公演)受付',
-      sameDayGym: '当日券(体育館公演)受付',
-      juniorClass: '中学生券(クラス公演)受付',
-      juniorGym: '中学生券(体育館公演)受付',
-      juniorEntryOnly: '中学生券(入場専用券)受付',
+      classInvite: "招待券(クラス公演)受付",
+      rehearsalInvite: "招待券(リハーサル)受付",
+      gymInvite: "招待券(体育館公演)受付",
+      entryOnly: "招待券(入場専用券)受付",
+      sameDayClass: "当日券(クラス公演)受付",
+      sameDayGym: "当日券(体育館公演)受付",
+      juniorClass: "中学生券(クラス公演)受付",
+      juniorGym: "中学生券(体育館公演)受付",
+      juniorEntryOnly: "中学生券(入場専用券)受付",
     };
 
     void syncTicketTypeControls(
@@ -1003,12 +1039,12 @@ const SettingsContent = () => {
     setJuniorPasswordSuccess(null);
 
     if (juniorPassword.length < 4) {
-      setJuniorPasswordError('合言葉は4文字以上で入力してください。');
+      setJuniorPasswordError("合言葉は4文字以上で入力してください。");
       return;
     }
 
     if (juniorPassword !== juniorPasswordConfirm) {
-      setJuniorPasswordError('合言葉と確認用合言葉が一致しません。');
+      setJuniorPasswordError("合言葉と確認用合言葉が一致しません。");
       return;
     }
 
@@ -1017,16 +1053,16 @@ const SettingsContent = () => {
     try {
       const token = getSessionToken();
       if (!token) {
-        throw new Error('セッションがありません。再ログインしてください。');
+        throw new Error("セッションがありません。再ログインしてください。");
       }
 
-      const { data, error } = await supabase.functions.invoke('admin-auth', {
+      const { data, error } = await supabase.functions.invoke("admin-auth", {
         body: {
-          action: 'updateJuniorPassword',
+          action: "updateJuniorPassword",
           juniorPassword,
         },
         headers: {
-          'x-admin-session-token': token,
+          "x-admin-session-token": token,
         },
       });
 
@@ -1035,13 +1071,13 @@ const SettingsContent = () => {
       }
 
       if (!data?.updated) {
-        throw new Error('合言葉の更新に失敗しました。');
+        throw new Error("合言葉の更新に失敗しました。");
       }
 
-      setJuniorPassword('');
-      setJuniorPasswordConfirm('');
+      setJuniorPassword("");
+      setJuniorPasswordConfirm("");
       setHasJuniorPassword(true);
-      setJuniorPasswordSuccess('合言葉を更新しました。');
+      setJuniorPasswordSuccess("合言葉を更新しました。");
     } catch (error) {
       const message = await readErrorMessage(error);
       setJuniorPasswordError(`合言葉の更新に失敗しました。${message}`);
@@ -1053,7 +1089,7 @@ const SettingsContent = () => {
   return (
     <div>
       {!isSettingsLoading && settings.eventYear !== config.year && (
-        <Alert type='error'>
+        <Alert type="error">
           <p>
             Supabase側の設定年度 ({settings.eventYear}) と、 config.yamlの年度 (
             {config.year}) が一致していません。
@@ -1061,7 +1097,7 @@ const SettingsContent = () => {
           </p>
         </Alert>
       )}
-      <Alert type='warning'>
+      <Alert type="warning">
         <p>
           このページはシステム全体に影響を与えます。設定変更には十分ご注意ください。
         </p>
@@ -1073,7 +1109,7 @@ const SettingsContent = () => {
             <div className={styles.settingLabelGroup}>
               <label
                 className={styles.settingLabel}
-                htmlFor='settings-event-year'
+                htmlFor="settings-event-year"
               >
                 年度
               </label>
@@ -1082,13 +1118,13 @@ const SettingsContent = () => {
               </p>
             </div>
             <div className={styles.settingControlGroup}>
-              <span id='settings-event-year' className={styles.fieldValue}>
+              <span id="settings-event-year" className={styles.fieldValue}>
                 {settings.eventYear}
               </span>
               <button
-                type='button'
+                type="button"
                 className={styles.inlineEditButton}
-                onClick={() => openNumericEditModal('eventYear')}
+                onClick={() => openNumericEditModal("eventYear")}
                 disabled={isSettingsLoading || isSyncingSetting}
               >
                 変更する
@@ -1098,21 +1134,21 @@ const SettingsContent = () => {
           <div className={styles.field}>
             <label
               className={styles.settingLabel}
-              htmlFor='settings-show-length-minutes'
+              htmlFor="settings-show-length-minutes"
             >
               1公演の長さ（分）
             </label>
             <div className={styles.settingControlGroup}>
               <span
-                id='settings-show-length-minutes'
+                id="settings-show-length-minutes"
                 className={styles.fieldValue}
               >
                 {settings.showLength}
               </span>
               <button
-                type='button'
+                type="button"
                 className={styles.inlineEditButton}
-                onClick={() => openNumericEditModal('showLength')}
+                onClick={() => openNumericEditModal("showLength")}
                 disabled={isSettingsLoading || isSyncingSetting}
               >
                 変更する
@@ -1120,13 +1156,13 @@ const SettingsContent = () => {
             </div>
           </div>
         </div>
-        {settingsMessageScope === 'globalSection' && isSettingsLoading && (
-          <LoadingSpinner message='設定を読み込み中です...' />
+        {settingsMessageScope === "globalSection" && isSettingsLoading && (
+          <LoadingSpinner message="設定を読み込み中です..." />
         )}
-        {settingsMessageScope === 'globalSection' && settingsError && (
+        {settingsMessageScope === "globalSection" && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === 'globalSection' && settingsSuccess && (
+        {settingsMessageScope === "globalSection" && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
@@ -1136,7 +1172,7 @@ const SettingsContent = () => {
         <p className={styles.noteText}>
           学年・クラス・出席番号の全組み合わせに対するログインアカウントを一括生成し、Authへ登録します。
         </p>
-        <a href='/admin/student-accounts' className={styles.linkButton}>
+        <a href="/admin/student-accounts" className={styles.linkButton}>
           こちらで変更
         </a>
       </NormalSection>
@@ -1146,7 +1182,7 @@ const SettingsContent = () => {
         <p className={styles.noteText}>
           csvファイルから、中学生アカウントのIDとパスワードを一括でAuthへ登録します。
         </p>
-        <a href='/admin/junior-accounts' className={styles.linkButton}>
+        <a href="/admin/junior-accounts" className={styles.linkButton}>
           こちらで変更
         </a>
       </NormalSection>
@@ -1159,36 +1195,36 @@ const SettingsContent = () => {
         <div className={styles.formGroup}>
           <label className={styles.settingLabel}>現在の合言葉設定</label>
           <p className={styles.fieldValue}>
-            {hasJuniorPassword ? '設定済み' : '未設定'}
+            {hasJuniorPassword ? "設定済み" : "未設定"}
           </p>
         </div>
         <form onSubmit={handleJuniorPasswordUpdate}>
           <div className={styles.formGroup}>
-            <label htmlFor='junior-password' className={styles.label}>
+            <label htmlFor="junior-password" className={styles.label}>
               新しい合言葉
             </label>
             <input
-              id='junior-password'
-              type='text'
+              id="junior-password"
+              type="text"
               className={styles.input}
               value={juniorPassword}
               onChange={(e) => setJuniorPassword(e.currentTarget.value)}
-              placeholder='4文字以上の合言葉'
+              placeholder="4文字以上の合言葉"
               minLength={4}
               required
             />
           </div>
           <div className={styles.formGroup}>
-            <label htmlFor='junior-password-confirm' className={styles.label}>
+            <label htmlFor="junior-password-confirm" className={styles.label}>
               合言葉（確認）
             </label>
             <input
-              id='junior-password-confirm'
-              type='text'
+              id="junior-password-confirm"
+              type="text"
               className={styles.input}
               value={juniorPasswordConfirm}
               onChange={(e) => setJuniorPasswordConfirm(e.currentTarget.value)}
-              placeholder='同じ合言葉を再度入力'
+              placeholder="同じ合言葉を再度入力"
               minLength={4}
               required
             />
@@ -1200,11 +1236,11 @@ const SettingsContent = () => {
             <p className={styles.authSuccess}>{juniorPasswordSuccess}</p>
           )}
           <button
-            type='submit'
+            type="submit"
             className={styles.submitButton}
             disabled={isUpdatingJuniorPassword}
           >
-            {isUpdatingJuniorPassword ? '更新中...' : '合言葉を更新'}
+            {isUpdatingJuniorPassword ? "更新中..." : "合言葉を更新"}
           </button>
         </form>
       </NormalSection>
@@ -1214,7 +1250,7 @@ const SettingsContent = () => {
         <h3>クラス公演</h3>
         <PerformancesTable showToggleRemainingMode={true} />
         <h3>体育館公演</h3>
-        <GymPerformancesTable />
+        <GymPerformancesTable showToggleRemainingMode={true} />
       </NormalSection>
       <NormalSection>
         <h2>チケット発券</h2>
@@ -1225,7 +1261,7 @@ const SettingsContent = () => {
               <label className={styles.settingLabel}>チケット発券全体</label>
               <label>
                 <Switch
-                  id='ticket-issuing-enabled'
+                  id="ticket-issuing-enabled"
                   onChange={(checked: boolean) => {
                     if (isSettingsLoading || isSyncingSetting) {
                       return;
@@ -1236,9 +1272,9 @@ const SettingsContent = () => {
                       void syncSettings(
                         next,
                         checked
-                          ? 'チケット発券を有効化しました。'
-                          : 'チケット発券を停止しました。',
-                        'ticketSection',
+                          ? "チケット発券を有効化しました。"
+                          : "チケット発券を停止しました。",
+                        "ticketSection",
                       ).then((updated) => {
                         if (!updated) {
                           setSettings((current) => ({
@@ -1257,76 +1293,76 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-class-invite'
+                htmlFor="ticket-class-invite"
               >
                 招待券(クラス公演)受付
               </label>
               <select
-                id='ticket-class-invite'
+                id="ticket-class-invite"
                 className={styles.fieldControl}
                 value={ticketTypeControls.classInvite}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    'classInvite',
+                    "classInvite",
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value='open'>すべて</option>
-                <option value='only-own'>自クラスのみ</option>
-                <option value='off'>無効</option>
+                <option value="open">すべて</option>
+                <option value="only-own">自クラスのみ</option>
+                <option value="off">無効</option>
               </select>
             </div>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-rehearsal-invite'
+                htmlFor="ticket-rehearsal-invite"
               >
                 招待券(リハーサル)受付
               </label>
               <select
-                id='ticket-rehearsal-invite'
+                id="ticket-rehearsal-invite"
                 className={styles.fieldControl}
                 value={ticketTypeControls.rehearsalInvite}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    'rehearsalInvite',
+                    "rehearsalInvite",
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value='open'>すべて</option>
-                <option value='public-rehearsals'>公開リハーサルのみ</option>
-                <option value='off'>無効</option>
+                <option value="open">すべて</option>
+                <option value="public-rehearsals">公開リハーサルのみ</option>
+                <option value="off">無効</option>
               </select>
             </div>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-gym-invite'
+                htmlFor="ticket-gym-invite"
               >
                 招待券(体育館公演)受付
               </label>
               <select
-                id='ticket-gym-invite'
+                id="ticket-gym-invite"
                 className={styles.fieldControl}
                 value={ticketTypeControls.gymInvite}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    'gymInvite',
+                    "gymInvite",
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value='open'>すべて</option>
-                <option value='only-own'>自部活のみ</option>
-                <option value='off'>無効</option>
+                <option value="open">すべて</option>
+                <option value="only-own">自部活のみ</option>
+                <option value="off">無効</option>
               </select>
             </div>
             <div className={styles.field}>
@@ -1335,12 +1371,12 @@ const SettingsContent = () => {
               </span>
               <label>
                 <Switch
-                  id='ticket-entry-only'
-                  checked={ticketTypeControls.entryOnly === 'open'}
+                  id="ticket-entry-only"
+                  checked={ticketTypeControls.entryOnly === "open"}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      'entryOnly',
-                      checked ? 'open' : 'off',
+                      "entryOnly",
+                      checked ? "open" : "off",
                     )
                   }
                 ></Switch>
@@ -1353,11 +1389,11 @@ const SettingsContent = () => {
               </label>
               <label>
                 <Switch
-                  checked={ticketTypeControls.juniorClass === 'open'}
+                  checked={ticketTypeControls.juniorClass === "open"}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      'juniorClass',
-                      checked ? 'open' : 'off',
+                      "juniorClass",
+                      checked ? "open" : "off",
                     )
                   }
                 />
@@ -1369,11 +1405,11 @@ const SettingsContent = () => {
               </label>
               <label>
                 <Switch
-                  checked={ticketTypeControls.juniorGym === 'open'}
+                  checked={ticketTypeControls.juniorGym === "open"}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      'juniorGym',
-                      checked ? 'open' : 'off',
+                      "juniorGym",
+                      checked ? "open" : "off",
                     )
                   }
                 />
@@ -1385,11 +1421,11 @@ const SettingsContent = () => {
               </label>
               <label>
                 <Switch
-                  checked={ticketTypeControls.juniorEntryOnly === 'open'}
+                  checked={ticketTypeControls.juniorEntryOnly === "open"}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      'juniorEntryOnly',
-                      checked ? 'open' : 'off',
+                      "juniorEntryOnly",
+                      checked ? "open" : "off",
                     )
                   }
                 />
@@ -1398,51 +1434,51 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-same-day-class'
+                htmlFor="ticket-same-day-class"
               >
                 当日券(クラス公演)受付
               </label>
               <select
-                id='ticket-same-day-class'
+                id="ticket-same-day-class"
                 className={styles.fieldControl}
                 value={ticketTypeControls.sameDayClass}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    'sameDayClass',
+                    "sameDayClass",
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value='open'>有効</option>
-                <option value='auto'>当日のみ</option>
-                <option value='off'>無効</option>
+                <option value="open">有効</option>
+                <option value="auto">当日のみ</option>
+                <option value="off">無効</option>
               </select>
             </div>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-same-day-gym'
+                htmlFor="ticket-same-day-gym"
               >
                 当日券(体育館公演)受付
               </label>
               <select
-                id='ticket-same-day-gym'
+                id="ticket-same-day-gym"
                 className={styles.fieldControl}
                 value={ticketTypeControls.sameDayGym}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    'sameDayGym',
+                    "sameDayGym",
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value='open'>有効</option>
-                <option value='auto'>当日のみ</option>
-                <option value='off'>無効</option>
+                <option value="open">有効</option>
+                <option value="auto">当日のみ</option>
+                <option value="off">無効</option>
               </select>
             </div>
           </div>
@@ -1451,19 +1487,19 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-class-total'
+                htmlFor="ticket-class-total"
               >
                 クラス公演の1公演あたりのチケット数(中学生券含む)
               </label>
               <div className={styles.settingControlGroup}>
-                <span id='ticket-class-total' className={styles.fieldValue}>
+                <span id="ticket-class-total" className={styles.fieldValue}>
                   {settings.defaultClassTotalCapacity}
                 </span>
                 <button
-                  type='button'
+                  type="button"
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal('defaultClassTotalCapacity')
+                    openNumericEditModal("defaultClassTotalCapacity")
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1474,19 +1510,19 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-class-junior'
+                htmlFor="ticket-class-junior"
               >
                 クラス公演の1公演あたり中学生枠
               </label>
               <div className={styles.settingControlGroup}>
-                <span id='ticket-class-junior' className={styles.fieldValue}>
+                <span id="ticket-class-junior" className={styles.fieldValue}>
                   {settings.defaultClassJuniorCapacity}
                 </span>
                 <button
-                  type='button'
+                  type="button"
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal('defaultClassJuniorCapacity')
+                    openNumericEditModal("defaultClassJuniorCapacity")
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1495,17 +1531,40 @@ const SettingsContent = () => {
               </div>
             </div>
             <div className={styles.field}>
-              <label className={styles.settingLabel} htmlFor='ticket-gym-total'>
+              <label className={styles.settingLabel} htmlFor="ticket-gym-total">
                 体育館公演の1公演あたりのチケット数
               </label>
               <div className={styles.settingControlGroup}>
-                <span id='ticket-gym-total' className={styles.fieldValue}>
+                <span id="ticket-gym-total" className={styles.fieldValue}>
                   {settings.defaultGymCapacity}
                 </span>
                 <button
-                  type='button'
+                  type="button"
                   className={styles.inlineEditButton}
-                  onClick={() => openNumericEditModal('defaultGymCapacity')}
+                  onClick={() => openNumericEditModal("defaultGymCapacity")}
+                  disabled={isSettingsLoading || isSyncingSetting}
+                >
+                  変更する
+                </button>
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label
+                className={styles.settingLabel}
+                htmlFor="ticket-gym-junior"
+              >
+                体育館公演の1公演あたり中学生枠
+              </label>
+              <div className={styles.settingControlGroup}>
+                <span id="ticket-gym-junior" className={styles.fieldValue}>
+                  {settings.defaultGymJuniorCapacity}
+                </span>
+                <button
+                  type="button"
+                  className={styles.inlineEditButton}
+                  onClick={() =>
+                    openNumericEditModal("defaultGymJuniorCapacity")
+                  }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する
@@ -1518,18 +1577,18 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-max-per-user'
+                htmlFor="ticket-max-per-user"
               >
                 1人あたりのチケット発行上限
               </label>
               <div className={styles.settingControlGroup}>
-                <span id='ticket-max-per-user' className={styles.fieldValue}>
+                <span id="ticket-max-per-user" className={styles.fieldValue}>
                   {settings.maxTicketsPerUser}
                 </span>
                 <button
-                  type='button'
+                  type="button"
                   className={styles.inlineEditButton}
-                  onClick={() => openNumericEditModal('maxTicketsPerUser')}
+                  onClick={() => openNumericEditModal("maxTicketsPerUser")}
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する
@@ -1539,22 +1598,22 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-junior-max-per-user'
+                htmlFor="ticket-junior-max-per-user"
               >
                 中学生のチケット発行上限
               </label>
               <div className={styles.settingControlGroup}>
                 <span
-                  id='ticket-junior-max-per-user'
+                  id="ticket-junior-max-per-user"
                   className={styles.fieldValue}
                 >
                   {settings.maxTicketsPerJuniorUser}
                 </span>
                 <button
-                  type='button'
+                  type="button"
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal('maxTicketsPerJuniorUser')
+                    openNumericEditModal("maxTicketsPerJuniorUser")
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1565,22 +1624,22 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-admission-only-max-junior'
+                htmlFor="ticket-admission-only-max-junior"
               >
                 入場専用券のみ登録可能な中学生アカウント上限
               </label>
               <div className={styles.settingControlGroup}>
                 <span
-                  id='ticket-admission-only-max-junior'
+                  id="ticket-admission-only-max-junior"
                   className={styles.fieldValue}
                 >
                   {settings.maxAdmissionOnlyJuniorAccounts}
                 </span>
                 <button
-                  type='button'
+                  type="button"
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal('maxAdmissionOnlyJuniorAccounts')
+                    openNumericEditModal("maxAdmissionOnlyJuniorAccounts")
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1592,7 +1651,7 @@ const SettingsContent = () => {
               <label className={styles.settingLabel}>中学生枠の一般解放</label>
               <label>
                 <Switch
-                  id='ticket-junior-release'
+                  id="ticket-junior-release"
                   onChange={(checked: boolean) => {
                     if (isSettingsLoading || isSyncingSetting) {
                       return;
@@ -1603,8 +1662,8 @@ const SettingsContent = () => {
                       // 非同期通信をバックグラウンドで実行
                       void syncSettings(
                         next,
-                        '中学生枠の一般解放設定を更新しました。',
-                        'ticketSection',
+                        "中学生枠の一般解放設定を更新しました。",
+                        "ticketSection",
                       ).then((updated) => {
                         // 失敗した場合は以前の値を参照して戻す
                         if (!updated) {
@@ -1623,59 +1682,59 @@ const SettingsContent = () => {
             </div>
           </div>
         </div>
-        {settingsMessageScope === 'ticketSection' && isSettingsLoading && (
-          <LoadingSpinner message='設定を読み込み中です...' />
+        {settingsMessageScope === "ticketSection" && isSettingsLoading && (
+          <LoadingSpinner message="設定を読み込み中です..." />
         )}
-        {settingsMessageScope === 'ticketSection' && settingsError && (
+        {settingsMessageScope === "ticketSection" && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === 'ticketSection' && settingsSuccess && (
+        {settingsMessageScope === "ticketSection" && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
       <NormalSection>
         <h2>詳細な受付・有効設定</h2>
-        <div className={styles.tabList} role='tablist'>
+        <div className={styles.tabList} role="tablist">
           <button
-            type='button'
-            role='tab'
-            className={`${styles.tabButton} ${activeDetailTab === 'performances' ? styles.tabButtonActive : ''}`}
-            aria-selected={activeDetailTab === 'performances'}
-            onClick={() => setActiveDetailTab('performances')}
+            type="button"
+            role="tab"
+            className={`${styles.tabButton} ${activeDetailTab === "performances" ? styles.tabButtonActive : ""}`}
+            aria-selected={activeDetailTab === "performances"}
+            onClick={() => setActiveDetailTab("performances")}
           >
             クラス
           </button>
           <button
-            type='button'
-            role='tab'
-            className={`${styles.tabButton} ${activeDetailTab === 'gym_performances' ? styles.tabButtonActive : ''}`}
-            aria-selected={activeDetailTab === 'gym_performances'}
-            onClick={() => setActiveDetailTab('gym_performances')}
+            type="button"
+            role="tab"
+            className={`${styles.tabButton} ${activeDetailTab === "gym_performances" ? styles.tabButtonActive : ""}`}
+            aria-selected={activeDetailTab === "gym_performances"}
+            onClick={() => setActiveDetailTab("gym_performances")}
           >
             部活
           </button>
           <button
-            type='button'
-            role='tab'
-            className={`${styles.tabButton} ${activeDetailTab === 'schedules' ? styles.tabButtonActive : ''}`}
-            aria-selected={activeDetailTab === 'schedules'}
-            onClick={() => setActiveDetailTab('schedules')}
+            type="button"
+            role="tab"
+            className={`${styles.tabButton} ${activeDetailTab === "schedules" ? styles.tabButtonActive : ""}`}
+            aria-selected={activeDetailTab === "schedules"}
+            onClick={() => setActiveDetailTab("schedules")}
           >
             公演回
           </button>
           <button
-            type='button'
-            role='tab'
-            className={`${styles.tabButton} ${activeDetailTab === 'relationships' ? styles.tabButtonActive : ''}`}
-            aria-selected={activeDetailTab === 'relationships'}
-            onClick={() => setActiveDetailTab('relationships')}
+            type="button"
+            role="tab"
+            className={`${styles.tabButton} ${activeDetailTab === "relationships" ? styles.tabButtonActive : ""}`}
+            aria-selected={activeDetailTab === "relationships"}
+            onClick={() => setActiveDetailTab("relationships")}
           >
             間柄
           </button>
         </div>
 
         <div className={styles.tabContent}>
-          {activeDetailTab === 'performances' && (
+          {activeDetailTab === "performances" && (
             <div className={styles.toggleList}>
               <h3>クラス公演の受付</h3>
               {classPerformances.map((p) => (
@@ -1686,14 +1745,14 @@ const SettingsContent = () => {
                       定員: {p.total_capacity}名
                     </span>
                     <button
-                      type='button'
+                      type="button"
                       className={styles.inlineEditButton}
                       onClick={(e) => {
                         e.preventDefault();
                         openIndividualNumericEditModal(
-                          'class_performances',
+                          "class_performances",
                           p.id,
-                          'total_capacity',
+                          "total_capacity",
                           `${p.class_name}の合計定員`,
                           1,
                           1000,
@@ -1707,14 +1766,14 @@ const SettingsContent = () => {
                       中学生: {p.junior_capacity}名
                     </span>
                     <button
-                      type='button'
+                      type="button"
                       className={styles.inlineEditButton}
                       onClick={(e) => {
                         e.preventDefault();
                         openIndividualNumericEditModal(
-                          'class_performances',
+                          "class_performances",
                           p.id,
-                          'junior_capacity',
+                          "junior_capacity",
                           `${p.class_name}の中学生枠`,
                           0,
                           1000,
@@ -1729,11 +1788,11 @@ const SettingsContent = () => {
                         checked={p.is_accepting}
                         onChange={(val) =>
                           handleToggleTableValue(
-                            'class_performances',
+                            "class_performances",
                             p.id,
-                            'is_accepting',
+                            "is_accepting",
                             val,
-                            'detailSection',
+                            "detailSection",
                           )
                         }
                       />
@@ -1744,7 +1803,7 @@ const SettingsContent = () => {
             </div>
           )}
 
-          {activeDetailTab === 'gym_performances' && (
+          {activeDetailTab === "gym_performances" && (
             <div className={styles.toggleList}>
               <h3>部活(体育館公演)の受付</h3>
               {gymPerformances.map((p) => (
@@ -1757,18 +1816,39 @@ const SettingsContent = () => {
                       定員: {p.capacity}名
                     </span>
                     <button
-                      type='button'
+                      type="button"
                       className={styles.inlineEditButton}
                       onClick={(e) => {
                         e.preventDefault();
                         openIndividualNumericEditModal(
-                          'gym_performances',
+                          "gym_performances",
                           p.id,
-                          'capacity',
+                          "capacity",
                           `${p.group_name} ${p.round_name}の定員`,
                           1,
                           2000,
                           p.capacity,
+                        );
+                      }}
+                    >
+                      変更
+                    </button>
+                    <span className={styles.settingHint}>
+                      中学生: {p.junior_capacity}名
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.inlineEditButton}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openIndividualNumericEditModal(
+                          "gym_performances",
+                          p.id,
+                          "junior_capacity",
+                          `${p.group_name} ${p.round_name}の中学生枠`,
+                          0,
+                          2000,
+                          p.junior_capacity,
                         );
                       }}
                     >
@@ -1779,11 +1859,11 @@ const SettingsContent = () => {
                         checked={p.is_accepting}
                         onChange={(val) =>
                           handleToggleTableValue(
-                            'gym_performances',
+                            "gym_performances",
                             p.id,
-                            'is_accepting',
+                            "is_accepting",
                             val,
-                            'detailSection',
+                            "detailSection",
                           )
                         }
                       />
@@ -1794,7 +1874,7 @@ const SettingsContent = () => {
             </div>
           )}
 
-          {activeDetailTab === 'schedules' && (
+          {activeDetailTab === "schedules" && (
             <div className={styles.toggleList}>
               <h3>公演回の有効状態</h3>
               {schedules.map((s) => (
@@ -1805,11 +1885,11 @@ const SettingsContent = () => {
                       checked={s.is_active}
                       onChange={(val) =>
                         handleToggleTableValue(
-                          'performances_schedule',
+                          "performances_schedule",
                           s.id,
-                          'is_active',
+                          "is_active",
                           val,
-                          'detailSection',
+                          "detailSection",
                         )
                       }
                     />
@@ -1819,7 +1899,7 @@ const SettingsContent = () => {
             </div>
           )}
 
-          {activeDetailTab === 'relationships' && (
+          {activeDetailTab === "relationships" && (
             <div className={styles.toggleList}>
               <h3>間柄の受付</h3>
               {relationships.map((r) => (
@@ -1830,11 +1910,11 @@ const SettingsContent = () => {
                       checked={r.is_accepting}
                       onChange={(val) =>
                         handleToggleTableValue(
-                          'relationships',
+                          "relationships",
                           r.id,
-                          'is_accepting',
+                          "is_accepting",
                           val,
-                          'detailSection',
+                          "detailSection",
                         )
                       }
                     />
@@ -1844,13 +1924,13 @@ const SettingsContent = () => {
             </div>
           )}
         </div>
-        {settingsMessageScope === 'detailSection' && isSyncingSetting && (
+        {settingsMessageScope === "detailSection" && isSyncingSetting && (
           <p className={styles.statusMessage}>設定を更新中です...</p>
         )}
-        {settingsMessageScope === 'detailSection' && settingsError && (
+        {settingsMessageScope === "detailSection" && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === 'detailSection' && settingsSuccess && (
+        {settingsMessageScope === "detailSection" && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
@@ -1865,7 +1945,7 @@ const SettingsContent = () => {
             全ての発券済みチケットを削除し、残席カウンターとチケット採番カウンターをリセットします。
           </p>
           <button
-            type='button'
+            type="button"
             className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
             onClick={() => setShowDeleteAllTicketsModal(true)}
             disabled={isDeletingAllAccounts || isDeletingAllTickets}
@@ -1874,10 +1954,10 @@ const SettingsContent = () => {
           </button>
           <h3>生徒アカウントの削除</h3>
           <button
-            type='button'
+            type="button"
             className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
             onClick={() => {
-              setPendingDeleteAccountType('student');
+              setPendingDeleteAccountType("student");
               setShowDeleteAllAccountsModal(true);
             }}
             disabled={isDeletingAllAccounts || isDeletingAllTickets}
@@ -1886,10 +1966,10 @@ const SettingsContent = () => {
           </button>
           <h3>中学生アカウントの削除</h3>
           <button
-            type='button'
+            type="button"
             className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
             onClick={() => {
-              setPendingDeleteAccountType('junior');
+              setPendingDeleteAccountType("junior");
               setShowDeleteAllAccountsModal(true);
             }}
             disabled={isDeletingAllAccounts || isDeletingAllTickets}
@@ -1897,60 +1977,60 @@ const SettingsContent = () => {
             全ての中学生アカウントを削除
           </button>
         </div>
-        {settingsMessageScope === 'deletionTool' && settingsError && (
+        {settingsMessageScope === "deletionTool" && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === 'deletionTool' && settingsSuccess && (
+        {settingsMessageScope === "deletionTool" && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
       <NormalSection>
         <h2>パスワード変更</h2>
         <form className={styles.passwordForm} onSubmit={handlePasswordChange}>
-          <label className={styles.authLabel} htmlFor='admin-current-password'>
+          <label className={styles.authLabel} htmlFor="admin-current-password">
             現在の管理者パスワード
           </label>
           <input
-            id='admin-current-password'
-            type='password'
+            id="admin-current-password"
+            type="password"
             className={styles.authInput}
             value={currentPassword}
             onInput={(event) =>
               setCurrentPassword((event.target as HTMLInputElement).value)
             }
-            autoComplete='current-password'
+            autoComplete="current-password"
             required
           />
-          <label className={styles.authLabel} htmlFor='admin-new-password'>
+          <label className={styles.authLabel} htmlFor="admin-new-password">
             新しい管理者パスワード
           </label>
           <input
-            id='admin-new-password'
-            type='password'
+            id="admin-new-password"
+            type="password"
             className={styles.authInput}
             value={newPassword}
             onInput={(event) =>
               setNewPassword((event.target as HTMLInputElement).value)
             }
-            autoComplete='new-password'
+            autoComplete="new-password"
             minLength={8}
             required
           />
           <label
             className={styles.authLabel}
-            htmlFor='admin-new-password-confirm'
+            htmlFor="admin-new-password-confirm"
           >
             新しい管理者パスワード（確認）
           </label>
           <input
-            id='admin-new-password-confirm'
-            type='password'
+            id="admin-new-password-confirm"
+            type="password"
             className={styles.authInput}
             value={confirmNewPassword}
             onInput={(event) =>
               setConfirmNewPassword((event.target as HTMLInputElement).value)
             }
-            autoComplete='new-password'
+            autoComplete="new-password"
             minLength={8}
             required
           />
@@ -1961,28 +2041,28 @@ const SettingsContent = () => {
             <p className={styles.authSuccess}>{passwordChangeSuccess}</p>
           )}
           <button
-            type='submit'
+            type="submit"
             className={styles.authButton}
             disabled={isChangingPassword}
           >
-            {isChangingPassword ? '変更中...' : 'パスワードを変更'}
+            {isChangingPassword ? "変更中..." : "パスワードを変更"}
           </button>
         </form>
       </NormalSection>
       {(editingNumericKey || editingPerformanceInfo) && (
         <div
           className={styles.settingModalOverlay}
-          role='presentation'
+          role="presentation"
           onClick={closeNumericEditModal}
         >
           <div
             className={styles.settingModal}
-            role='dialog'
-            aria-modal='true'
-            aria-labelledby='settings-edit-title'
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-edit-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id='settings-edit-title' className={styles.settingModalTitle}>
+            <h3 id="settings-edit-title" className={styles.settingModalTitle}>
               {editingNumericKey
                 ? NUMERIC_SETTING_META[editingNumericKey].label
                 : editingPerformanceInfo?.label}
@@ -1990,7 +2070,7 @@ const SettingsContent = () => {
             </h3>
             <input
               className={styles.fieldControl}
-              type='number'
+              type="number"
               min={
                 editingNumericKey
                   ? NUMERIC_SETTING_META[editingNumericKey].min
@@ -2006,15 +2086,15 @@ const SettingsContent = () => {
                 setEditingNumericValue((event.target as HTMLInputElement).value)
               }
             />
-            {settingsMessageScope === 'modal' && settingsError && (
+            {settingsMessageScope === "modal" && settingsError && (
               <p className={styles.authError}>{settingsError}</p>
             )}
-            {settingsMessageScope === 'modal' && settingsSuccess && (
+            {settingsMessageScope === "modal" && settingsSuccess && (
               <p className={styles.authSuccess}>{settingsSuccess}</p>
             )}
             <div className={styles.settingModalActions}>
               <button
-                type='button'
+                type="button"
                 className={styles.settingModalCancel}
                 onClick={closeNumericEditModal}
                 disabled={isModalSubmitting}
@@ -2022,12 +2102,12 @@ const SettingsContent = () => {
                 キャンセル
               </button>
               <button
-                type='button'
+                type="button"
                 className={styles.settingModalConfirm}
                 onClick={handleConfirmNumericEdit}
                 disabled={isModalSubmitting}
               >
-                {isModalSubmitting ? '同期中...' : 'OK'}
+                {isModalSubmitting ? "同期中..." : "OK"}
               </button>
             </div>
           </div>
@@ -2037,34 +2117,34 @@ const SettingsContent = () => {
       {showDeleteAllAccountsModal && (
         <div
           className={styles.settingModalOverlay}
-          role='presentation'
+          role="presentation"
           onClick={() => setShowDeleteAllAccountsModal(false)}
         >
           <div
             className={styles.settingModal}
-            role='dialog'
-            aria-modal='true'
-            aria-labelledby='delete-all-accounts-title'
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-all-accounts-title"
             onClick={(event) => event.stopPropagation()}
           >
             <h3
-              id='delete-all-accounts-title'
+              id="delete-all-accounts-title"
               className={styles.settingModalTitle}
             >
-              {pendingDeleteAccountType === 'student'
-                ? '全ての生徒アカウントを削除しますか？'
-                : '全ての中学生アカウントを削除しますか？'}
+              {pendingDeleteAccountType === "student"
+                ? "全ての生徒アカウントを削除しますか？"
+                : "全ての中学生アカウントを削除しますか？"}
             </h3>
             <p>
               この操作は取り消せません。
-              {pendingDeleteAccountType === 'student'
-                ? '全ての生徒アカウント'
-                : '全ての中学生アカウント'}
+              {pendingDeleteAccountType === "student"
+                ? "全ての生徒アカウント"
+                : "全ての中学生アカウント"}
               がAuthとpublic.usersの両方から削除されます。本当に実行しますか？
             </p>
             <div className={styles.settingModalActions}>
               <button
-                type='button'
+                type="button"
                 className={styles.settingModalCancel}
                 onClick={() => setShowDeleteAllAccountsModal(false)}
                 disabled={isDeletingAllAccounts}
@@ -2072,12 +2152,12 @@ const SettingsContent = () => {
                 キャンセル
               </button>
               <button
-                type='button'
+                type="button"
                 className={`${styles.settingModalConfirm} ${styles.settingModalConfirmDanger}`}
                 onClick={handleDeleteAllAccounts}
                 disabled={isDeletingAllAccounts}
               >
-                {isDeletingAllAccounts ? '削除中...' : '削除'}
+                {isDeletingAllAccounts ? "削除中..." : "削除"}
               </button>
             </div>
           </div>
@@ -2087,18 +2167,18 @@ const SettingsContent = () => {
       {showDeleteAllTicketsModal && (
         <div
           className={styles.settingModalOverlay}
-          role='presentation'
+          role="presentation"
           onClick={() => setShowDeleteAllTicketsModal(false)}
         >
           <div
             className={styles.settingModal}
-            role='dialog'
-            aria-modal='true'
-            aria-labelledby='delete-all-tickets-title'
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-all-tickets-title"
             onClick={(event) => event.stopPropagation()}
           >
             <h3
-              id='delete-all-tickets-title'
+              id="delete-all-tickets-title"
               className={styles.settingModalTitle}
             >
               全てのチケットを削除してカウンターをリセットしますか？
@@ -2108,7 +2188,7 @@ const SettingsContent = () => {
             </p>
             <div className={styles.settingModalActions}>
               <button
-                type='button'
+                type="button"
                 className={styles.settingModalCancel}
                 onClick={() => setShowDeleteAllTicketsModal(false)}
                 disabled={isDeletingAllTickets}
@@ -2116,12 +2196,12 @@ const SettingsContent = () => {
                 キャンセル
               </button>
               <button
-                type='button'
+                type="button"
                 className={`${styles.settingModalConfirm} ${styles.settingModalConfirmDanger}`}
                 onClick={handleDeleteAllTickets}
                 disabled={isDeletingAllTickets}
               >
-                {isDeletingAllTickets ? '削除中...' : '削除してリセット'}
+                {isDeletingAllTickets ? "削除中..." : "削除してリセット"}
               </button>
             </div>
           </div>
@@ -2132,9 +2212,9 @@ const SettingsContent = () => {
         <div className={styles.settingModalOverlay}>
           <LoadingSpinner
             message={
-              pendingDeleteAccountType === 'student'
-                ? '全ての生徒アカウントを削除中です...'
-                : '全ての中学生アカウントを削除中です...'
+              pendingDeleteAccountType === "student"
+                ? "全ての生徒アカウントを削除中です..."
+                : "全ての中学生アカウントを削除中です..."
             }
           />
         </div>
@@ -2142,7 +2222,7 @@ const SettingsContent = () => {
 
       {isDeletingAllTickets && (
         <div className={styles.settingModalOverlay}>
-          <LoadingSpinner message='全てのチケットを削除し、カウンターをリセット中です...' />
+          <LoadingSpinner message="全てのチケットを削除し、カウンターをリセット中です..." />
         </div>
       )}
     </div>
@@ -2150,11 +2230,11 @@ const SettingsContent = () => {
 };
 
 const Settings = () => {
-  useTitle('コントロールパネル - 管理画面');
+  useTitle("コントロールパネル - 管理画面");
   return (
     <AdminAuthLayout
-      title='コントロールパネル'
-      description='システム全体設定と管理者セキュリティをここで管理します。'
+      title="コントロールパネル"
+      description="システム全体設定と管理者セキュリティをここで管理します。"
     >
       <SettingsContent />
     </AdminAuthLayout>

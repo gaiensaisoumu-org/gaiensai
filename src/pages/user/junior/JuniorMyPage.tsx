@@ -1,35 +1,35 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
-import { IoMdAdd } from 'react-icons/io';
-import performancesSnapshot from '../../../generated/performances-static.json';
+import { useCallback, useEffect, useState } from "preact/hooks";
+import { IoMdAdd } from "react-icons/io";
+import performancesSnapshot from "../../../generated/performances-static.json";
 import {
   decodeTicketCodeWithEnv,
   toTicketDecodedDisplaySeed,
-} from '../../../features/tickets/ticketCodeDecode';
-import type { UserData } from '../../../types/types';
-import type { TicketCardItem } from '../../../features/tickets/IssuedTicketCardList';
-import { useTitle } from '../../../hooks/useTitle';
-import subPageStyles from '../../../styles/sub-pages.module.css';
-import sharedStyles from '../../../styles/shared.module.css';
-import dashboardStyles from '../students/Dashboard.module.css';
-import registrationStyles from '../students/InitialRegistration.module.css';
-import TicketListContent from '../../../features/tickets/TicketListContent';
-import type { TicketListSortMode } from '../../../features/tickets/IssuedTicketCardList';
-import NormalSection from '../../../components/ui/NormalSection';
-import PerformancesTable from '../../../features/performances/PerformancesTable';
-import GymPerformancesTable from '../../../features/performances/GymPerformancesTable';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
-import { supabase } from '../../../lib/supabase';
-import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
-import { resolveJuniorRelationshipName } from '../../../features/tickets/juniorRelationship';
+} from "../../../features/tickets/ticketCodeDecode";
+import type { UserData } from "../../../types/types";
+import type { TicketCardItem } from "../../../features/tickets/IssuedTicketCardList";
+import { useTitle } from "../../../hooks/useTitle";
+import subPageStyles from "../../../styles/sub-pages.module.css";
+import sharedStyles from "../../../styles/shared.module.css";
+import dashboardStyles from "../students/Dashboard.module.css";
+import registrationStyles from "../students/InitialRegistration.module.css";
+import TicketListContent from "../../../features/tickets/TicketListContent";
+import type { TicketListSortMode } from "../../../features/tickets/IssuedTicketCardList";
+import NormalSection from "../../../components/ui/NormalSection";
+import PerformancesTable from "../../../features/performances/PerformancesTable";
+import GymPerformancesTable from "../../../features/performances/GymPerformancesTable";
+import LoadingSpinner from "../../../components/ui/LoadingSpinner";
+import { supabase } from "../../../lib/supabase";
+import { formatTicketTypeLabel } from "../../../features/tickets/formatTicketTypeLabel";
+import { resolveJuniorRelationshipName } from "../../../features/tickets/juniorRelationship";
 import {
   type JuniorApplicationDays,
   parseJuniorApplicationDaySelection,
   resolveJuniorApplicationDayError,
   resolveJuniorApplicationDays,
   serializeJuniorApplicationDaySelection,
-} from './applicationDay';
-import { createClient } from '@supabase/supabase-js';
-import { useLocation } from 'preact-iso';
+} from "./applicationDay";
+import { createClient } from "@supabase/supabase-js";
+import { useLocation } from "preact-iso";
 
 type TicketSnapshot = {
   performances?: Array<{
@@ -61,7 +61,7 @@ type JuniorMyPageProps = {
 };
 
 const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
-  useTitle('マイページ - 中学生用ページ');
+  useTitle("マイページ - 中学生用ページ");
   const [ticketCards, setTicketCards] = useState<
     (TicketCardItem & { relationshipId: number })[]
   >([]);
@@ -72,7 +72,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
   const [myTicketSortMode, setMyTicketSortMode] =
-    useState<TicketListSortMode>('recent');
+    useState<TicketListSortMode>("recent");
   const [hasReachedJuniorIssueLimit, setHasReachedJuniorIssueLimit] =
     useState(false);
   const [classApplicationDays, setClassApplicationDays] =
@@ -83,10 +83,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     showConfirmation: false,
     showParentForm: false,
   });
-  const [parentGuardianId, setParentGuardianId] = useState('');
-  const [birthdayYear, setBirthdayYear] = useState('');
-  const [birthdayMonth, setBirthdayMonth] = useState('');
-  const [birthdayDay, setBirthdayDay] = useState('');
+  const [parentGuardianId, setParentGuardianId] = useState("");
+  const [birthdayYear, setBirthdayYear] = useState("");
+  const [birthdayMonth, setBirthdayMonth] = useState("");
+  const [birthdayDay, setBirthdayDay] = useState("");
   const [splitLoading, setSplitLoading] = useState(false);
   const [splitErrorMessage, setSplitErrorMessage] = useState<string | null>(
     null,
@@ -95,9 +95,9 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const { route } = useLocation();
 
   const handleLogout = async () => {
-    window.localStorage.removeItem('junior_application_day');
+    window.localStorage.removeItem("junior_application_day");
     await supabase.auth.signOut();
-    route('/junior/login');
+    route("/junior/login");
   };
 
   const handleSplitConfirmationYes = async () => {
@@ -107,7 +107,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       } = await supabase.auth.getSession();
       const email = session?.user?.email;
 
-      const localPart = email?.replace('@gaiensai.local', '') ?? '';
+      const localPart = email?.replace("@gaiensai.local", "") ?? "";
       const loginId = localPart.match(/^(.*)-\d{8}$/)?.[1] ?? localPart;
 
       setParentGuardianId(loginId);
@@ -134,10 +134,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   };
 
   const handleCloseSplit = () => {
-    setParentGuardianId('');
-    setBirthdayYear('');
-    setBirthdayMonth('');
-    setBirthdayDay('');
+    setParentGuardianId("");
+    setBirthdayYear("");
+    setBirthdayMonth("");
+    setBirthdayDay("");
     setSplitErrorMessage(null);
     setAccountSplit((prev) => ({
       ...prev,
@@ -150,22 +150,22 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     event.preventDefault();
 
     if (!parentGuardianId.trim()) {
-      setSplitErrorMessage('保護者のIDを入力してください。');
+      setSplitErrorMessage("保護者のIDを入力してください。");
       return;
     }
 
     if (!birthdayYear.trim() || !birthdayMonth.trim() || !birthdayDay.trim()) {
-      setSplitErrorMessage('保護者の誕生日を入力してください。');
+      setSplitErrorMessage("保護者の誕生日を入力してください。");
       return;
     }
 
     const normalizedBirthday =
-      birthdayYear.trim().padStart(4, '0') +
-      birthdayMonth.trim().padStart(2, '0') +
-      birthdayDay.trim().padStart(2, '0');
+      birthdayYear.trim().padStart(4, "0") +
+      birthdayMonth.trim().padStart(2, "0") +
+      birthdayDay.trim().padStart(2, "0");
 
     if (!/^\d{8}$/.test(normalizedBirthday)) {
-      setSplitErrorMessage('誕生日は8桁（例: 20100401）で入力してください。');
+      setSplitErrorMessage("誕生日は8桁（例: 20100401）で入力してください。");
       return;
     }
 
@@ -179,7 +179,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       const userId = session?.user?.id;
 
       if (!userId) {
-        setSplitErrorMessage('認証情報の取得に失敗しました。');
+        setSplitErrorMessage("認証情報の取得に失敗しました。");
         setSplitLoading(false);
         return;
       }
@@ -202,16 +202,16 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
 
       if (authError || !authData.user) {
         setSplitErrorMessage(
-          authError?.message === 'User already registered'
-            ? 'このID・パスワードの組み合わせは既に登録されています。'
-            : '保護者アカウントの作成に失敗しました。',
+          authError?.message === "User already registered"
+            ? "このID・パスワードの組み合わせは既に登録されています。"
+            : "保護者アカウントの作成に失敗しました。",
         );
         setSplitLoading(false);
         return;
       }
 
       const { error: rpcError } = await supabase.rpc(
-        'split_existing_junior_account',
+        "split_existing_junior_account",
         {
           p_parent_auth_id: authData.user.id,
           p_parent_email: parentEmail,
@@ -219,13 +219,13 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       );
 
       if (rpcError) {
-        setSplitErrorMessage('アカウント分割に失敗しました。');
+        setSplitErrorMessage("アカウント分割に失敗しました。");
         setSplitLoading(false);
         return;
       }
 
       const { error: juniorTicketError } = await supabase.functions.invoke(
-        'issue-tickets',
+        "issue-tickets",
         {
           body: {
             ticketTypeId: JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID,
@@ -238,7 +238,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       );
 
       if (juniorTicketError) {
-        setSplitErrorMessage('中学生用入場専用券の発券に失敗しました。');
+        setSplitErrorMessage("中学生用入場専用券の発券に失敗しました。");
         setSplitLoading(false);
         return;
       }
@@ -249,7 +249,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           password: parentPassword,
         });
 
-        await tempClient.functions.invoke('issue-tickets', {
+        await tempClient.functions.invoke("issue-tickets", {
           body: {
             ticketTypeId: JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID,
             relationshipId: SELF_RELATIONSHIP_ID,
@@ -265,11 +265,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       let issued = false;
       for (let i = 0; i < ISSUE_POLL_MAX_RETRIES; i++) {
         const { count, error: ticketCheckError } = await supabase
-          .from('tickets')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('status', 'valid')
-          .eq('ticket_type', JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
+          .from("tickets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "valid")
+          .eq("ticket_type", JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
 
         if (!ticketCheckError && Number(count ?? 0) > 0) {
           issued = true;
@@ -282,14 +282,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       }
 
       if (!issued) {
-        setSplitErrorMessage('入場専用券の反映確認に失敗しました。');
+        setSplitErrorMessage("入場専用券の反映確認に失敗しました。");
         setSplitLoading(false);
         return;
       }
 
       window.location.reload();
     } catch (error) {
-      setSplitErrorMessage('予期しないエラーが発生しました。');
+      setSplitErrorMessage("予期しないエラーが発生しました。");
       setSplitLoading(false);
     }
   };
@@ -306,22 +306,22 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       const day1Schedules = [1, 2, 3, 4];
       const day2Schedules = [5, 6, 7, 8];
       const allowedScheduleIds = [
-        ...(classApplicationDays?.includes('day1') ? day1Schedules : []),
-        ...(classApplicationDays?.includes('day2') ? day2Schedules : []),
+        ...(classApplicationDays?.includes("day1") ? day1Schedules : []),
+        ...(classApplicationDays?.includes("day2") ? day2Schedules : []),
       ];
       if (!allowedScheduleIds.includes(scheduleId)) {
         return false;
       }
       if (
-        classApplicationDays?.includes('day1') &&
-        classApplicationDays?.includes('day2')
+        classApplicationDays?.includes("day1") &&
+        classApplicationDays?.includes("day2")
       ) {
         return true;
       }
-      if (classApplicationDays?.includes('day1')) {
-        return !roundName.includes('2日目');
+      if (classApplicationDays?.includes("day1")) {
+        return !roundName.includes("2日目");
       }
-      return roundName.includes('2日目');
+      return roundName.includes("2日目");
     },
     [classApplicationDays],
   );
@@ -329,25 +329,25 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const gymScheduleFilter = useCallback(
     (_scheduleId: number, roundName: string) => {
       if (
-        gymApplicationDays?.includes('day1') &&
-        gymApplicationDays?.includes('day2')
+        gymApplicationDays?.includes("day1") &&
+        gymApplicationDays?.includes("day2")
       ) {
         return true;
       }
-      if (gymApplicationDays?.includes('day1')) {
-        return !roundName.includes('2日目');
+      if (gymApplicationDays?.includes("day1")) {
+        return !roundName.includes("2日目");
       }
-      return roundName.includes('2日目');
+      return roundName.includes("2日目");
     },
     [gymApplicationDays],
   );
 
-  const localPart = userData.email.replace('@gaiensai.local', '');
+  const localPart = userData.email.replace("@gaiensai.local", "");
   const loginId = localPart.match(/^(.*)-\d{8}$/)?.[1] ?? localPart;
   const usageType = userData.junior_usage_type;
-  const isAdmissionOnlyAccount = userData.application_day === 'admission_only';
+  const isAdmissionOnlyAccount = userData.application_day === "admission_only";
   const hasEntryOnlyTicket = ticketCards.some(
-    (ticket) => ticket.performanceName === '入場専用券',
+    (ticket) => ticket.performanceName === "入場専用券",
   );
   const isIssueReceptionStopped =
     !isTicketIssuingEnabled ||
@@ -384,7 +384,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         );
         if (serializedValue) {
           window.localStorage.setItem(
-            'junior_application_day',
+            "junior_application_day",
             serializedValue,
           );
         }
@@ -395,7 +395,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       }
 
       const storedSelection = parseJuniorApplicationDaySelection(
-        window.localStorage.getItem('junior_application_day'),
+        window.localStorage.getItem("junior_application_day"),
       );
       const storedApplicationDays =
         storedSelection.classDay ?? storedSelection.gymDay;
@@ -414,9 +414,9 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       }
 
       const { data, error } = await supabase
-        .from('users')
-        .select('application_day')
-        .eq('id', userId)
+        .from("users")
+        .select("application_day")
+        .eq("id", userId)
         .maybeSingle();
 
       if (error) {
@@ -437,7 +437,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         );
         if (serializedValue) {
           window.localStorage.setItem(
-            'junior_application_day',
+            "junior_application_day",
             serializedValue,
           );
         }
@@ -451,24 +451,24 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
   useEffect(() => {
     const loadIssuingState = async () => {
       const { data } = await supabase
-        .from('configs')
-        .select('is_active')
-        .order('id', { ascending: true })
+        .from("configs")
+        .select("is_active")
+        .order("id", { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (typeof data?.is_active === 'boolean') {
+      if (typeof data?.is_active === "boolean") {
         setIsTicketIssuingEnabled(data.is_active);
       }
     };
@@ -479,11 +479,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   useEffect(() => {
     const loadInviteTicketTypeState = async () => {
       const { data, error } = await supabase
-        .from('ticket_issue_controls')
+        .from("ticket_issue_controls")
         .select(
-          'class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode',
+          "class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode",
         )
-        .eq('id', 1)
+        .eq("id", 1)
         .maybeSingle();
 
       if (error) {
@@ -492,10 +492,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
 
       const hasActive =
         data &&
-        (data.class_invite_mode !== 'off' ||
-          data.rehearsal_invite_mode !== 'off' ||
-          data.gym_invite_mode !== 'off' ||
-          data.entry_only_mode !== 'off');
+        (data.class_invite_mode !== "off" ||
+          data.rehearsal_invite_mode !== "off" ||
+          data.gym_invite_mode !== "off" ||
+          data.entry_only_mode !== "off");
 
       setHasAnyActiveInviteTicketType(!!hasActive);
     };
@@ -519,23 +519,23 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         { count: entryOnlyCount, error: entryOnlyCountError },
       ] = await Promise.all([
         supabase
-          .from('configs')
-          .select('max_tickets_per_junior_user')
-          .order('id', { ascending: true })
+          .from("configs")
+          .select("max_tickets_per_junior_user")
+          .order("id", { ascending: true })
           .limit(1)
           .maybeSingle(),
         supabase
-          .from('tickets')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('status', 'valid')
-          .neq('ticket_type', 7), // 入場専用券を除外
+          .from("tickets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "valid")
+          .neq("ticket_type", 7), // 入場専用券を除外
         supabase
-          .from('tickets')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('status', 'valid')
-          .eq('ticket_type', 7), // 入場専用券のみ
+          .from("tickets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "valid")
+          .eq("ticket_type", 7), // 入場専用券のみ
       ]);
 
       if (configError || countError || entryOnlyCountError) {
@@ -565,7 +565,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   }, [usageType]);
 
   useEffect(() => {
-  const loadTickets = async () => {
+    const loadTickets = async () => {
       setTicketLoading(true);
       setTicketError(null);
 
@@ -576,7 +576,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       const user = session?.user;
 
       if (sessionError || !user) {
-        setTicketError('ログイン情報の取得に失敗しました。');
+        setTicketError("ログイン情報の取得に失敗しました。");
         setTicketLoading(false);
         return;
       }
@@ -589,14 +589,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
 
       for (let i = 0; i < LOAD_TICKET_RETRY_MAX; i++) {
         const { data, error: ticketsError } = await supabase
-          .from('tickets')
-          .select('code, signature, relationship')
-          .eq('user_id', user.id)
-          .eq('status', 'valid')
-          .order('created_at', { ascending: false });
+          .from("tickets")
+          .select("code, signature, relationship")
+          .eq("user_id", user.id)
+          .eq("status", "valid")
+          .order("created_at", { ascending: false });
 
         if (ticketsError) {
-          setTicketError('チケット情報の取得に失敗しました。');
+          setTicketError("チケット情報の取得に失敗しました。");
           setTicketLoading(false);
           return;
         }
@@ -664,15 +664,15 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         await Promise.all([
           classPerformanceIds.length > 0
             ? supabase
-                .from('class_performances')
-                .select('id, class_name, title')
-                .in('id', classPerformanceIds)
+                .from("class_performances")
+                .select("id, class_name, title")
+                .in("id", classPerformanceIds)
             : { data: [] },
           gymPerformanceIds.length > 0
             ? supabase
-                .from('gym_performances')
-                .select('id, group_name, round_name')
-                .in('id', gymPerformanceIds)
+                .from("gym_performances")
+                .select("id, group_name, round_name")
+                .in("id", gymPerformanceIds)
             : { data: [] },
         ]);
 
@@ -765,28 +765,28 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           signature: ticket.signature,
           serial: decoded?.serial,
           performanceName: isAdmissionOnly
-            ? '入場専用券'
+            ? "入場専用券"
             : isGymPerformance
-              ? (gymPerformance?.group_name ?? '-')
-              : (classPerformance?.class_name ?? '-'),
+              ? (gymPerformance?.group_name ?? "-")
+              : (classPerformance?.class_name ?? "-"),
           performanceTitle: isGymPerformance
             ? null
             : (classPerformance?.title ?? null),
           scheduleName: isAdmissionOnly
-            ? ''
+            ? ""
             : isGymPerformance
-              ? (gymPerformance?.round_name ?? '-')
-              : (schedule?.round_name ?? '-'),
+              ? (gymPerformance?.round_name ?? "-")
+              : (schedule?.round_name ?? "-"),
           ticketTypeLabel: decoded
             ? (ticketTypeMap.get(decoded.ticketTypeId) ??
               `券種${decoded.ticketTypeId}`)
-            : '-',
+            : "-",
           relationshipName: decoded
             ? (juniorRelationshipName ??
               relationshipMap.get(decoded.relationshipId) ??
               `間柄${decoded.relationshipId}`)
-            : '-',
-          status: 'valid' as const,
+            : "-",
+          status: "valid" as const,
           relationshipId,
         };
       });
@@ -803,21 +803,21 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       <section>
         <h1 className={subPageStyles.pageTitle}>中学生用マイページ</h1>
         <h2 className={sharedStyles.normalH2}>
-          ID: {loginId}{' '}
+          ID: {loginId}{" "}
           {usageType === 0
-            ? '中学生と保護者(共通のチケット使用)'
+            ? "中学生と保護者(共通のチケット使用)"
             : usageType === 1
-              ? '中学生と保護者(別々のチケット使用)'
+              ? "中学生と保護者(別々のチケット使用)"
               : usageType === 2
-                ? '中学生のみ'
+                ? "中学生のみ"
                 : usageType === 3
-                  ? '保護者のみ'
-                  : '不明'}
+                  ? "保護者のみ"
+                  : "不明"}
         </h2>
         {(!isAdmissionOnlyAccount || !hasEntryOnlyTicket) && (
           <a
-            href='/junior/issue'
-            className={`${dashboardStyles.buttonLink} ${!isOnline || isIssueReceptionStopped ? dashboardStyles.buttonLinkDisabled : ''}`}
+            href="/junior/issue"
+            className={`${dashboardStyles.buttonLink} ${!isOnline || isIssueReceptionStopped ? dashboardStyles.buttonLinkDisabled : ""}`}
             aria-disabled={!isOnline || isIssueReceptionStopped}
             tabIndex={!isOnline || isIssueReceptionStopped ? -1 : 0}
             onClick={(event) => {
@@ -862,16 +862,16 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           showSortControl
           sortMode={myTicketSortMode}
           onSortModeChange={setMyTicketSortMode}
-          emptyMessage='自分が使うチケットはまだありません。'
+          emptyMessage="自分が使うチケットはまだありません。"
         />
       </NormalSection>
       {!isAdmissionOnlyAccount && (
         <NormalSection>
           <h2>公演空き状況</h2>
-          <a href='/performances' className={dashboardStyles.smallButtonLink}>
+          <a href="/performances" className={dashboardStyles.smallButtonLink}>
             公演の詳細はこちら
           </a>
-          <a href='/timetable' className={dashboardStyles.smallButtonLink}>
+          <a href="/timetable" className={dashboardStyles.smallButtonLink}>
             タイムテーブルはこちら
           </a>
           {ticketLoading ? <LoadingSpinner /> : null}
@@ -892,8 +892,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                     <h3>クラス公演</h3>
                     <PerformancesTable
                       enableIssueJump={true}
-                      issuePath='/junior/issue'
-                      remainingMode='junior'
+                      issuePath="/junior/issue"
+                      remainingMode="junior"
                       filterAccepting={true}
                       scheduleFilter={
                         classApplicationDays && classApplicationDays.length > 0
@@ -908,7 +908,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                     <h3>体育館公演</h3>
                     <GymPerformancesTable
                       enableIssueJump={true}
-                      issuePath='/junior/issue'
+                      issuePath="/junior/issue"
+                      remainingMode="junior"
                       filterAccepting={true}
                       scheduleFilter={
                         gymApplicationDays && gymApplicationDays.length > 0
@@ -948,11 +949,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       {accountSplit.showConfirmation && (
         <div
           className={registrationStyles.modal}
-          role='dialog'
-          aria-labelledby='split-dialog-title'
+          role="dialog"
+          aria-labelledby="split-dialog-title"
         >
           <div className={registrationStyles.modalContent}>
-            <h2 id='split-dialog-title'>アカウント分割確認</h2>
+            <h2 id="split-dialog-title">アカウント分割確認</h2>
             <p className={registrationStyles.modalText}>
               中学生と保護者でアカウントを分割しますか？
             </p>
@@ -964,14 +965,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
             </p>
             <div className={registrationStyles.modalActions}>
               <button
-                type='button'
+                type="button"
                 onClick={handleSplitConfirmationNo}
                 className={registrationStyles.modalButtonSecondary}
               >
                 いいえ
               </button>
               <button
-                type='button'
+                type="button"
                 onClick={handleSplitConfirmationYes}
                 className={registrationStyles.modalButtonPrimary}
               >
@@ -986,11 +987,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       {accountSplit.showParentForm && (
         <div
           className={registrationStyles.modal}
-          role='dialog'
-          aria-labelledby='parent-form-title'
+          role="dialog"
+          aria-labelledby="parent-form-title"
         >
           <div className={registrationStyles.modalContent}>
-            <h2 id='parent-form-title'>保護者情報入力</h2>
+            <h2 id="parent-form-title">保護者情報入力</h2>
             <p>
               ここで入力した情報を用いて、保護者のデバイスでログインをお願いします。
             </p>
@@ -999,18 +1000,18 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
               className={registrationStyles.parentForm}
             >
               <div className={registrationStyles.formGroup}>
-                <label htmlFor='parent-id' className={registrationStyles.label}>
+                <label htmlFor="parent-id" className={registrationStyles.label}>
                   保護者のID (そのままでも可)
                 </label>
                 <input
-                  id='parent-id'
-                  type='text'
+                  id="parent-id"
+                  type="text"
                   className={registrationStyles.input}
                   value={parentGuardianId}
                   onChange={(e) => {
                     setParentGuardianId(e.currentTarget.value);
                   }}
-                  placeholder='例: 12345'
+                  placeholder="例: 12345"
                   required
                 />
               </div>
@@ -1022,10 +1023,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   </legend>
                   <label className={registrationStyles.birthdayLabel}>
                     <input
-                      type='number'
+                      type="number"
                       className={registrationStyles.birthdayInput}
-                      placeholder='2000'
-                      inputMode='numeric'
+                      placeholder="2000"
+                      inputMode="numeric"
                       value={birthdayYear}
                       required={true}
                       min={1000}
@@ -1036,10 +1037,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   </label>
                   <label className={registrationStyles.birthdayLabel}>
                     <input
-                      type='number'
+                      type="number"
                       className={registrationStyles.birthdayInput}
-                      placeholder='1'
-                      inputMode='numeric'
+                      placeholder="1"
+                      inputMode="numeric"
                       value={birthdayMonth}
                       required={true}
                       min={1}
@@ -1050,10 +1051,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   </label>
                   <label className={registrationStyles.birthdayLabel}>
                     <input
-                      type='number'
+                      type="number"
                       className={registrationStyles.birthdayInput}
-                      placeholder='1'
-                      inputMode='numeric'
+                      placeholder="1"
+                      inputMode="numeric"
                       value={birthdayDay}
                       required={true}
                       min={1}
@@ -1071,7 +1072,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
 
               <div className={registrationStyles.modalActions}>
                 <button
-                  type='button'
+                  type="button"
                   onClick={handleCloseSplit}
                   className={registrationStyles.modalButtonSecondary}
                   disabled={splitLoading}
@@ -1079,11 +1080,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   キャンセル
                 </button>
                 <button
-                  type='submit'
+                  type="submit"
                   className={registrationStyles.modalButtonPrimary}
                   disabled={splitLoading}
                 >
-                  {splitLoading ? '分割中...' : '分割を実行'}
+                  {splitLoading ? "分割中..." : "分割を実行"}
                 </button>
               </div>
             </form>
@@ -1094,8 +1095,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       {splitLoading && !accountSplit.showParentForm && (
         <div
           className={registrationStyles.loadingOverlay}
-          role='status'
-          aria-live='polite'
+          role="status"
+          aria-live="polite"
         >
           <div className={registrationStyles.loadingOverlayContent}>
             <LoadingSpinner />

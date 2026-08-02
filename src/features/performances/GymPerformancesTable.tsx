@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from 'react-icons/ri';
-import { supabase } from '../../lib/supabase';
-import styles from './PerformancesTable.module.css';
-import { useLocation } from 'preact-iso';
-import type { AvailableSeatSelection } from '../../types/types';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from "react-icons/ri";
+import { supabase } from "../../lib/supabase";
+import styles from "./PerformancesTable.module.css";
+import { useLocation } from "preact-iso";
+import type { AvailableSeatSelection } from "../../types/types";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 type GymPerformanceRow = {
   id: number;
@@ -12,9 +12,17 @@ type GymPerformanceRow = {
   round_name: string;
   start_at: string;
   capacity: number;
+  junior_capacity: number;
 };
 
-const cellKeySeparator = '\u0000';
+type GymTicketCounterRow = {
+  performance_id: number;
+  issued_general: number | null;
+  issued_junior: number | null;
+  issued_other: number | null;
+};
+
+const cellKeySeparator = "\u0000";
 
 const toCellKey = (roundName: string, groupName: string) =>
   `${roundName}${cellKeySeparator}${groupName}`;
@@ -27,32 +35,43 @@ type GymPerformancesTableProps = {
   restrictedGroupNames?: string[] | null;
   filterAccepting?: boolean;
   scheduleFilter?: (scheduleId: number, roundName: string) => boolean;
+  remainingMode?: "general" | "total" | "junior";
+  showToggleRemainingMode?: boolean;
 };
 
 const GymPerformancesTable = ({
   enableIssueJump = false,
-  issuePath = '/students/issue',
+  issuePath = "/students/issue",
   onAvailableCellClick,
   selectedCellKey,
   restrictedGroupNames = null,
   filterAccepting = false,
   scheduleFilter,
+  remainingMode = "general",
+  showToggleRemainingMode = false,
 }: GymPerformancesTableProps) => {
   const [performances, setPerformances] = useState<GymPerformanceRow[]>([]);
-  const [selectedGroupName, setSelectedGroupName] = useState<string | 'all'>(
-    'all',
+  const [selectedGroupName, setSelectedGroupName] = useState<string | "all">(
+    "all",
   );
-  const [selectedRoundName, setSelectedRoundName] = useState<string | 'all'>(
-    'all',
+  const [selectedRoundName, setSelectedRoundName] = useState<string | "all">(
+    "all",
   );
   const [remainingByPerformanceId, setRemainingByPerformanceId] = useState<
     Map<number, number>
   >(new Map());
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [currentRemainingMode, setCurrentRemainingMode] = useState<
+    "general" | "total" | "junior"
+  >(remainingMode);
   const { route } = useLocation();
 
   const tableWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCurrentRemainingMode(remainingMode);
+  }, [remainingMode]);
 
   useEffect(() => {
     const load = async () => {
@@ -60,19 +79,21 @@ const GymPerformancesTable = ({
       setErrorMessage(null);
 
       let query = supabase
-        .from('gym_performances')
-        .select('id, group_name, round_name, start_at, capacity')
-        .order('start_at', { ascending: true })
-        .order('id', { ascending: true });
+        .from("gym_performances")
+        .select(
+          "id, group_name, round_name, start_at, capacity, junior_capacity",
+        )
+        .order("start_at", { ascending: true })
+        .order("id", { ascending: true });
 
       if (filterAccepting) {
-        query = query.eq('is_accepting', true);
+        query = query.eq("is_accepting", true);
       }
 
       const { data: performanceData, error: performanceError } = await query;
 
       if (performanceError) {
-        setErrorMessage('体育館公演の取得に失敗しました。');
+        setErrorMessage("体育館公演の取得に失敗しました。");
         setLoading(false);
         return;
       }
@@ -95,40 +116,64 @@ const GymPerformancesTable = ({
 
       const performanceIds = loadedPerformances.map((p) => p.id);
 
-      const { data: issuedTickets, error: ticketError } = await supabase
-        .from('gym_tickets')
-        .select('performance_id, tickets!inner(status, person_count)')
-        .in('performance_id', performanceIds)
-        .eq('tickets.status', 'valid');
+      const [
+        { data: counterData, error: counterError },
+        { data: configData, error: configError },
+      ] = await Promise.all([
+        supabase
+          .from("gym_ticket_counters")
+          .select("performance_id, issued_general, issued_junior, issued_other")
+          .in("performance_id", performanceIds),
+        supabase
+          .from("configs")
+          .select("junior_release_open")
+          .order("id", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      if (ticketError) {
-        setErrorMessage('体育館公演の残席情報の取得に失敗しました。');
+      if (counterError || configError) {
+        setErrorMessage("体育館公演の残席情報の取得に失敗しました。");
         setLoading(false);
         return;
       }
 
-      const issuedCountByPerformanceId = new Map<number, number>();
-
-      (
-        (issuedTickets as unknown as Array<{
-          performance_id: number;
-          tickets: { person_count: number };
-        }>) ?? []
-      ).forEach((row) => {
-        const pCount = row.tickets?.person_count ?? 1;
-        issuedCountByPerformanceId.set(
-          row.performance_id,
-          (issuedCountByPerformanceId.get(row.performance_id) ?? 0) + pCount,
-        );
+      const counts = new Map<
+        number,
+        { general: number; junior: number; other: number }
+      >();
+      ((counterData as GymTicketCounterRow[] | null) ?? []).forEach((row) => {
+        counts.set(row.performance_id, {
+          general: Number(row.issued_general ?? 0),
+          junior: Number(row.issued_junior ?? 0),
+          other: Number(row.issued_other ?? 0),
+        });
       });
+      const isJuniorReleased = Boolean(configData?.junior_release_open);
 
       const remainingMap = new Map<number, number>();
       for (const performance of loadedPerformances) {
-        const issued = issuedCountByPerformanceId.get(performance.id) ?? 0;
-        remainingMap.set(
-          performance.id,
-          Math.max(performance.capacity - issued, 0),
-        );
+        const issued = counts.get(performance.id) ?? {
+          general: 0,
+          junior: 0,
+          other: 0,
+        };
+        const generalRemainingRaw =
+          performance.capacity -
+          performance.junior_capacity -
+          issued.general -
+          issued.other;
+        const totalRemaining =
+          performance.capacity - issued.general - issued.junior - issued.other;
+        const remaining =
+          currentRemainingMode === "total" || isJuniorReleased
+            ? totalRemaining
+            : currentRemainingMode === "junior"
+              ? performance.junior_capacity -
+                issued.junior -
+                Math.max(-generalRemainingRaw, 0)
+              : generalRemainingRaw;
+        remainingMap.set(performance.id, Math.max(remaining, 0));
       }
 
       setRemainingByPerformanceId(remainingMap);
@@ -136,7 +181,12 @@ const GymPerformancesTable = ({
     };
 
     void load();
-  }, [restrictedGroupNames, filterAccepting, scheduleFilter]);
+  }, [
+    restrictedGroupNames,
+    filterAccepting,
+    scheduleFilter,
+    currentRemainingMode,
+  ]);
 
   const groupNames = useMemo(() => {
     const unique = new Set<string>();
@@ -158,7 +208,7 @@ const GymPerformancesTable = ({
     }
 
     return [...earliestByRound.entries()]
-      .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0], 'ja'))
+      .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0], "ja"))
       .map(([roundName]) => roundName);
   }, [performances]);
 
@@ -183,12 +233,18 @@ const GymPerformancesTable = ({
         roundName: performance.round_name,
         groupName: performance.group_name,
       };
+      const capacity =
+        currentRemainingMode === "general"
+          ? Math.max(performance.capacity - performance.junior_capacity, 0)
+          : currentRemainingMode === "junior"
+            ? performance.junior_capacity
+            : performance.capacity;
       const remaining =
-        remainingByPerformanceId.get(performance.id) ?? performance.capacity;
+        remainingByPerformanceId.get(performance.id) ?? capacity;
 
       map.set(key, {
         remaining: previous.remaining + remaining,
-        capacity: previous.capacity + performance.capacity,
+        capacity: previous.capacity + capacity,
         performanceId: previous.performanceId,
         roundName: previous.roundName,
         groupName: previous.groupName,
@@ -196,13 +252,13 @@ const GymPerformancesTable = ({
     }
 
     return map;
-  }, [performances, remainingByPerformanceId]);
+  }, [performances, remainingByPerformanceId, currentRemainingMode]);
 
   const filteredGroupNames = useMemo(
     () =>
       groupNames.filter(
         (groupName) =>
-          selectedGroupName === 'all' || groupName === selectedGroupName,
+          selectedGroupName === "all" || groupName === selectedGroupName,
       ),
     [groupNames, selectedGroupName],
   );
@@ -211,7 +267,7 @@ const GymPerformancesTable = ({
     () =>
       roundNames.filter(
         (roundName) =>
-          selectedRoundName === 'all' || roundName === selectedRoundName,
+          selectedRoundName === "all" || roundName === selectedRoundName,
       ),
     [roundNames, selectedRoundName],
   );
@@ -229,7 +285,7 @@ const GymPerformancesTable = ({
       const isScrollable = scrollWidth > clientWidth;
 
       if (!isScrollable) {
-        wrapper.removeAttribute('data-scroll-fade');
+        wrapper.removeAttribute("data-scroll-fade");
         return;
       }
 
@@ -237,19 +293,19 @@ const GymPerformancesTable = ({
       const isAtEnd = Math.abs(scrollWidth - clientWidth - scrollLeft) <= 1;
 
       if (isAtStart) {
-        wrapper.setAttribute('data-scroll-fade', 'start');
+        wrapper.setAttribute("data-scroll-fade", "start");
       } else if (isAtEnd) {
-        wrapper.setAttribute('data-scroll-fade', 'end');
+        wrapper.setAttribute("data-scroll-fade", "end");
       } else {
-        wrapper.setAttribute('data-scroll-fade', 'middle');
+        wrapper.setAttribute("data-scroll-fade", "middle");
       }
     };
 
     updateScrollState();
     rafId = window.requestAnimationFrame(updateScrollState);
 
-    wrapper.addEventListener('scroll', updateScrollState);
-    window.addEventListener('resize', updateScrollState);
+    wrapper.addEventListener("scroll", updateScrollState);
+    window.addEventListener("resize", updateScrollState);
 
     const resizeObserver = new ResizeObserver(updateScrollState);
     resizeObserver.observe(wrapper);
@@ -258,8 +314,8 @@ const GymPerformancesTable = ({
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      wrapper.removeEventListener('scroll', updateScrollState);
-      window.removeEventListener('resize', updateScrollState);
+      wrapper.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
       resizeObserver.disconnect();
     };
   }, [
@@ -307,7 +363,7 @@ const GymPerformancesTable = ({
     }
 
     const searchParams = new URLSearchParams({
-      venue: 'gym',
+      venue: "gym",
       performanceId: String(selection.performanceId),
     });
 
@@ -334,18 +390,18 @@ const GymPerformancesTable = ({
     return (
       <div className={styles.container}>
         <div className={styles.filters}>
-          <label className={styles.filterLabel} htmlFor='gym-group-filter'>
+          <label className={styles.filterLabel} htmlFor="gym-group-filter">
             団体
             <select
-              id='gym-group-filter'
+              id="gym-group-filter"
               className={styles.filterSelect}
               value={selectedGroupName}
               onChange={(event) => {
                 const value = event.currentTarget.value;
-                setSelectedGroupName(value === 'all' ? 'all' : value);
+                setSelectedGroupName(value === "all" ? "all" : value);
               }}
             >
-              <option value='all'>すべて</option>
+              <option value="all">すべて</option>
               {groupNames.map((groupName) => (
                 <option key={groupName} value={groupName}>
                   {groupName}
@@ -353,18 +409,18 @@ const GymPerformancesTable = ({
               ))}
             </select>
           </label>
-          <label className={styles.filterLabel} htmlFor='gym-round-filter'>
+          <label className={styles.filterLabel} htmlFor="gym-round-filter">
             公演回
             <select
-              id='gym-round-filter'
+              id="gym-round-filter"
               className={styles.filterSelect}
               value={selectedRoundName}
               onChange={(event) => {
                 const value = event.currentTarget.value;
-                setSelectedRoundName(value === 'all' ? 'all' : value);
+                setSelectedRoundName(value === "all" ? "all" : value);
               }}
             >
-              <option value='all'>すべて</option>
+              <option value="all">すべて</option>
               {roundNames.map((roundName) => (
                 <option key={roundName} value={roundName}>
                   {roundName}
@@ -381,18 +437,18 @@ const GymPerformancesTable = ({
   return (
     <div className={styles.container}>
       <div className={styles.filters}>
-        <label className={styles.filterLabel} htmlFor='gym-group-filter'>
+        <label className={styles.filterLabel} htmlFor="gym-group-filter">
           団体
           <select
-            id='gym-group-filter'
+            id="gym-group-filter"
             className={styles.filterSelect}
             value={selectedGroupName}
             onChange={(event) => {
               const value = event.currentTarget.value;
-              setSelectedGroupName(value === 'all' ? 'all' : value);
+              setSelectedGroupName(value === "all" ? "all" : value);
             }}
           >
-            <option value='all'>すべて</option>
+            <option value="all">すべて</option>
             {groupNames.map((groupName) => (
               <option key={groupName} value={groupName}>
                 {groupName}
@@ -400,18 +456,18 @@ const GymPerformancesTable = ({
             ))}
           </select>
         </label>
-        <label className={styles.filterLabel} htmlFor='gym-round-filter'>
+        <label className={styles.filterLabel} htmlFor="gym-round-filter">
           公演回
           <select
-            id='gym-round-filter'
+            id="gym-round-filter"
             className={styles.filterSelect}
             value={selectedRoundName}
             onChange={(event) => {
               const value = event.currentTarget.value;
-              setSelectedRoundName(value === 'all' ? 'all' : value);
+              setSelectedRoundName(value === "all" ? "all" : value);
             }}
           >
-            <option value='all'>すべて</option>
+            <option value="all">すべて</option>
             {roundNames.map((roundName) => (
               <option key={roundName} value={roundName}>
                 {roundName}
@@ -419,6 +475,28 @@ const GymPerformancesTable = ({
             ))}
           </select>
         </label>
+        {showToggleRemainingMode && (
+          <label
+            className={styles.filterLabel}
+            htmlFor="gym-remaining-mode-toggle"
+          >
+            残席表示
+            <select
+              id="gym-remaining-mode-toggle"
+              className={styles.filterSelect}
+              value={currentRemainingMode}
+              onChange={(event) =>
+                setCurrentRemainingMode(
+                  event.currentTarget.value as "general" | "junior" | "total",
+                )
+              }
+            >
+              <option value="general">一般のみ</option>
+              <option value="junior">中学生のみ</option>
+              <option value="total">一般＋中学生</option>
+            </select>
+          </label>
+        )}
       </div>
       <div className={styles.legend}>
         <span className={`${styles.legendItem} ${styles.statusCircle}`}>
@@ -474,9 +552,9 @@ const GymPerformancesTable = ({
                       className={`${styles.td} ${getStatusClass(
                         cell.remaining,
                         cell.capacity,
-                      )} ${isInteractive ? styles.jumpableCell : ''} ${
-                        isInteractive ? styles.interactiveCell : ''
-                      } ${isSelected ? styles.selectedCell : ''}`}
+                      )} ${isInteractive ? styles.jumpableCell : ""} ${
+                        isInteractive ? styles.interactiveCell : ""
+                      } ${isSelected ? styles.selectedCell : ""}`}
                       key={key}
                       onClick={() => {
                         if (cell.remaining <= 0) {
@@ -494,7 +572,7 @@ const GymPerformancesTable = ({
                         if (!isInteractive) {
                           return;
                         }
-                        if (event.key !== 'Enter' && event.key !== ' ') {
+                        if (event.key !== "Enter" && event.key !== " ") {
                           return;
                         }
                         event.preventDefault();
@@ -507,7 +585,7 @@ const GymPerformancesTable = ({
                         });
                       }}
                       tabIndex={isInteractive ? 0 : undefined}
-                      role={isInteractive ? 'button' : undefined}
+                      role={isInteractive ? "button" : undefined}
                       aria-label={
                         isInteractive
                           ? `${cell.groupName} ${cell.roundName} 残り${cell.remaining}席`

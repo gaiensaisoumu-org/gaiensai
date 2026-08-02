@@ -1,38 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { useLocation } from 'preact-iso';
-import BackButton from '../../../components/ui/BackButton';
-import Alert from '../../../components/ui/Alert';
-import IssueStepPerformance from '../../../features/issue/IssueStepPerformance';
-import IssueStepTicketType from '../../../features/issue/IssueStepTicketType';
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useLocation } from "preact-iso";
+import BackButton from "../../../components/ui/BackButton";
+import Alert from "../../../components/ui/Alert";
+import IssueStepPerformance from "../../../features/issue/IssueStepPerformance";
+import IssueStepTicketType from "../../../features/issue/IssueStepTicketType";
 import {
   JUNIOR_ISSUE_RESULT_STORAGE_KEY,
   type IssueResultPayload,
-} from '../../../features/issue/issueResultStorage';
-import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
-import { useEventConfig } from '../../../hooks/useEventConfig';
-import { useTitle } from '../../../hooks/useTitle';
-import { supabase } from '../../../lib/supabase';
-import performancesSnapshot from '../../../generated/performances-static.json';
+} from "../../../features/issue/issueResultStorage";
+import { formatTicketTypeLabel } from "../../../features/tickets/formatTicketTypeLabel";
+import { useEventConfig } from "../../../hooks/useEventConfig";
+import { useTitle } from "../../../hooks/useTitle";
+import { supabase } from "../../../lib/supabase";
+import performancesSnapshot from "../../../generated/performances-static.json";
 import type {
   SelectedPerformance,
   Step,
   TicketTypeOption,
-} from '../../../types/Issue.types';
-import { formatDateText } from '../../../utils/formatDateText';
-import styles from '../students/Issue.module.css';
+} from "../../../types/Issue.types";
+import { formatDateText } from "../../../utils/formatDateText";
+import styles from "../students/Issue.module.css";
 import {
   getJuniorApplicationDayVisibility,
   type JuniorApplicationDays,
   parseJuniorApplicationDaySelection,
   resolveJuniorApplicationDays,
   serializeJuniorApplicationDaySelection,
-} from './applicationDay';
+} from "./applicationDay";
 
 const PANEL_ANIMATION_MS = 360;
-const ADMISSION_ONLY_TICKET_NAME = '入場専用券';
-const GYM_TICKET_KEYWORD = '体育館';
+const ADMISSION_ONLY_TICKET_NAME = "入場専用券";
+const GYM_TICKET_KEYWORD = "体育館";
 const SELF_RELATIONSHIP_ID = 1;
-const SELF_RELATIONSHIP_NAME = '本人';
+const SELF_RELATIONSHIP_NAME = "本人";
 const JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID = 7;
 
 const gymPerformanceSnapshot = performancesSnapshot as {
@@ -50,7 +50,9 @@ type ClassTicketCounterRow = {
 };
 
 type GymTicketCounterRow = {
-  issued_count: number | null;
+  issued_general: number | null;
+  issued_junior: number | null;
+  issued_other: number | null;
 };
 
 const calculateClassJuniorRemaining = ({
@@ -85,8 +87,8 @@ const calculateClassJuniorRemaining = ({
 
 const readFunctionErrorMessage = async (error: unknown): Promise<string> => {
   const fallback =
-    error instanceof Error ? error.message : '不明なエラーが発生しました。';
-  if (!error || typeof error !== 'object') {
+    error instanceof Error ? error.message : "不明なエラーが発生しました。";
+  if (!error || typeof error !== "object") {
     return fallback;
   }
 
@@ -104,22 +106,22 @@ const readFunctionErrorMessage = async (error: unknown): Promise<string> => {
             text?: () => Promise<string>;
           });
 
-    if (typeof response.json === 'function') {
+    if (typeof response.json === "function") {
       const payload = await response.json();
-      if (payload && typeof payload === 'object') {
+      if (payload && typeof payload === "object") {
         const maybeMessage =
           (payload as { error?: unknown; message?: unknown; msg?: unknown })
             .error ??
           (payload as { message?: unknown }).message ??
           (payload as { msg?: unknown }).msg;
 
-        if (typeof maybeMessage === 'string' && maybeMessage.length > 0) {
+        if (typeof maybeMessage === "string" && maybeMessage.length > 0) {
           return maybeMessage;
         }
       }
     }
 
-    if (typeof response.text === 'function') {
+    if (typeof response.text === "function") {
       const text = await response.text();
       if (text.length > 0) {
         return text;
@@ -137,9 +139,9 @@ const Issue = () => {
   const [selectedTicketTypeId, setSelectedTicketTypeId] = useState<number>(5);
   const [ticketTypes, setTicketTypes] = useState<TicketTypeOption[]>([]);
   const [issueControls, setIssueControls] = useState<{
-    junior_class_mode: 'open' | 'only-own' | 'off';
-    junior_gym_mode: 'open' | 'only-own' | 'off';
-    junior_entry_only_mode: 'open' | 'only-own' | 'off';
+    junior_class_mode: "open" | "only-own" | "off";
+    junior_gym_mode: "open" | "only-own" | "off";
+    junior_entry_only_mode: "open" | "only-own" | "off";
   } | null>(null);
   const [selectedPerformance, setSelectedPerformance] =
     useState<SelectedPerformance>(null);
@@ -161,18 +163,18 @@ const Issue = () => {
   const { route } = useLocation();
   const { config } = useEventConfig();
 
-  useTitle('チケット発券 - 中学生用ページ');
+  useTitle("チケット発券 - 中学生用ページ");
 
   useEffect(() => {
     const loadIssuingState = async () => {
       const { data } = await supabase
-        .from('configs')
-        .select('is_active')
-        .order('id', { ascending: true })
+        .from("configs")
+        .select("is_active")
+        .order("id", { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (typeof data?.is_active === 'boolean') {
+      if (typeof data?.is_active === "boolean") {
         setIsTicketIssuingEnabled(data.is_active);
       }
     };
@@ -202,7 +204,7 @@ const Issue = () => {
         );
         if (serializedValue) {
           window.localStorage.setItem(
-            'junior_application_day',
+            "junior_application_day",
             serializedValue,
           );
         }
@@ -213,14 +215,12 @@ const Issue = () => {
       }
 
       const storedSelection = parseJuniorApplicationDaySelection(
-        window.localStorage.getItem('junior_application_day'),
+        window.localStorage.getItem("junior_application_day"),
       );
       const storedApplicationDays =
         storedSelection.classDay ?? storedSelection.gymDay;
       if (storedApplicationDays && storedApplicationDays.length > 0) {
-        setClassApplicationDays(
-          storedSelection.classDay
-        );
+        setClassApplicationDays(storedSelection.classDay);
         setGymApplicationDays(storedSelection.gymDay);
         return;
       }
@@ -234,9 +234,9 @@ const Issue = () => {
       }
 
       const { data, error } = await supabase
-        .from('users')
-        .select('application_day')
-        .eq('id', userId)
+        .from("users")
+        .select("application_day")
+        .eq("id", userId)
         .maybeSingle();
 
       if (error) {
@@ -249,19 +249,15 @@ const Issue = () => {
       const databaseApplicationDays =
         databaseSelection.classDay ?? databaseSelection.gymDay;
       if (databaseApplicationDays && databaseApplicationDays.length > 0) {
-        setClassApplicationDays(
-          databaseSelection.classDay,
-        );
-        setGymApplicationDays(
-          databaseSelection.gymDay,
-        );
+        setClassApplicationDays(databaseSelection.classDay);
+        setGymApplicationDays(databaseSelection.gymDay);
         const serializedValue = serializeJuniorApplicationDaySelection(
           databaseSelection.classDay ?? databaseApplicationDays,
           databaseSelection.gymDay ?? databaseApplicationDays,
         );
         if (serializedValue) {
           window.localStorage.setItem(
-            'junior_application_day',
+            "junior_application_day",
             serializedValue,
           );
         }
@@ -274,9 +270,9 @@ const Issue = () => {
   useEffect(() => {
     const loadIssueControls = async () => {
       const { data, error } = await supabase
-        .from('ticket_issue_controls')
-        .select('*')
-        .eq('id', 1)
+        .from("ticket_issue_controls")
+        .select("*")
+        .eq("id", 1)
         .maybeSingle();
 
       if (error || !data) {
@@ -300,11 +296,11 @@ const Issue = () => {
       }
 
       const { count, error } = await supabase
-        .from('tickets')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('status', 'valid')
-        .eq('ticket_type', JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
+        .from("tickets")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "valid")
+        .eq("ticket_type", JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
 
       if (error) {
         return;
@@ -332,22 +328,22 @@ const Issue = () => {
         { count, error: countError },
       ] = await Promise.all([
         supabase
-          .from('configs')
-          .select('max_tickets_per_junior_user')
-          .order('id', { ascending: true })
+          .from("configs")
+          .select("max_tickets_per_junior_user")
+          .order("id", { ascending: true })
           .limit(1)
           .maybeSingle(),
         supabase
-          .from('users')
-          .select('junior_usage_type')
-          .eq('id', userId)
+          .from("users")
+          .select("junior_usage_type")
+          .eq("id", userId)
           .maybeSingle(),
         supabase
-          .from('tickets')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('status', 'valid')
-          .neq('ticket_type', JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID),
+          .from("tickets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "valid")
+          .neq("ticket_type", JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID),
       ]);
 
       if (configError || userError || countError) {
@@ -384,13 +380,13 @@ const Issue = () => {
   useEffect(() => {
     const loadTicketTypes = async () => {
       const { data, error } = await supabase
-        .from('ticket_types')
-        .select('id, name, type')
-        .eq('type', '中学生券')
-        .order('id', { ascending: true });
+        .from("ticket_types")
+        .select("id, name, type")
+        .eq("type", "中学生券")
+        .order("id", { ascending: true });
 
       if (error) {
-        alert('チケット種別の読み込みに失敗しました。');
+        alert("チケット種別の読み込みに失敗しました。");
         return;
       }
 
@@ -419,21 +415,21 @@ const Issue = () => {
     const visibleTicketTypes = ticketTypes.filter((ticketType) => {
       if (ticketType.id === 5) {
         const isClassTicketAllowed =
-          issueControls.junior_class_mode !== 'off' &&
+          issueControls.junior_class_mode !== "off" &&
           !hasReachedCapacity &&
           applicationDayVisibility.showClassPerformances;
         return isClassTicketAllowed;
       }
       if (ticketType.id === 6) {
         const isGymTicketAllowed =
-          issueControls.junior_gym_mode !== 'off' &&
+          issueControls.junior_gym_mode !== "off" &&
           !hasReachedCapacity &&
           applicationDayVisibility.showGymPerformances;
         return isGymTicketAllowed;
       }
       if (ticketType.id === JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID) {
         return (
-          issueControls.junior_entry_only_mode !== 'off' &&
+          issueControls.junior_entry_only_mode !== "off" &&
           !hasIssuedJuniorEntryOnlyTicket
         );
       }
@@ -473,11 +469,11 @@ const Issue = () => {
   useEffect(() => {
     const loadSelectionFromQuery = async () => {
       const params = new URLSearchParams(window.location.search);
-      const venue = params.get('venue');
-      const performanceId = Number(params.get('performanceId'));
-      const scheduleId = Number(params.get('scheduleId'));
+      const venue = params.get("venue");
+      const performanceId = Number(params.get("performanceId"));
+      const scheduleId = Number(params.get("scheduleId"));
 
-      if (venue === 'gym') {
+      if (venue === "gym") {
         if (!Number.isInteger(performanceId) || performanceId <= 0) {
           return;
         }
@@ -485,28 +481,47 @@ const Issue = () => {
         const [
           { data: performanceData, error: performanceError },
           { data: counterData, error: counterError },
+          { data: configData, error: configError },
         ] = await Promise.all([
           supabase
-            .from('gym_performances')
-            .select('id, group_name, round_name, capacity')
-            .eq('id', performanceId)
+            .from("gym_performances")
+            .select("id, group_name, round_name, capacity, junior_capacity")
+            .eq("id", performanceId)
             .maybeSingle(),
           supabase
-            .from('gym_ticket_counters')
-            .select('issued_count')
-            .eq('performance_id', performanceId)
+            .from("gym_ticket_counters")
+            .select("issued_general, issued_junior, issued_other")
+            .eq("performance_id", performanceId)
+            .maybeSingle(),
+          supabase
+            .from("configs")
+            .select("junior_release_open")
+            .order("id", { ascending: true })
+            .limit(1)
             .maybeSingle(),
         ]);
 
-        if (performanceError || counterError || !performanceData) {
+        if (
+          performanceError ||
+          counterError ||
+          configError ||
+          !performanceData
+        ) {
           return;
         }
 
-        const issuedCount = Number(
-          (counterData as GymTicketCounterRow | null)?.issued_count ?? 0,
-        );
+        const counter = counterData as GymTicketCounterRow | null;
+        const capacity = Number(performanceData.capacity ?? 0);
+        const juniorCapacity = Number(performanceData.junior_capacity ?? 0);
+        const issuedGeneral = Number(counter?.issued_general ?? 0);
+        const issuedJunior = Number(counter?.issued_junior ?? 0);
+        const issuedOther = Number(counter?.issued_other ?? 0);
+        const generalRemainingRaw =
+          capacity - juniorCapacity - issuedGeneral - issuedOther;
         const remaining = Math.max(
-          Number(performanceData.capacity ?? 0) - issuedCount,
+          configData?.junior_release_open
+            ? capacity - issuedGeneral - issuedJunior - issuedOther
+            : juniorCapacity - issuedJunior - Math.max(-generalRemainingRaw, 0),
           0,
         );
 
@@ -548,25 +563,25 @@ const Issue = () => {
         { data: configData, error: configError },
       ] = await Promise.all([
         supabase
-          .from('class_performances')
-          .select('id, class_name, total_capacity, junior_capacity')
-          .eq('id', performanceId)
+          .from("class_performances")
+          .select("id, class_name, total_capacity, junior_capacity")
+          .eq("id", performanceId)
           .maybeSingle(),
         supabase
-          .from('performances_schedule')
-          .select('id, round_name')
-          .eq('id', scheduleId)
+          .from("performances_schedule")
+          .select("id, round_name")
+          .eq("id", scheduleId)
           .maybeSingle(),
         supabase
-          .from('class_ticket_counters')
-          .select('issued_general, issued_junior, issued_other')
-          .eq('class_id', performanceId)
-          .eq('round_id', scheduleId)
+          .from("class_ticket_counters")
+          .select("issued_general, issued_junior, issued_other")
+          .eq("class_id", performanceId)
+          .eq("round_id", scheduleId)
           .maybeSingle(),
         supabase
-          .from('configs')
-          .select('junior_release_open')
-          .order('id', { ascending: true })
+          .from("configs")
+          .select("junior_release_open")
+          .order("id", { ascending: true })
           .limit(1)
           .maybeSingle(),
       ]);
@@ -640,22 +655,22 @@ const Issue = () => {
       const day1Schedules = [1, 2, 3, 4];
       const day2Schedules = [5, 6, 7, 8];
       const allowedScheduleIds = [
-        ...(classApplicationDays.includes('day1') ? day1Schedules : []),
-        ...(classApplicationDays.includes('day2') ? day2Schedules : []),
+        ...(classApplicationDays.includes("day1") ? day1Schedules : []),
+        ...(classApplicationDays.includes("day2") ? day2Schedules : []),
       ];
       if (!allowedScheduleIds.includes(scheduleId)) {
         return false;
       }
       if (
-        classApplicationDays.includes('day1') &&
-        classApplicationDays.includes('day2')
+        classApplicationDays.includes("day1") &&
+        classApplicationDays.includes("day2")
       ) {
         return true;
       }
-      if (classApplicationDays.includes('day1')) {
-        return !roundName.includes('2日目');
+      if (classApplicationDays.includes("day1")) {
+        return !roundName.includes("2日目");
       }
-      return roundName.includes('2日目');
+      return roundName.includes("2日目");
     };
   }, [classApplicationDays]);
 
@@ -666,15 +681,15 @@ const Issue = () => {
 
     return (_scheduleId: number, roundName: string) => {
       if (
-        gymApplicationDays.includes('day1') &&
-        gymApplicationDays.includes('day2')
+        gymApplicationDays.includes("day1") &&
+        gymApplicationDays.includes("day2")
       ) {
         return true;
       }
-      if (gymApplicationDays.includes('day1')) {
-        return !roundName.includes('2日目');
+      if (gymApplicationDays.includes("day1")) {
+        return !roundName.includes("2日目");
       }
-      return roundName.includes('2日目');
+      return roundName.includes("2日目");
     };
   }, [gymApplicationDays]);
   const isIssueReceptionStopped =
@@ -696,9 +711,9 @@ const Issue = () => {
       ) {
         setSelectedPerformance({
           performanceId: 0,
-          performanceName: '入場専用券',
+          performanceName: "入場専用券",
           scheduleId: 0,
-          scheduleName: '',
+          scheduleName: "",
           remaining: 0,
         });
       }
@@ -737,7 +752,7 @@ const Issue = () => {
     setStep(nextStep);
 
     if (movingForward) {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
 
     animationTimerRef.current = window.setTimeout(() => {
@@ -768,7 +783,7 @@ const Issue = () => {
 
   const handleIssue = async () => {
     if (isIssueReceptionStopped) {
-      alert('現在チケット発券は受付停止中です。');
+      alert("現在チケット発券は受付停止中です。");
       return;
     }
 
@@ -790,46 +805,45 @@ const Issue = () => {
     ] = await Promise.all([
       !isGymSelection && selectedPerformance.performanceId > 0
         ? supabase
-            .from('class_performances')
-            .select('title')
-            .eq('id', selectedPerformance.performanceId)
+            .from("class_performances")
+            .select("title")
+            .eq("id", selectedPerformance.performanceId)
             .maybeSingle()
         : { data: null },
       selectedPerformance.scheduleId > 0
         ? supabase
-            .from('performances_schedule')
-            .select('start_at, end_at')
-            .eq('id', selectedPerformance.scheduleId)
+            .from("performances_schedule")
+            .select("start_at, end_at")
+            .eq("id", selectedPerformance.scheduleId)
             .maybeSingle()
         : { data: null },
       isGymSelection
         ? supabase
-            .from('gym_performances')
-            .select('start_at')
-            .eq('id', selectedPerformance.performanceId)
+            .from("gym_performances")
+            .select("start_at")
+            .eq("id", selectedPerformance.performanceId)
             .maybeSingle()
         : { data: null },
       supabase
-        .from('configs')
-        .select('show_length')
-        .order('id', { ascending: true })
+        .from("configs")
+        .select("show_length")
+        .order("id", { ascending: true })
         .limit(1)
         .maybeSingle(),
     ]);
 
-    let scheduleDate = '-';
-    let scheduleTime = '';
-    let scheduleEndTime = '';
+    let scheduleDate = "-";
+    let scheduleTime = "";
+    let scheduleEndTime = "";
     if (selectedPerformance.scheduleId === 0) {
       if (selectedPerformance.performanceId === 0) {
         const eventDates = (config.date ?? []).filter(
-          (date) => typeof date === 'string' && date.length > 0,
+          (date) => typeof date === "string" && date.length > 0,
         );
-        scheduleDate = formatDateText(eventDates) || '-';
+        scheduleDate = formatDateText(eventDates) || "-";
       } else if (gymPerformanceData?.start_at) {
         const snapshot = (gymPerformanceSnapshot.gymPerformances ?? []).find(
-          (performance) =>
-            performance.id === selectedPerformance.performanceId,
+          (performance) => performance.id === selectedPerformance.performanceId,
         );
         const startAt = snapshot?.start_at
           ? new Date(snapshot.start_at)
@@ -841,42 +855,42 @@ const Issue = () => {
           : gymEndAt
             ? new Date(gymEndAt)
             : null;
-        scheduleDate = startAt.toLocaleDateString('ja-JP', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
+        scheduleDate = startAt.toLocaleDateString("ja-JP", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
         });
-        scheduleTime = startAt.toLocaleTimeString('ja-JP', {
-          hour: '2-digit',
-          minute: '2-digit',
+        scheduleTime = startAt.toLocaleTimeString("ja-JP", {
+          hour: "2-digit",
+          minute: "2-digit",
         });
         scheduleEndTime = endAt
-          ? endAt.toLocaleTimeString('ja-JP', {
-              hour: '2-digit',
-              minute: '2-digit',
+          ? endAt.toLocaleTimeString("ja-JP", {
+              hour: "2-digit",
+              minute: "2-digit",
             })
-          : '-';
+          : "-";
       }
     } else if (scheduleData?.start_at) {
       const startAt = new Date(scheduleData.start_at);
       const showLengthMinutes = Number(configData?.show_length ?? 0);
       const endAt = new Date(startAt.getTime() + showLengthMinutes * 60 * 1000);
-      scheduleDate = startAt.toLocaleDateString('ja-JP', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
+      scheduleDate = startAt.toLocaleDateString("ja-JP", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
-      scheduleTime = startAt.toLocaleTimeString('ja-JP', {
-        hour: '2-digit',
-        minute: '2-digit',
+      scheduleTime = startAt.toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
       });
-      scheduleEndTime = endAt.toLocaleTimeString('ja-JP', {
-        hour: '2-digit',
-        minute: '2-digit',
+      scheduleEndTime = endAt.toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
       });
     }
 
-    const { data, error } = await supabase.functions.invoke('issue-tickets', {
+    const { data, error } = await supabase.functions.invoke("issue-tickets", {
       body: {
         ticketTypeId: selectedTicketType.id,
         relationshipId: SELF_RELATIONSHIP_ID,
@@ -896,7 +910,7 @@ const Issue = () => {
     const payload: IssueResultPayload = {
       performanceName: selectedPerformance.performanceName,
       performanceTitle:
-        (performanceTitle as { title?: string | null } | null)?.title ?? '',
+        (performanceTitle as { title?: string | null } | null)?.title ?? "",
       scheduleName: selectedPerformance.scheduleName,
       scheduleDate,
       scheduleTime,
@@ -918,19 +932,19 @@ const Issue = () => {
       JUNIOR_ISSUE_RESULT_STORAGE_KEY,
       JSON.stringify(payload),
     );
-    route('/junior/issue/result');
+    route("/junior/issue/result");
   };
 
   return (
     <div className={styles.issuePage}>
-      <BackButton href='/junior/mypage' />
+      <BackButton href="/junior/mypage" />
       <h1 className={styles.pageTitle}>チケット発券</h1>
 
       {isIssueReceptionStopped && !isAtJuniorIssueLimit ? (
-        <Alert type='warning'>現在チケット発券は受付停止中です。</Alert>
+        <Alert type="warning">現在チケット発券は受付停止中です。</Alert>
       ) : null}
       {isAtJuniorIssueLimit ? (
-        <Alert type='warning'>
+        <Alert type="warning">
           最大発行可能枚数に達しているため、入場専用券のみ発券できます。
         </Alert>
       ) : null}
@@ -949,7 +963,8 @@ const Issue = () => {
             isGymPerformanceTicket={isGymPerformanceTicket}
             selectedPerformance={selectedPerformance}
             selectedCellKey={selectedCellKey}
-            classRemainingMode='junior'
+            classRemainingMode="junior"
+            gymRemainingMode="junior"
             classScheduleFilter={visiblePerformanceFilter ?? undefined}
             gymScheduleFilter={visibleGymPerformanceFilter ?? undefined}
             showClassPerformances={
@@ -966,15 +981,15 @@ const Issue = () => {
             <ul className={styles.previewList}>
               <li>
                 <span>チケットタイプ</span>
-                <strong>{selectedTicketType?.name ?? '-'}</strong>
+                <strong>{selectedTicketType?.name ?? "-"}</strong>
               </li>
               <li>
                 <span>公演</span>
-                <strong>{selectedPerformance?.performanceName ?? '-'}</strong>
+                <strong>{selectedPerformance?.performanceName ?? "-"}</strong>
               </li>
               <li>
                 <span>公演回</span>
-                <strong>{selectedPerformance?.scheduleName ?? '-'}</strong>
+                <strong>{selectedPerformance?.scheduleName ?? "-"}</strong>
               </li>
               <li>
                 <span>間柄</span>
@@ -1009,7 +1024,7 @@ const Issue = () => {
             })()}
           </div>
           <button
-            type='button'
+            type="button"
             className={styles.backButton}
             onClick={() => {
               if (step === 3 && isAdmissionOnlyTicket) {
@@ -1018,13 +1033,13 @@ const Issue = () => {
                 transitionToStep((step - 1) as Step);
               }
             }}
-            style={step === 1 ? { visibility: 'hidden' } : undefined}
+            style={step === 1 ? { visibility: "hidden" } : undefined}
           >
             戻る
           </button>
           <div>
             <button
-              type='button'
+              type="button"
               className={styles.nextButton}
               onClick={() => {
                 if (step === 1) {
@@ -1037,18 +1052,18 @@ const Issue = () => {
                 (step === 1 && !selectedTicketType) ||
                 (step === 2 && !selectedPerformance)
               }
-              style={step === 3 ? { display: 'none' } : undefined}
+              style={step === 3 ? { display: "none" } : undefined}
             >
               次へ
             </button>
             <button
-              type='button'
+              type="button"
               className={styles.generateButton}
               onClick={() => void handleIssue()}
               disabled={isIssuing || !canSubmit || isIssueReceptionStopped}
-              style={step !== 3 ? { display: 'none' } : undefined}
+              style={step !== 3 ? { display: "none" } : undefined}
             >
-              {isIssuing ? '発券中...' : '発券する'}
+              {isIssuing ? "発券中..." : "発券する"}
             </button>
           </div>
         </div>
