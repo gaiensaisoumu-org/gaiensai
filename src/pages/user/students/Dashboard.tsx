@@ -71,6 +71,13 @@ type TicketSnapshot = {
     title?: string | null;
   }>;
   schedules?: Array<{ id: number; round_name: string }>;
+  gymPerformances?: Array<{
+    id: number;
+    group_name: string;
+    round_name: string;
+    start_at: string | null;
+    end_at: string | null;
+  }>;
   ticketTypes?: Array<{ id: number; name: string; type?: string | null }>;
   relationships?: Array<{ id: number; name: string }>;
 };
@@ -473,7 +480,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
         gymPerformanceIds.length > 0
           ? supabase
               .from('gym_performances')
-              .select('id, group_name, round_name, start_at')
+              .select('id, group_name, round_name, start_at, end_at')
               .in('id', gymPerformanceIds)
           : { data: [] },
         scheduleIds.length > 0
@@ -507,8 +514,15 @@ const Dashboard = ({ userData }: DashboardProps) => {
             group_name: string;
             round_name: string;
             start_at: string | null;
+            end_at: string | null;
           }>
         ).map((performance) => [performance.id, performance]),
+      );
+      const snapshotGymPerformanceMap = new Map(
+        (ticketSnapshot.gymPerformances ?? []).map((performance) => [
+          performance.id,
+          performance,
+        ]),
       );
 
       const scheduleMap = new Map(
@@ -666,7 +680,8 @@ const Dashboard = ({ userData }: DashboardProps) => {
               snapshotPerformanceMap.get(decoded.performanceId))
             : undefined;
           const gymPerformance = decoded
-            ? gymPerformanceMap.get(decoded.performanceId)
+            ? snapshotGymPerformanceMap.get(decoded.performanceId) ??
+              gymPerformanceMap.get(decoded.performanceId)
             : undefined;
           const schedule =
             !isGymPerformance && decoded
@@ -694,11 +709,9 @@ const Dashboard = ({ userData }: DashboardProps) => {
             const startAt = gymPerformance?.start_at
               ? new Date(gymPerformance.start_at)
               : null;
-            const showLengthMinutes = Number(configData?.show_length ?? 0);
-            const endAt =
-              startAt && Number.isFinite(showLengthMinutes)
-                ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
-                : null;
+            const endAt = gymPerformance?.end_at
+              ? new Date(gymPerformance.end_at)
+              : null;
 
             scheduleDate = startAt
               ? startAt.toLocaleDateString('ja-JP', {

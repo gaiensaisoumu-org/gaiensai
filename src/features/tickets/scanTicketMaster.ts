@@ -17,6 +17,7 @@ type ScanGymPerformance = {
   group_name: string;
   round_name: string;
   start_at: string | null;
+  end_at: string | null;
 };
 
 type ScanSchedule = {
@@ -120,7 +121,7 @@ const fetchMasterFromSupabase = async (): Promise<ScanTicketMaster> => {
       .order('id', { ascending: true }),
     supabase
       .from('gym_performances')
-      .select('id, group_name, round_name, start_at')
+      .select('id, group_name, round_name, start_at, end_at')
       .order('id', { ascending: true }),
     supabase
       .from('performances_schedule')
@@ -228,11 +229,9 @@ export const resolveScanTicketDisplay = (
     const startAt = gymPerformance?.start_at
       ? new Date(gymPerformance.start_at)
       : null;
-    const showLengthMinutes = Number(master.showLengthMinutes);
-    const endAt =
-      startAt && Number.isFinite(showLengthMinutes)
-        ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
-        : null;
+    const endAt = gymPerformance?.end_at
+      ? new Date(gymPerformance.end_at)
+      : null;
 
     return {
       performanceName: gymPerformance?.group_name ?? '-',

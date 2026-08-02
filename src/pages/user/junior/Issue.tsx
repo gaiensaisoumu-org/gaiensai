@@ -12,6 +12,7 @@ import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTyp
 import { useEventConfig } from '../../../hooks/useEventConfig';
 import { useTitle } from '../../../hooks/useTitle';
 import { supabase } from '../../../lib/supabase';
+import performancesSnapshot from '../../../generated/performances-static.json';
 import type {
   SelectedPerformance,
   Step,
@@ -33,6 +34,14 @@ const GYM_TICKET_KEYWORD = '体育館';
 const SELF_RELATIONSHIP_ID = 1;
 const SELF_RELATIONSHIP_NAME = '本人';
 const JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID = 7;
+
+const gymPerformanceSnapshot = performancesSnapshot as {
+  gymPerformances?: Array<{
+    id: number;
+    start_at?: string | null;
+    end_at?: string | null;
+  }>;
+};
 
 type ClassTicketCounterRow = {
   issued_general: number | null;
@@ -789,7 +798,7 @@ const Issue = () => {
       selectedPerformance.scheduleId > 0
         ? supabase
             .from('performances_schedule')
-            .select('start_at')
+            .select('start_at, end_at')
             .eq('id', selectedPerformance.scheduleId)
             .maybeSingle()
         : { data: null },
@@ -818,11 +827,20 @@ const Issue = () => {
         );
         scheduleDate = formatDateText(eventDates) || '-';
       } else if (gymPerformanceData?.start_at) {
-        const startAt = new Date(gymPerformanceData.start_at);
-        const showLengthMinutes = Number(configData?.show_length ?? 0);
-        const endAt = new Date(
-          startAt.getTime() + showLengthMinutes * 60 * 1000,
+        const snapshot = (gymPerformanceSnapshot.gymPerformances ?? []).find(
+          (performance) =>
+            performance.id === selectedPerformance.performanceId,
         );
+        const startAt = snapshot?.start_at
+          ? new Date(snapshot.start_at)
+          : new Date(gymPerformanceData.start_at);
+        const gymEndAt = (gymPerformanceData as { end_at?: string | null })
+          .end_at;
+        const endAt = snapshot?.end_at
+          ? new Date(snapshot.end_at)
+          : gymEndAt
+            ? new Date(gymEndAt)
+            : null;
         scheduleDate = startAt.toLocaleDateString('ja-JP', {
           year: 'numeric',
           month: '2-digit',
@@ -832,10 +850,12 @@ const Issue = () => {
           hour: '2-digit',
           minute: '2-digit',
         });
-        scheduleEndTime = endAt.toLocaleTimeString('ja-JP', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        scheduleEndTime = endAt
+          ? endAt.toLocaleTimeString('ja-JP', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '-';
       }
     } else if (scheduleData?.start_at) {
       const startAt = new Date(scheduleData.start_at);

@@ -7,6 +7,7 @@ import IssueStepTicketType from '../../../features/issue/IssueStepTicketType';
 import { ISSUE_RESULT_STORAGE_KEY } from '../../../features/issue/issueResultStorage';
 
 import { supabase } from '../../../lib/supabase';
+import performancesSnapshot from '../../../generated/performances-static.json';
 import type {
   RelationshipRow,
   SelectedPerformance,
@@ -28,6 +29,14 @@ const ADMISSION_ONLY_TICKET_NAME = '入場専用券';
 const GYM_TICKET_KEYWORD = '体育館';
 const CLASS_INVITE_TICKET_ID = 1;
 const GYM_INVITE_TICKET_ID = 3;
+
+const gymPerformanceSnapshot = performancesSnapshot as {
+  gymPerformances?: Array<{
+    id: number;
+    start_at?: string | null;
+    end_at?: string | null;
+  }>;
+};
 
 type ClassTicketCounterRow = {
   issued_general: number | null;
@@ -854,7 +863,7 @@ const Issue = () => {
       selectedPerformance.scheduleId > 0
         ? supabase
             .from('performances_schedule')
-            .select('start_at')
+            .select('start_at, end_at')
             .eq('id', selectedPerformance.scheduleId)
             .maybeSingle()
         : { data: null },
@@ -888,11 +897,20 @@ const Issue = () => {
         scheduleTime = '';
         scheduleEndTime = '';
       } else if (gymPerformanceData?.start_at) {
-        const startAt = new Date(gymPerformanceData.start_at);
-        const showLengthMinutes = Number(configData?.show_length ?? 0);
-        const endAt = startAt
-          ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
-          : null;
+        const snapshot = (gymPerformanceSnapshot.gymPerformances ?? []).find(
+          (performance) =>
+            performance.id === selectedPerformance.performanceId,
+        );
+        const startAt = snapshot?.start_at
+          ? new Date(snapshot.start_at)
+          : new Date(gymPerformanceData.start_at);
+        const gymEndAt = (gymPerformanceData as { end_at?: string | null })
+          .end_at;
+        const endAt = snapshot?.end_at
+          ? new Date(snapshot.end_at)
+          : gymEndAt
+            ? new Date(gymEndAt)
+            : null;
 
         scheduleDate = startAt.toLocaleDateString('ja-JP', {
           year: 'numeric',

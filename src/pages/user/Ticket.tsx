@@ -68,6 +68,14 @@ type SnapshotPerformance = {
   class_name: string;
 };
 
+type SnapshotGymPerformance = {
+  id: number;
+  group_name: string;
+  round_name: string;
+  start_at?: string | null;
+  end_at?: string | null;
+};
+
 type SnapshotSchedule = {
   id: number;
   round_name: string;
@@ -91,6 +99,7 @@ type RelationshipOption = {
 type TicketSnapshot = {
   generatedAt: string | null;
   performances: SnapshotPerformance[];
+  gymPerformances?: SnapshotGymPerformance[];
   schedules: SnapshotSchedule[];
   ticketTypes?: SnapshotTicketType[];
   relationships?: SnapshotNamedMaster[];
@@ -381,6 +390,45 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             typeof cached.serial === 'number' ? cached.serial : decoded.serial,
         };
 
+        // 既存キャッシュに日時が保存されていない場合も、スナップショットで補正する
+        const isCachedGymPerformance =
+          decoded.performanceId > 0 && decoded.scheduleId === 0;
+        const cachedSchedule = ticketSnapshot.schedules.find(
+          (schedule) => schedule.id === decoded.scheduleId,
+        );
+        const cachedGymPerformance = (
+          ticketSnapshot.gymPerformances ?? []
+        ).find((performance) => performance.id === decoded.performanceId);
+        const cachedStartAt = isCachedGymPerformance
+          ? cachedGymPerformance?.start_at
+          : cachedSchedule?.start_at;
+        if (cachedStartAt) {
+          const startAt = new Date(cachedStartAt);
+          const endAt = isCachedGymPerformance
+            ? cachedGymPerformance?.end_at
+              ? new Date(cachedGymPerformance.end_at)
+              : null
+            : new Date(
+                startAt.getTime() +
+                  Number(ticketSnapshot.showLengthMinutes ?? 0) * 60 * 1000,
+              );
+          resolvedCachedTicket.scheduleDate = startAt.toLocaleDateString(
+            'ja-JP',
+            { year: 'numeric', month: '2-digit', day: '2-digit' },
+          );
+          resolvedCachedTicket.scheduleTime = startAt.toLocaleTimeString(
+            'ja-JP',
+            { hour: '2-digit', minute: '2-digit' },
+          );
+          resolvedCachedTicket.scheduleEndTime = endAt
+            ? endAt.toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '-';
+          writeTicketDisplayCache(code, resolvedCachedTicket);
+        }
+
         if (!isCurrentTicketYear(decoded.year, config.year)) {
           setWarningMessages(['今年度のチケットではありません。']);
         }
@@ -437,6 +485,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
       const snapshotPerformance = ticketSnapshot.performances.find(
         (performance) => performance.id === decoded.performanceId,
       );
+      const snapshotGymPerformance = (
+        ticketSnapshot.gymPerformances ?? []
+      ).find((performance) => performance.id === decoded.performanceId);
       const snapshotSchedule = ticketSnapshot.schedules.find(
         (schedule) => schedule.id === decoded.scheduleId,
       );
@@ -477,10 +528,32 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
         scheduleEndTime = '';
       } else if (isGymPerformance) {
         performanceName = '体育館公演';
-        scheduleName = '-';
-        scheduleDate = '-';
-        scheduleTime = '-';
-        scheduleEndTime = '-';
+        scheduleName = snapshotGymPerformance?.round_name ?? '-';
+        const startAt = snapshotGymPerformance?.start_at
+          ? new Date(snapshotGymPerformance.start_at)
+          : null;
+        const endAt = snapshotGymPerformance?.end_at
+          ? new Date(snapshotGymPerformance.end_at)
+          : null;
+        scheduleTime = startAt
+          ? startAt.toLocaleTimeString('ja-JP', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '-';
+        scheduleEndTime = endAt
+          ? endAt.toLocaleTimeString('ja-JP', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '-';
+        scheduleDate = startAt
+          ? startAt.toLocaleDateString('ja-JP', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            })
+          : '-';
       } else {
         const startAt = snapshotSchedule?.start_at
           ? new Date(snapshotSchedule.start_at)
@@ -661,7 +734,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               isGymPerformance
                 ? supabase
                     .from('gym_performances')
-                    .select('group_name, round_name, start_at')
+                    .select('group_name, round_name, start_at, end_at')
                     .eq('id', decoded.performanceId)
                     .maybeSingle()
                 : { data: null, error: null },
@@ -709,8 +782,11 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               : scheduleRes.data?.start_at;
             const startAt = sourceStartAt ? new Date(sourceStartAt) : null;
             const showLengthMinutes = Number(configRes.data?.show_length ?? 0);
-            const endAt =
-              startAt && Number.isFinite(showLengthMinutes)
+            const endAt = isGymPerformance
+              ? gymPerformanceRes.data?.end_at
+                ? new Date(gymPerformanceRes.data.end_at)
+                : null
+              : startAt && Number.isFinite(showLengthMinutes)
                 ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
                 : null;
 

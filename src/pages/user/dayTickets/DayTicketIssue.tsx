@@ -8,6 +8,7 @@ import {
   type IssueResultPayload,
 } from '../../../features/issue/issueResultStorage';
 import { supabase } from '../../../lib/supabase';
+import performancesSnapshot from '../../../generated/performances-static.json';
 import type {
   SelectedPerformance,
   Step,
@@ -30,6 +31,14 @@ const SELF_RELATIONSHIP_ID = 1;
 const SELF_RELATIONSHIP_NAME = '本人';
 const CLASS_DAY_TICKET_ID = 8;
 const GYM_DAY_TICKET_ID = 9;
+
+const gymPerformanceSnapshot = performancesSnapshot as {
+  gymPerformances?: Array<{
+    id: number;
+    start_at?: string | null;
+    end_at?: string | null;
+  }>;
+};
 
 const readFunctionErrorMessage = async (error: unknown): Promise<string> => {
   const fallback =
@@ -334,7 +343,7 @@ const DayTicketIssue = () => {
       selectedPerformance.scheduleId > 0
         ? supabase
             .from('performances_schedule')
-            .select('start_at')
+            .select('start_at, end_at')
             .eq('id', selectedPerformance.scheduleId)
             .maybeSingle()
         : { data: null },
@@ -358,11 +367,19 @@ const DayTicketIssue = () => {
     let scheduleEndTime = '';
 
     if (selectedPerformance.scheduleId === 0 && gymPerformanceData?.start_at) {
-      const startAt = new Date(gymPerformanceData.start_at);
-      const showLengthMinutes = Number(configData?.show_length ?? 0);
-      const endAt = startAt
-        ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
-        : null;
+      const snapshot = (gymPerformanceSnapshot.gymPerformances ?? []).find(
+        (performance) => performance.id === selectedPerformance.performanceId,
+      );
+      const startAt = snapshot?.start_at
+        ? new Date(snapshot.start_at)
+        : new Date(gymPerformanceData.start_at);
+      const gymEndAt = (gymPerformanceData as { end_at?: string | null })
+        .end_at;
+      const endAt = snapshot?.end_at
+        ? new Date(snapshot.end_at)
+        : gymEndAt
+          ? new Date(gymEndAt)
+          : null;
 
       scheduleDate = startAt.toLocaleDateString('ja-JP', {
         year: 'numeric',
