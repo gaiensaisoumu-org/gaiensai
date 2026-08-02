@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from "react-icons/ri";
-import { supabase } from "../../lib/supabase";
-import styles from "./PerformancesTable.module.css";
-import { useLocation } from "preact-iso";
-import type { AvailableSeatSelection } from "../../types/types";
-import LoadingSpinner from "../../components/ui/LoadingSpinner";
-import { withTimeout } from "../../utils/withTimeout";
-import { getPerformanceAvailability } from "./performanceAvailability";
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from 'react-icons/ri';
+import styles from './PerformancesTable.module.css';
+import { useLocation } from 'preact-iso';
+import type { AvailableSeatSelection } from '../../types/types';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { withTimeout } from '../../utils/withTimeout';
+import { getPerformanceAvailability } from './performanceAvailability';
 
 type GymPerformanceRow = {
   id: number;
@@ -24,8 +23,14 @@ type GymTicketCounterRow = {
   issued_other: number | null;
 };
 
-const cellKeySeparator = "\u0000";
-const GYM_PERFORMANCES_CACHE_KEY = "gym-performances-table-cache:v1";
+type GymPerformanceAvailabilityData = {
+  gym_performances?: Array<GymPerformanceRow & { is_accepting?: boolean }>;
+  gym_counters?: GymTicketCounterRow[];
+  config?: { junior_release_open?: boolean | null };
+};
+
+const cellKeySeparator = '\u0000';
+const GYM_PERFORMANCES_CACHE_KEY = 'gym-performances-table-cache:v1';
 const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 const toCellKey = (roundName: string, groupName: string) =>
@@ -39,27 +44,27 @@ type GymPerformancesTableProps = {
   restrictedGroupNames?: string[] | null;
   filterAccepting?: boolean;
   scheduleFilter?: (scheduleId: number, roundName: string) => boolean;
-  remainingMode?: "general" | "total" | "junior";
+  remainingMode?: 'general' | 'total' | 'junior';
   showToggleRemainingMode?: boolean;
 };
 
 const GymPerformancesTable = ({
   enableIssueJump = false,
-  issuePath = "/students/issue",
+  issuePath = '/students/issue',
   onAvailableCellClick,
   selectedCellKey,
   restrictedGroupNames = null,
   filterAccepting = false,
   scheduleFilter,
-  remainingMode = "general",
+  remainingMode = 'general',
   showToggleRemainingMode = false,
 }: GymPerformancesTableProps) => {
   const [performances, setPerformances] = useState<GymPerformanceRow[]>([]);
-  const [selectedGroupName, setSelectedGroupName] = useState<string | "all">(
-    "all",
+  const [selectedGroupName, setSelectedGroupName] = useState<string | 'all'>(
+    'all',
   );
-  const [selectedRoundName, setSelectedRoundName] = useState<string | "all">(
-    "all",
+  const [selectedRoundName, setSelectedRoundName] = useState<string | 'all'>(
+    'all',
   );
   const [remainingByPerformanceId, setRemainingByPerformanceId] = useState<
     Map<number, number>
@@ -68,7 +73,7 @@ const GymPerformancesTable = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cacheNotice, setCacheNotice] = useState<string | null>(null);
   const [currentRemainingMode, setCurrentRemainingMode] = useState<
-    "general" | "total" | "junior"
+    'general' | 'total' | 'junior'
   >(remainingMode);
   const { route } = useLocation();
 
@@ -88,26 +93,33 @@ const GymPerformancesTable = ({
       // キーに含め、別画面の結果が混ざらないようにする。
       const canUseCache = !scheduleFilter;
       const restrictedGroupsKey = restrictedGroupNames
-        ? [...restrictedGroupNames].sort().map(encodeURIComponent).join(",")
-        : "all";
-      const cacheKey = `${GYM_PERFORMANCES_CACHE_KEY}:${currentRemainingMode}:${filterAccepting ? "accepting" : "all"}:${restrictedGroupsKey}`;
+        ? [...restrictedGroupNames].sort().map(encodeURIComponent).join(',')
+        : 'all';
+      const cacheKey = `${GYM_PERFORMANCES_CACHE_KEY}:${currentRemainingMode}:${filterAccepting ? 'accepting' : 'all'}:${restrictedGroupsKey}`;
 
       const restoreCache = () => {
-        if (!canUseCache) return false;
+        if (!canUseCache) {
+          return false;
+        }
         try {
           const raw = window.localStorage.getItem(cacheKey);
-          if (!raw) return false;
+          if (!raw) {
+            return false;
+          }
           const cached = JSON.parse(raw) as {
             performances?: GymPerformanceRow[];
             remaining?: Array<[number, number]>;
           };
-          if (!Array.isArray(cached.performances) || !Array.isArray(cached.remaining)) {
+          if (
+            !Array.isArray(cached.performances) ||
+            !Array.isArray(cached.remaining)
+          ) {
             return false;
           }
           setPerformances(cached.performances);
           setRemainingByPerformanceId(new Map(cached.remaining));
           setCacheNotice(
-            "残席情報の取得が遅延しているため、前回の表示を使用しています。",
+            '残席情報の取得が遅延しているため、前回の表示を使用しています。',
           );
           setLoading(false);
           return true;
@@ -116,29 +128,25 @@ const GymPerformancesTable = ({
         }
       };
 
-      let availabilityData: {
-        gym_performances?: Array<GymPerformanceRow & { is_accepting?: boolean }>;
-        gym_counters?: GymTicketCounterRow[];
-        config?: { junior_release_open?: boolean | null };
-      } | null = null;
+      let availabilityData: GymPerformanceAvailabilityData | null = null;
       let availabilityError: unknown;
       try {
         const result = await withTimeout(
           getPerformanceAvailability(),
           SUPABASE_RESPONSE_TIMEOUT_MS,
         );
-        availabilityData = result.data as typeof availabilityData;
+        availabilityData = result.data as GymPerformanceAvailabilityData | null;
         availabilityError = result.error;
       } catch {
         if (!restoreCache()) {
-          setErrorMessage("体育館公演の取得がタイムアウトしました。");
+          setErrorMessage('体育館公演の取得がタイムアウトしました。');
           setLoading(false);
         }
         return;
       }
 
       if (availabilityError) {
-        setErrorMessage("体育館公演の取得に失敗しました。");
+        setErrorMessage('体育館公演の取得に失敗しました。');
         setLoading(false);
         return;
       }
@@ -193,9 +201,9 @@ const GymPerformancesTable = ({
         const totalRemaining =
           performance.capacity - issued.general - issued.junior - issued.other;
         const remaining =
-          currentRemainingMode === "total" || isJuniorReleased
+          currentRemainingMode === 'total' || isJuniorReleased
             ? totalRemaining
-            : currentRemainingMode === "junior"
+            : currentRemainingMode === 'junior'
               ? performance.junior_capacity -
                 issued.junior -
                 Math.max(-generalRemainingRaw, 0)
@@ -248,7 +256,7 @@ const GymPerformancesTable = ({
     }
 
     return [...earliestByRound.entries()]
-      .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0], "ja"))
+      .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0], 'ja'))
       .map(([roundName]) => roundName);
   }, [performances]);
 
@@ -274,9 +282,9 @@ const GymPerformancesTable = ({
         groupName: performance.group_name,
       };
       const capacity =
-        currentRemainingMode === "general"
+        currentRemainingMode === 'general'
           ? Math.max(performance.capacity - performance.junior_capacity, 0)
-          : currentRemainingMode === "junior"
+          : currentRemainingMode === 'junior'
             ? performance.junior_capacity
             : performance.capacity;
       const remaining =
@@ -298,7 +306,7 @@ const GymPerformancesTable = ({
     () =>
       groupNames.filter(
         (groupName) =>
-          selectedGroupName === "all" || groupName === selectedGroupName,
+          selectedGroupName === 'all' || groupName === selectedGroupName,
       ),
     [groupNames, selectedGroupName],
   );
@@ -307,7 +315,7 @@ const GymPerformancesTable = ({
     () =>
       roundNames.filter(
         (roundName) =>
-          selectedRoundName === "all" || roundName === selectedRoundName,
+          selectedRoundName === 'all' || roundName === selectedRoundName,
       ),
     [roundNames, selectedRoundName],
   );
@@ -325,7 +333,7 @@ const GymPerformancesTable = ({
       const isScrollable = scrollWidth > clientWidth;
 
       if (!isScrollable) {
-        wrapper.removeAttribute("data-scroll-fade");
+        wrapper.removeAttribute('data-scroll-fade');
         return;
       }
 
@@ -333,19 +341,19 @@ const GymPerformancesTable = ({
       const isAtEnd = Math.abs(scrollWidth - clientWidth - scrollLeft) <= 1;
 
       if (isAtStart) {
-        wrapper.setAttribute("data-scroll-fade", "start");
+        wrapper.setAttribute('data-scroll-fade', 'start');
       } else if (isAtEnd) {
-        wrapper.setAttribute("data-scroll-fade", "end");
+        wrapper.setAttribute('data-scroll-fade', 'end');
       } else {
-        wrapper.setAttribute("data-scroll-fade", "middle");
+        wrapper.setAttribute('data-scroll-fade', 'middle');
       }
     };
 
     updateScrollState();
     rafId = window.requestAnimationFrame(updateScrollState);
 
-    wrapper.addEventListener("scroll", updateScrollState);
-    window.addEventListener("resize", updateScrollState);
+    wrapper.addEventListener('scroll', updateScrollState);
+    window.addEventListener('resize', updateScrollState);
 
     const resizeObserver = new ResizeObserver(updateScrollState);
     resizeObserver.observe(wrapper);
@@ -354,8 +362,8 @@ const GymPerformancesTable = ({
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      wrapper.removeEventListener("scroll", updateScrollState);
-      window.removeEventListener("resize", updateScrollState);
+      wrapper.removeEventListener('scroll', updateScrollState);
+      window.removeEventListener('resize', updateScrollState);
       resizeObserver.disconnect();
     };
   }, [
@@ -403,7 +411,7 @@ const GymPerformancesTable = ({
     }
 
     const searchParams = new URLSearchParams({
-      venue: "gym",
+      venue: 'gym',
       performanceId: String(selection.performanceId),
     });
 
@@ -430,18 +438,18 @@ const GymPerformancesTable = ({
     return (
       <div className={styles.container}>
         <div className={styles.filters}>
-          <label className={styles.filterLabel} htmlFor="gym-group-filter">
+          <label className={styles.filterLabel} htmlFor='gym-group-filter'>
             団体
             <select
-              id="gym-group-filter"
+              id='gym-group-filter'
               className={styles.filterSelect}
               value={selectedGroupName}
               onChange={(event) => {
                 const value = event.currentTarget.value;
-                setSelectedGroupName(value === "all" ? "all" : value);
+                setSelectedGroupName(value === 'all' ? 'all' : value);
               }}
             >
-              <option value="all">すべて</option>
+              <option value='all'>すべて</option>
               {groupNames.map((groupName) => (
                 <option key={groupName} value={groupName}>
                   {groupName}
@@ -449,18 +457,18 @@ const GymPerformancesTable = ({
               ))}
             </select>
           </label>
-          <label className={styles.filterLabel} htmlFor="gym-round-filter">
+          <label className={styles.filterLabel} htmlFor='gym-round-filter'>
             公演回
             <select
-              id="gym-round-filter"
+              id='gym-round-filter'
               className={styles.filterSelect}
               value={selectedRoundName}
               onChange={(event) => {
                 const value = event.currentTarget.value;
-                setSelectedRoundName(value === "all" ? "all" : value);
+                setSelectedRoundName(value === 'all' ? 'all' : value);
               }}
             >
-              <option value="all">すべて</option>
+              <option value='all'>すべて</option>
               {roundNames.map((roundName) => (
                 <option key={roundName} value={roundName}>
                   {roundName}
@@ -478,18 +486,18 @@ const GymPerformancesTable = ({
     <div className={styles.container}>
       {cacheNotice && <p>{cacheNotice}</p>}
       <div className={styles.filters}>
-        <label className={styles.filterLabel} htmlFor="gym-group-filter">
+        <label className={styles.filterLabel} htmlFor='gym-group-filter'>
           団体
           <select
-            id="gym-group-filter"
+            id='gym-group-filter'
             className={styles.filterSelect}
             value={selectedGroupName}
             onChange={(event) => {
               const value = event.currentTarget.value;
-              setSelectedGroupName(value === "all" ? "all" : value);
+              setSelectedGroupName(value === 'all' ? 'all' : value);
             }}
           >
-            <option value="all">すべて</option>
+            <option value='all'>すべて</option>
             {groupNames.map((groupName) => (
               <option key={groupName} value={groupName}>
                 {groupName}
@@ -497,18 +505,18 @@ const GymPerformancesTable = ({
             ))}
           </select>
         </label>
-        <label className={styles.filterLabel} htmlFor="gym-round-filter">
+        <label className={styles.filterLabel} htmlFor='gym-round-filter'>
           公演回
           <select
-            id="gym-round-filter"
+            id='gym-round-filter'
             className={styles.filterSelect}
             value={selectedRoundName}
             onChange={(event) => {
               const value = event.currentTarget.value;
-              setSelectedRoundName(value === "all" ? "all" : value);
+              setSelectedRoundName(value === 'all' ? 'all' : value);
             }}
           >
-            <option value="all">すべて</option>
+            <option value='all'>すべて</option>
             {roundNames.map((roundName) => (
               <option key={roundName} value={roundName}>
                 {roundName}
@@ -519,22 +527,22 @@ const GymPerformancesTable = ({
         {showToggleRemainingMode && (
           <label
             className={styles.filterLabel}
-            htmlFor="gym-remaining-mode-toggle"
+            htmlFor='gym-remaining-mode-toggle'
           >
             残席表示
             <select
-              id="gym-remaining-mode-toggle"
+              id='gym-remaining-mode-toggle'
               className={styles.filterSelect}
               value={currentRemainingMode}
               onChange={(event) =>
                 setCurrentRemainingMode(
-                  event.currentTarget.value as "general" | "junior" | "total",
+                  event.currentTarget.value as 'general' | 'junior' | 'total',
                 )
               }
             >
-              <option value="general">一般のみ</option>
-              <option value="junior">中学生のみ</option>
-              <option value="total">一般＋中学生</option>
+              <option value='general'>一般のみ</option>
+              <option value='junior'>中学生のみ</option>
+              <option value='total'>一般＋中学生</option>
             </select>
           </label>
         )}
@@ -593,9 +601,9 @@ const GymPerformancesTable = ({
                       className={`${styles.td} ${getStatusClass(
                         cell.remaining,
                         cell.capacity,
-                      )} ${isInteractive ? styles.jumpableCell : ""} ${
-                        isInteractive ? styles.interactiveCell : ""
-                      } ${isSelected ? styles.selectedCell : ""}`}
+                      )} ${isInteractive ? styles.jumpableCell : ''} ${
+                        isInteractive ? styles.interactiveCell : ''
+                      } ${isSelected ? styles.selectedCell : ''}`}
                       key={key}
                       onClick={() => {
                         if (cell.remaining <= 0) {
@@ -613,7 +621,7 @@ const GymPerformancesTable = ({
                         if (!isInteractive) {
                           return;
                         }
-                        if (event.key !== "Enter" && event.key !== " ") {
+                        if (event.key !== 'Enter' && event.key !== ' ') {
                           return;
                         }
                         event.preventDefault();
@@ -626,7 +634,7 @@ const GymPerformancesTable = ({
                         });
                       }}
                       tabIndex={isInteractive ? 0 : undefined}
-                      role={isInteractive ? "button" : undefined}
+                      role={isInteractive ? 'button' : undefined}
                       aria-label={
                         isInteractive
                           ? `${cell.groupName} ${cell.roundName} 残り${cell.remaining}席`

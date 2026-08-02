@@ -1,16 +1,23 @@
 /* eslint-disable no-console */
 
-import "@supabase/functions-js/edge-runtime.d.ts";
+import '@supabase/functions-js/edge-runtime.d.ts';
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { compare, hash } from "bcryptjs";
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { compare, hash } from 'bcryptjs';
 
-import { getCorsHeaders } from "@shared/cors.ts";
-import { getEnv } from "@shared/getEnv.ts";
-import HttpError from "@shared/HttpError.ts";
-import { generateManualCode, generateTicketCode, signCode } from "@shared/generateTicketCode.ts";
-import { YEAR_BITS, SERIAL_BITS } from "@shared/ticketDataType.ts";
-import { issueWithRollback, type RpcClient } from "../issue-tickets/issueWithRollback.ts";
+import { getCorsHeaders } from '@shared/cors.ts';
+import { getEnv } from '@shared/getEnv.ts';
+import HttpError from '@shared/HttpError.ts';
+import {
+  generateManualCode,
+  generateTicketCode,
+  signCode,
+} from '@shared/generateTicketCode.ts';
+import { YEAR_BITS, SERIAL_BITS } from '@shared/ticketDataType.ts';
+import {
+  issueWithRollback,
+  type RpcClient,
+} from '../issue-tickets/issueWithRollback.ts';
 
 const ADMIN_CONTROL_PANEL_SESSION_DURATION_MS = 1000 * 60 * 60 * 8;
 const ADMIN_AUTH_MAX_FAILED_ATTEMPTS = 5;
@@ -57,12 +64,12 @@ type AdminAuthRequest = {
 };
 
 type TicketIssueMode =
-  | "open"
-  | "only-own"
-  | "outside-own-self-only"
-  | "public-rehearsals"
-  | "auto"
-  | "off";
+  | 'open'
+  | 'only-own'
+  | 'outside-own-self-only'
+  | 'public-rehearsals'
+  | 'auto'
+  | 'off';
 
 type TicketIssueModes = {
   classInvite: TicketIssueMode;
@@ -77,38 +84,47 @@ type TicketIssueModes = {
 };
 
 type AdminAuthBody =
-  | { mode: "login"; password: string }
-  | { mode: "verifySession" }
-  | { mode: "logoutSession" }
-  | { mode: "changePassword"; currentPassword: string; newPassword: string }
-  | { mode: "getSettings" }
-  | { mode: "getTeachers" }
-  | { mode: "updateTeacher"; teacherId: number; name: string }
-  | { mode: "updateAllTeachers"; teachers: { id: number; name: string }[] }
-  | { mode: "deleteAllStudentAccounts" }
-  | { mode: "deleteAccountsByType"; accountType: "student" | "junior" }
-  | { mode: "deleteAllTicketsAndResetCounters" }
-  | { mode: "getStatusDashboard" }
-  | { mode: "getTicketManagementData" }
-  | { mode: "cancelTicket"; code: string }
-  | { mode: "adminIssueTickets"; affiliation: number; ticketTypeId: number; relationshipId: number; juniorRelationshipId: number | null; performanceId: number; scheduleId: number; issueCount: number }
-  | { mode: "getStudentUsers" }
+  | { mode: 'login'; password: string }
+  | { mode: 'verifySession' }
+  | { mode: 'logoutSession' }
+  | { mode: 'changePassword'; currentPassword: string; newPassword: string }
+  | { mode: 'getSettings' }
+  | { mode: 'getTeachers' }
+  | { mode: 'updateTeacher'; teacherId: number; name: string }
+  | { mode: 'updateAllTeachers'; teachers: { id: number; name: string }[] }
+  | { mode: 'deleteAllStudentAccounts' }
+  | { mode: 'deleteAccountsByType'; accountType: 'student' | 'junior' }
+  | { mode: 'deleteAllTicketsAndResetCounters' }
+  | { mode: 'getStatusDashboard' }
+  | { mode: 'getTicketManagementData' }
+  | { mode: 'cancelTicket'; code: string }
   | {
-      mode: "resetUserPassword";
+      mode: 'adminIssueTickets';
+      affiliation: number;
+      ticketTypeId: number;
+      relationshipId: number;
+      juniorRelationshipId: number | null;
+      performanceId: number;
+      scheduleId: number;
+      issueCount: number;
+    }
+  | { mode: 'getStudentUsers' }
+  | {
+      mode: 'resetUserPassword';
       studentId: string;
       newPassword: string;
     }
   | {
-      mode: "bulkCreateUsers";
+      mode: 'bulkCreateUsers';
       users: { id: string; password: string }[];
     }
   | {
-      mode: "updateTicketTypeSettings";
+      mode: 'updateTicketTypeSettings';
       activeTicketTypeIds: number[];
       ticketIssueModes: TicketIssueModes;
     }
   | {
-      mode: "updateSettings";
+      mode: 'updateSettings';
       eventYear: number;
       showLength: number;
       maxTicketsPerUser: number;
@@ -123,15 +139,15 @@ type AdminAuthBody =
       defaultGymJuniorCapacity: number;
     }
   | {
-      mode: "updateAcceptingStatus";
+      mode: 'updateAcceptingStatus';
       table: string;
       recordId: number;
       column: string;
       value: boolean | number;
     }
-  | { mode: "getJuniorPassword" }
-  | { mode: "updateJuniorPassword"; juniorPassword: string }
-  | { mode: "validateJuniorSecretCode"; secretCode: string };
+  | { mode: 'getJuniorPassword' }
+  | { mode: 'updateJuniorPassword'; juniorPassword: string }
+  | { mode: 'validateJuniorSecretCode'; secretCode: string };
 
 type AdminConfigRow = {
   id: number;
@@ -173,36 +189,36 @@ type TicketIssueControlsRow = {
   junior_entry_only_mode: TicketIssueMode;
 };
 
-const ADMIN_SESSION_TOKEN_HEADER = "x-admin-session-token";
+const ADMIN_SESSION_TOKEN_HEADER = 'x-admin-session-token';
 const MAX_SESSION_TOKEN_LENGTH = 512;
 const MAX_IP_ADDRESS_LENGTH = 128;
 const MANAGED_TICKET_TYPE_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 const TICKET_ISSUE_MODE_VALUES = [
-  "open",
-  "only-own",
-  "outside-own-self-only",
-  "public-rehearsals",
-  "auto",
-  "off",
+  'open',
+  'only-own',
+  'outside-own-self-only',
+  'public-rehearsals',
+  'auto',
+  'off',
 ] as const;
 const DEFAULT_TICKET_ISSUE_MODES: TicketIssueModes = {
-  classInvite: "open",
-  rehearsalInvite: "open",
-  gymInvite: "open",
-  entryOnly: "open",
-  sameDayClass: "open",
-  sameDayGym: "open",
-  juniorClass: "open",
-  juniorGym: "open",
-  juniorEntryOnly: "open",
+  classInvite: 'open',
+  rehearsalInvite: 'open',
+  gymInvite: 'open',
+  entryOnly: 'open',
+  sameDayClass: 'open',
+  sameDayGym: 'open',
+  juniorClass: 'open',
+  juniorGym: 'open',
+  juniorEntryOnly: 'open',
 };
 
 const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 
 const hashToken = async (token: string): Promise<string> => {
   const digest = await crypto.subtle.digest(
-    "SHA-256",
+    'SHA-256',
     new TextEncoder().encode(token),
   );
   return toHex(new Uint8Array(digest));
@@ -215,13 +231,13 @@ const createRawToken = (): string => {
 };
 
 const readSessionToken = (req: Request): string | null => {
-  const token = req.headers.get(ADMIN_SESSION_TOKEN_HEADER)?.trim() ?? "";
+  const token = req.headers.get(ADMIN_SESSION_TOKEN_HEADER)?.trim() ?? '';
   if (!token) {
     return null;
   }
 
   if (token.length > MAX_SESSION_TOKEN_LENGTH) {
-    throw new HttpError(400, "セッショントークンが長すぎます。");
+    throw new HttpError(400, 'セッショントークンが長すぎます。');
   }
 
   return token;
@@ -229,12 +245,12 @@ const readSessionToken = (req: Request): string | null => {
 
 const getClientIp = (req: Request): string => {
   const fromForwardedFor = req.headers
-    .get("x-forwarded-for")
-    ?.split(",")[0]
+    .get('x-forwarded-for')
+    ?.split(',')[0]
     ?.trim();
-  const fromRealIp = req.headers.get("x-real-ip")?.trim();
-  const fromCf = req.headers.get("cf-connecting-ip")?.trim();
-  const candidate = fromForwardedFor || fromRealIp || fromCf || "unknown";
+  const fromRealIp = req.headers.get('x-real-ip')?.trim();
+  const fromCf = req.headers.get('cf-connecting-ip')?.trim();
+  const candidate = fromForwardedFor || fromRealIp || fromCf || 'unknown';
 
   if (candidate.length > MAX_IP_ADDRESS_LENGTH) {
     return candidate.slice(0, MAX_IP_ADDRESS_LENGTH);
@@ -244,7 +260,7 @@ const getClientIp = (req: Request): string => {
 };
 
 const normalizePassword = (value: unknown, fieldName: string): string => {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     throw new HttpError(400, `${fieldName} は文字列で送信してください。`);
   }
 
@@ -266,7 +282,7 @@ const normalizeInteger = (
   min: number,
   max: number,
 ) => {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new HttpError(400, `${fieldName} は数値で送信してください。`);
   }
 
@@ -285,14 +301,14 @@ const normalizeInteger = (
 };
 
 const isTicketIssueMode = (value: unknown): value is TicketIssueMode =>
-  typeof value === "string" &&
+  typeof value === 'string' &&
   (TICKET_ISSUE_MODE_VALUES as readonly string[]).includes(value);
 
 const normalizeTicketIssueModes = (value: unknown): TicketIssueModes => {
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== 'object') {
     throw new HttpError(
       400,
-      "ticketIssueModes はオブジェクトで送信してください。",
+      'ticketIssueModes はオブジェクトで送信してください。',
     );
   }
 
@@ -308,7 +324,7 @@ const normalizeTicketIssueModes = (value: unknown): TicketIssueModes => {
     !isTicketIssueMode(raw.juniorGym) ||
     !isTicketIssueMode(raw.juniorEntryOnly)
   ) {
-    throw new HttpError(400, "ticketIssueModes の値が不正です。");
+    throw new HttpError(400, 'ticketIssueModes の値が不正です。');
   }
 
   return {
@@ -325,188 +341,219 @@ const normalizeTicketIssueModes = (value: unknown): TicketIssueModes => {
 };
 
 const parseBody = (body: unknown): AdminAuthBody => {
-  if (!body || typeof body !== "object") {
-    throw new HttpError(400, "リクエストボディが不正です。");
+  if (!body || typeof body !== 'object') {
+    throw new HttpError(400, 'リクエストボディが不正です。');
   }
 
   const { action, password, currentPassword, newPassword } =
     body as AdminAuthRequest;
 
-  if (action === "verify") {
-    return { mode: "verifySession" };
+  if (action === 'verify') {
+    return { mode: 'verifySession' };
   }
 
-  if (action === "logout") {
-    return { mode: "logoutSession" };
+  if (action === 'logout') {
+    return { mode: 'logoutSession' };
   }
 
-  if (action === "getTeachers") {
-    return { mode: "getTeachers" };
+  if (action === 'getTeachers') {
+    return { mode: 'getTeachers' };
   }
 
-  if (action === "changePassword") {
+  if (action === 'changePassword') {
     const normalizedCurrentPassword = normalizePassword(
       currentPassword,
-      "currentPassword",
+      'currentPassword',
     );
-    const normalizedNewPassword = normalizePassword(newPassword, "newPassword");
+    const normalizedNewPassword = normalizePassword(newPassword, 'newPassword');
 
     if (normalizedNewPassword.length < 8) {
-      throw new HttpError(400, "newPassword は8文字以上で設定してください。");
+      throw new HttpError(400, 'newPassword は8文字以上で設定してください。');
     }
 
     return {
-      mode: "changePassword",
+      mode: 'changePassword',
       currentPassword: normalizedCurrentPassword,
       newPassword: normalizedNewPassword,
     };
   }
 
-  if (action === "deleteAllStudentAccounts") {
-    return { mode: "deleteAllStudentAccounts" };
+  if (action === 'deleteAllStudentAccounts') {
+    return { mode: 'deleteAllStudentAccounts' };
   }
 
-  if (action === "deleteAccountsByType") {
+  if (action === 'deleteAccountsByType') {
     const { accountType } = body as AdminAuthRequest;
-    if (accountType !== "student" && accountType !== "junior") {
+    if (accountType !== 'student' && accountType !== 'junior') {
       throw new HttpError(
         400,
-        "accountType は student または junior を指定してください。",
+        'accountType は student または junior を指定してください。',
       );
     }
-    return { mode: "deleteAccountsByType", accountType };
+    return { mode: 'deleteAccountsByType', accountType };
   }
 
-  if (action === "deleteAllTicketsAndResetCounters") {
-    return { mode: "deleteAllTicketsAndResetCounters" };
+  if (action === 'deleteAllTicketsAndResetCounters') {
+    return { mode: 'deleteAllTicketsAndResetCounters' };
   }
 
-  if (action === "getStudentUsers") {
-    return { mode: "getStudentUsers" };
+  if (action === 'getStudentUsers') {
+    return { mode: 'getStudentUsers' };
   }
 
-  if (action === "getStatusDashboard") {
-    return { mode: "getStatusDashboard" };
+  if (action === 'getStatusDashboard') {
+    return { mode: 'getStatusDashboard' };
   }
 
-  if (action === "getTicketManagementData") {
-    return { mode: "getTicketManagementData" };
+  if (action === 'getTicketManagementData') {
+    return { mode: 'getTicketManagementData' };
   }
 
-  if (action === "cancelTicket") {
+  if (action === 'cancelTicket') {
     const { code } = body as AdminAuthRequest;
-    if (typeof code !== "string" || code.trim().length === 0 || code.length > 200) {
-      throw new HttpError(400, "チケットコードを指定してください。");
+    if (
+      typeof code !== 'string' ||
+      code.trim().length === 0 ||
+      code.length > 200
+    ) {
+      throw new HttpError(400, 'チケットコードを指定してください。');
     }
-    return { mode: "cancelTicket", code: code.trim() };
+    return { mode: 'cancelTicket', code: code.trim() };
   }
 
-  if (action === "adminIssueTickets") {
+  if (action === 'adminIssueTickets') {
     const values = body as AdminAuthRequest;
     return {
-      mode: "adminIssueTickets",
-      affiliation: normalizeInteger(values.affiliation, "affiliation", 0, 999999),
-      ticketTypeId: normalizeInteger(values.ticketTypeId, "ticketTypeId", 1, 100),
-      relationshipId: normalizeInteger(values.relationshipId, "relationshipId", 1, 100),
-      juniorRelationshipId: values.juniorRelationshipId === undefined || values.juniorRelationshipId === null
-        ? null
-        : normalizeInteger(values.juniorRelationshipId, "juniorRelationshipId", 0, 2),
-      performanceId: normalizeInteger(values.performanceId, "performanceId", 0, 10000),
-      scheduleId: normalizeInteger(values.scheduleId, "scheduleId", 0, 10000),
-      issueCount: normalizeInteger(values.issueCount, "issueCount", 1, 20),
+      mode: 'adminIssueTickets',
+      affiliation: normalizeInteger(
+        values.affiliation,
+        'affiliation',
+        0,
+        999999,
+      ),
+      ticketTypeId: normalizeInteger(
+        values.ticketTypeId,
+        'ticketTypeId',
+        1,
+        100,
+      ),
+      relationshipId: normalizeInteger(
+        values.relationshipId,
+        'relationshipId',
+        1,
+        100,
+      ),
+      juniorRelationshipId:
+        values.juniorRelationshipId === undefined ||
+        values.juniorRelationshipId === null
+          ? null
+          : normalizeInteger(
+              values.juniorRelationshipId,
+              'juniorRelationshipId',
+              0,
+              2,
+            ),
+      performanceId: normalizeInteger(
+        values.performanceId,
+        'performanceId',
+        0,
+        10000,
+      ),
+      scheduleId: normalizeInteger(values.scheduleId, 'scheduleId', 0, 10000),
+      issueCount: normalizeInteger(values.issueCount, 'issueCount', 1, 20),
     };
   }
 
-  if (action === "resetUserPassword") {
+  if (action === 'resetUserPassword') {
     const { studentId, newPassword } = body as AdminAuthRequest;
     if (!studentId) {
-      throw new HttpError(400, "studentId を指定してください。");
+      throw new HttpError(400, 'studentId を指定してください。');
     }
     return {
-      mode: "resetUserPassword",
+      mode: 'resetUserPassword',
       studentId: String(studentId),
-      newPassword: normalizePassword(newPassword, "newPassword"),
+      newPassword: normalizePassword(newPassword, 'newPassword'),
     };
   }
 
-  if (action === "updateTeacher") {
+  if (action === 'updateTeacher') {
     const { recordId, name } = body as AdminAuthRequest;
     return {
-      mode: "updateTeacher",
-      teacherId: normalizeInteger(recordId, "recordId", 1, 1000000),
-      name: normalizePassword(name, "name"),
+      mode: 'updateTeacher',
+      teacherId: normalizeInteger(recordId, 'recordId', 1, 1000000),
+      name: normalizePassword(name, 'name'),
     };
   }
 
-  if (action === "updateAllTeachers") {
+  if (action === 'updateAllTeachers') {
     const { teachers } = body as AdminAuthRequest;
     if (!Array.isArray(teachers)) {
-      throw new HttpError(400, "teachers は配列で送信してください。");
+      throw new HttpError(400, 'teachers は配列で送信してください。');
     }
     return {
-      mode: "updateAllTeachers",
+      mode: 'updateAllTeachers',
       teachers: (teachers as Record<string, unknown>[]).map((t) => ({
-        id: normalizeInteger(t.id, "id", 1, 1000000),
-        name: normalizePassword(t.name, "name"),
+        id: normalizeInteger(t.id, 'id', 1, 1000000),
+        name: normalizePassword(t.name, 'name'),
       })),
     };
   }
 
-  if (action === "bulkCreateUsers") {
+  if (action === 'bulkCreateUsers') {
     const { users } = body as AdminAuthRequest;
     if (!Array.isArray(users)) {
-      throw new HttpError(400, "users は配列で送信してください。");
+      throw new HttpError(400, 'users は配列で送信してください。');
     }
     const validatedUsers: { id: string; password: string }[] = users.map(
       (u: Record<string, unknown>) => ({
-        id: String(u.id ?? ""),
-        password: String(u.password ?? ""),
+        id: String(u.id ?? ''),
+        password: String(u.password ?? ''),
       }),
     );
-    return { mode: "bulkCreateUsers", users: validatedUsers };
+    return { mode: 'bulkCreateUsers', users: validatedUsers };
   }
 
-  if (action === "updateAcceptingStatus") {
+  if (action === 'updateAcceptingStatus') {
     const { table, recordId, column, value } = body as AdminAuthRequest;
-    if (typeof table !== "string") {
-      throw new HttpError(400, "table は文字列で送信してください。");
+    if (typeof table !== 'string') {
+      throw new HttpError(400, 'table は文字列で送信してください。');
     }
-    if (typeof column !== "string") {
-      throw new HttpError(400, "column は文字列で送信してください。");
+    if (typeof column !== 'string') {
+      throw new HttpError(400, 'column は文字列で送信してください。');
     }
-    if (typeof value !== "boolean" && typeof value !== "number") {
-      throw new HttpError(400, "value は真偽値または数値で送信してください。");
+    if (typeof value !== 'boolean' && typeof value !== 'number') {
+      throw new HttpError(400, 'value は真偽値または数値で送信してください。');
     }
 
     // バリデーション: 許可されたテーブルとカラムのみ
     const allowedUpdates: Record<string, string[]> = {
-      class_performances: ["is_accepting", "total_capacity", "junior_capacity"],
-      gym_performances: ["is_accepting", "capacity", "junior_capacity"],
-      performances_schedule: ["is_active"],
-      relationships: ["is_accepting"],
+      class_performances: ['is_accepting', 'total_capacity', 'junior_capacity'],
+      gym_performances: ['is_accepting', 'capacity', 'junior_capacity'],
+      performances_schedule: ['is_active'],
+      relationships: ['is_accepting'],
     };
 
     if (!allowedUpdates[table] || !allowedUpdates[table].includes(column)) {
       throw new HttpError(
         400,
-        "不正なテーブルまたはカラムの更新リクエストです。",
+        '不正なテーブルまたはカラムの更新リクエストです。',
       );
     }
 
     return {
-      mode: "updateAcceptingStatus",
+      mode: 'updateAcceptingStatus',
       table,
-      recordId: normalizeInteger(recordId, "recordId", 1, 1000000),
+      recordId: normalizeInteger(recordId, 'recordId', 1, 1000000),
       column,
       value,
     };
   }
 
-  if (action === "getSettings") {
-    return { mode: "getSettings" };
+  if (action === 'getSettings') {
+    return { mode: 'getSettings' };
   }
 
-  if (action === "updateSettings") {
+  if (action === 'updateSettings') {
     const {
       eventYear,
       showLength,
@@ -524,71 +571,71 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
     const total = normalizeInteger(
       defaultClassTotalCapacity,
-      "defaultClassTotalCapacity",
+      'defaultClassTotalCapacity',
       1,
       1000,
     );
     const junior = normalizeInteger(
       defaultClassJuniorCapacity,
-      "defaultClassJuniorCapacity",
+      'defaultClassJuniorCapacity',
       0,
       1000,
     );
 
     if (junior > total) {
-      throw new HttpError(400, "中学生枠は合計定員以下で指定してください。");
+      throw new HttpError(400, '中学生枠は合計定員以下で指定してください。');
     }
     const gymCapacity = normalizeInteger(
       defaultGymCapacity,
-      "defaultGymCapacity",
+      'defaultGymCapacity',
       1,
       2000,
     );
     const gymJunior = normalizeInteger(
       defaultGymJuniorCapacity,
-      "defaultGymJuniorCapacity",
+      'defaultGymJuniorCapacity',
       0,
       2000,
     );
     if (gymJunior > gymCapacity) {
       throw new HttpError(
         400,
-        "体育館公演の中学生枠は合計定員以下で指定してください。",
+        '体育館公演の中学生枠は合計定員以下で指定してください。',
       );
     }
 
-    if (typeof juniorReleaseOpen !== "boolean") {
+    if (typeof juniorReleaseOpen !== 'boolean') {
       throw new HttpError(
         400,
-        "juniorReleaseOpen は真偽値で送信してください。",
+        'juniorReleaseOpen は真偽値で送信してください。',
       );
     }
-    if (typeof ticketIssuingEnabled !== "boolean") {
+    if (typeof ticketIssuingEnabled !== 'boolean') {
       throw new HttpError(
         400,
-        "ticketIssuingEnabled は真偽値で送信してください。",
+        'ticketIssuingEnabled は真偽値で送信してください。',
       );
     }
 
     return {
-      mode: "updateSettings",
-      eventYear: normalizeInteger(eventYear, "eventYear", 2020, 2100),
-      showLength: normalizeInteger(showLength, "showLength", 1, 300),
+      mode: 'updateSettings',
+      eventYear: normalizeInteger(eventYear, 'eventYear', 2020, 2100),
+      showLength: normalizeInteger(showLength, 'showLength', 1, 300),
       maxTicketsPerUser: normalizeInteger(
         maxTicketsPerUser,
-        "maxTicketsPerUser",
+        'maxTicketsPerUser',
         1,
         100,
       ),
       maxTicketsPerGymUser: normalizeInteger(
         maxTicketsPerGymUser,
-        "maxTicketsPerGymUser",
+        'maxTicketsPerGymUser',
         1,
         100,
       ),
       maxTicketsPerJuniorUser: normalizeInteger(
         maxTicketsPerJuniorUser,
-        "maxTicketsPerJuniorUser",
+        'maxTicketsPerJuniorUser',
         1,
         100,
       ),
@@ -600,26 +647,26 @@ const parseBody = (body: unknown): AdminAuthBody => {
       defaultGymJuniorCapacity: gymJunior,
       maxAdmissionOnlyJuniorAccounts: normalizeInteger(
         maxAdmissionOnlyJuniorAccounts,
-        "maxAdmissionOnlyJuniorAccounts",
+        'maxAdmissionOnlyJuniorAccounts',
         0,
         100,
       ),
     };
   }
 
-  if (action === "updateTicketTypeSettings") {
+  if (action === 'updateTicketTypeSettings') {
     const { activeTicketTypeIds, ticketIssueModes } = body as AdminAuthRequest;
     if (!Array.isArray(activeTicketTypeIds)) {
       throw new HttpError(
         400,
-        "activeTicketTypeIds は数値配列で送信してください。",
+        'activeTicketTypeIds は数値配列で送信してください。',
       );
     }
 
     const normalizedIds = Array.from(
       new Set(
         activeTicketTypeIds.map((value) =>
-          normalizeInteger(value, "activeTicketTypeIds", 1, 1000),
+          normalizeInteger(value, 'activeTicketTypeIds', 1, 1000),
         ),
       ),
     );
@@ -635,70 +682,70 @@ const parseBody = (body: unknown): AdminAuthBody => {
     }
 
     return {
-      mode: "updateTicketTypeSettings",
+      mode: 'updateTicketTypeSettings',
       activeTicketTypeIds: normalizedIds,
       ticketIssueModes: normalizeTicketIssueModes(ticketIssueModes),
     };
   }
 
-  if (action === "login" || typeof action === "undefined") {
+  if (action === 'login' || typeof action === 'undefined') {
     const isLegacyChangePasswordRequest =
-      typeof currentPassword !== "undefined" ||
-      typeof newPassword !== "undefined";
+      typeof currentPassword !== 'undefined' ||
+      typeof newPassword !== 'undefined';
     if (isLegacyChangePasswordRequest) {
       const normalizedCurrentPassword = normalizePassword(
         currentPassword,
-        "currentPassword",
+        'currentPassword',
       );
       const normalizedNewPassword = normalizePassword(
         newPassword,
-        "newPassword",
+        'newPassword',
       );
 
       if (normalizedNewPassword.length < 8) {
-        throw new HttpError(400, "newPassword は8文字以上で設定してください。");
+        throw new HttpError(400, 'newPassword は8文字以上で設定してください。');
       }
 
       return {
-        mode: "changePassword",
+        mode: 'changePassword',
         currentPassword: normalizedCurrentPassword,
         newPassword: normalizedNewPassword,
       };
     }
 
     return {
-      mode: "login",
-      password: normalizePassword(password, "password"),
+      mode: 'login',
+      password: normalizePassword(password, 'password'),
     };
   }
 
-  if (action === "updateJuniorPassword") {
+  if (action === 'updateJuniorPassword') {
     const { juniorPassword } = body as AdminAuthRequest;
     return {
-      mode: "updateJuniorPassword",
-      juniorPassword: String(juniorPassword ?? ""),
+      mode: 'updateJuniorPassword',
+      juniorPassword: String(juniorPassword ?? ''),
     };
   }
 
-  if (action === "getJuniorPassword") {
-    return { mode: "getJuniorPassword" };
+  if (action === 'getJuniorPassword') {
+    return { mode: 'getJuniorPassword' };
   }
 
-  if (action === "validateJuniorSecretCode") {
+  if (action === 'validateJuniorSecretCode') {
     const { secretCode } = body as AdminAuthRequest;
     return {
-      mode: "validateJuniorSecretCode",
-      secretCode: String(secretCode ?? ""),
+      mode: 'validateJuniorSecretCode',
+      secretCode: String(secretCode ?? ''),
     };
   }
 
-  throw new HttpError(400, "action が不正です。");
+  throw new HttpError(400, 'action が不正です。');
 };
 
 const fetchAdminConfig = async (adminClient: SupabaseClient) => {
   const { data, error } = await adminClient
-    .from("configs")
-    .select("id, admin_password")
+    .from('configs')
+    .select('id, admin_password')
     .limit(1);
 
   if (error) {
@@ -706,21 +753,21 @@ const fetchAdminConfig = async (adminClient: SupabaseClient) => {
   }
 
   const config = data?.[0] as AdminConfigRow | undefined;
-  if (!config || typeof config.id !== "number") {
-    throw new HttpError(500, "configs.id が取得できませんでした。");
+  if (!config || typeof config.id !== 'number') {
+    throw new HttpError(500, 'configs.id が取得できませんでした。');
   }
 
   if (
-    typeof config.admin_password !== "string" ||
+    typeof config.admin_password !== 'string' ||
     config.admin_password.length === 0
   ) {
-    throw new HttpError(500, "管理者パスワードが設定されていません。");
+    throw new HttpError(500, '管理者パスワードが設定されていません。');
   }
 
   if (!isBcryptHash(config.admin_password)) {
     throw new HttpError(
       500,
-      "configs.admin_password が bcrypt ハッシュ形式ではありません。",
+      'configs.admin_password が bcrypt ハッシュ形式ではありません。',
     );
   }
 
@@ -732,9 +779,9 @@ const fetchAdminConfig = async (adminClient: SupabaseClient) => {
 
 const fetchAdminSettings = async (adminClient: SupabaseClient) => {
   const { data, error } = await adminClient
-    .from("configs")
+    .from('configs')
     .select(
-      "id, event_year, show_length, max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active",
+      'id, event_year, show_length, max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active',
     )
     .limit(1);
 
@@ -743,8 +790,8 @@ const fetchAdminSettings = async (adminClient: SupabaseClient) => {
   }
 
   const row = data?.[0] as AdminSettingsRow | undefined;
-  if (!row || typeof row.id !== "number") {
-    throw new HttpError(500, "configs が取得できませんでした。");
+  if (!row || typeof row.id !== 'number') {
+    throw new HttpError(500, 'configs が取得できませんでした。');
   }
 
   return row;
@@ -754,11 +801,11 @@ const fetchTicketIssueControls = async (
   adminClient: SupabaseClient,
 ): Promise<TicketIssueModes> => {
   const { data, error } = await adminClient
-    .from("ticket_issue_controls")
+    .from('ticket_issue_controls')
     .select(
-      "class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode, same_day_class_mode, same_day_gym_mode, junior_class_mode, junior_gym_mode, junior_entry_only_mode",
+      'class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode, same_day_class_mode, same_day_gym_mode, junior_class_mode, junior_gym_mode, junior_entry_only_mode',
     )
-    .eq("id", 1)
+    .eq('id', 1)
     .maybeSingle();
 
   if (error) {
@@ -785,16 +832,16 @@ const fetchTicketIssueControls = async (
 
 const fetchMaxCapacities = async (adminClient: SupabaseClient) => {
   const { data: classData, error: classError } = await adminClient
-    .from("class_performances")
-    .select("total_capacity, junior_capacity");
+    .from('class_performances')
+    .select('total_capacity, junior_capacity');
 
   if (classError) {
     throw classError;
   }
 
   const { data: gymData, error: gymError } = await adminClient
-    .from("gym_performances")
-    .select("capacity, junior_capacity");
+    .from('gym_performances')
+    .select('capacity, junior_capacity');
 
   if (gymError) {
     throw gymError;
@@ -827,9 +874,9 @@ const getRateLimitRow = async (
   ipAddress: string,
 ): Promise<AdminRateLimitRow | null> => {
   const { data, error } = await adminClient
-    .from("admin_auth_rate_limits")
-    .select("ip_address, failed_attempts, locked_until")
-    .eq("ip_address", ipAddress)
+    .from('admin_auth_rate_limits')
+    .select('ip_address, failed_attempts, locked_until')
+    .eq('ip_address', ipAddress)
     .limit(1);
 
   if (error) {
@@ -869,7 +916,7 @@ const registerFailedAttempt = async (
 ) => {
   const now = new Date();
   const lockStillActive =
-    typeof rateLimitRow?.locked_until === "string" &&
+    typeof rateLimitRow?.locked_until === 'string' &&
     new Date(rateLimitRow.locked_until).getTime() > now.getTime();
 
   const baseFailedAttempts = lockStillActive
@@ -881,14 +928,14 @@ const registerFailedAttempt = async (
     ? new Date(now.getTime() + ADMIN_AUTH_LOCK_DURATION_MS).toISOString()
     : null;
 
-  const { error } = await adminClient.from("admin_auth_rate_limits").upsert(
+  const { error } = await adminClient.from('admin_auth_rate_limits').upsert(
     {
       ip_address: ipAddress,
       failed_attempts: shouldLock ? 0 : nextFailedAttempts,
       last_failed_at: now.toISOString(),
       locked_until: lockedUntil,
     },
-    { onConflict: "ip_address" },
+    { onConflict: 'ip_address' },
   );
 
   if (error) {
@@ -909,9 +956,9 @@ const clearFailedLoginAttempts = async (
   ipAddress: string,
 ) => {
   const { error } = await adminClient
-    .from("admin_auth_rate_limits")
+    .from('admin_auth_rate_limits')
     .delete()
-    .eq("ip_address", ipAddress);
+    .eq('ip_address', ipAddress);
 
   if (error) {
     throw error;
@@ -925,7 +972,7 @@ const createSession = async (adminClient: SupabaseClient) => {
     Date.now() + ADMIN_CONTROL_PANEL_SESSION_DURATION_MS,
   ).toISOString();
 
-  const { error } = await adminClient.from("admin_sessions").insert({
+  const { error } = await adminClient.from('admin_sessions').insert({
     token_hash: tokenHash,
     expires_at: expiresAt,
   });
@@ -948,11 +995,11 @@ const findActiveSession = async (
   const nowIso = new Date().toISOString();
 
   const { data, error } = await adminClient
-    .from("admin_sessions")
-    .select("id, expires_at")
-    .eq("token_hash", tokenHash)
-    .is("revoked_at", null)
-    .gt("expires_at", nowIso)
+    .from('admin_sessions')
+    .select('id, expires_at')
+    .eq('token_hash', tokenHash)
+    .is('revoked_at', null)
+    .gt('expires_at', nowIso)
     .limit(1);
 
   if (error) {
@@ -973,12 +1020,12 @@ const requireValidSession = async (
 ) => {
   const sessionToken = readSessionToken(req);
   if (!sessionToken) {
-    throw new HttpError(401, "セッションが無効です。再ログインしてください。");
+    throw new HttpError(401, 'セッションが無効です。再ログインしてください。');
   }
 
   const session = await findActiveSession(adminClient, sessionToken);
   if (!session) {
-    throw new HttpError(401, "セッションが無効です。再ログインしてください。");
+    throw new HttpError(401, 'セッションが無効です。再ログインしてください。');
   }
 
   return session;
@@ -987,20 +1034,20 @@ const requireValidSession = async (
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
-  if (req.method !== "POST") {
+  if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({
-        error: "Method not allowed",
+        error: 'Method not allowed',
       }),
       {
         status: 405,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       },
     );
@@ -1009,8 +1056,8 @@ Deno.serve(async (req) => {
   try {
     const body = parseBody(await req.json());
 
-    const supabaseUrl = getEnv("SUPABASE_URL");
-    const secretKey = getEnv("FOR_ADMIN_SUPABASE_SECRET_KEY");
+    const supabaseUrl = getEnv('SUPABASE_URL');
+    const secretKey = getEnv('FOR_ADMIN_SUPABASE_SECRET_KEY');
 
     const adminClient = createClient(supabaseUrl, secretKey, {
       auth: {
@@ -1019,7 +1066,7 @@ Deno.serve(async (req) => {
       },
     });
 
-    if (body.mode === "verifySession") {
+    if (body.mode === 'verifySession') {
       const token = readSessionToken(req);
       if (!token) {
         return new Response(
@@ -1030,7 +1077,7 @@ Deno.serve(async (req) => {
             status: 200,
             headers: {
               ...corsHeaders,
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
           },
         );
@@ -1046,16 +1093,16 @@ Deno.serve(async (req) => {
             status: 200,
             headers: {
               ...corsHeaders,
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
           },
         );
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
@@ -1066,20 +1113,20 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...corsHeaders,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         },
       );
     }
 
-    if (body.mode === "logoutSession") {
+    if (body.mode === 'logoutSession') {
       const token = readSessionToken(req);
       if (token) {
         const tokenHash = await hashToken(token);
         await adminClient
-          .from("admin_sessions")
+          .from('admin_sessions')
           .update({ revoked_at: new Date().toISOString() })
-          .eq("token_hash", tokenHash);
+          .eq('token_hash', tokenHash);
       }
 
       return new Response(
@@ -1090,68 +1137,68 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...corsHeaders,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         },
       );
     }
 
-    if (body.mode === "getTeachers") {
+    if (body.mode === 'getTeachers') {
       const session = await requireValidSession(adminClient, req);
       const { data, error } = await adminClient
-        .from("teachers")
-        .select("id, grade, class_id, name")
-        .order("grade", { ascending: true })
-        .order("class_id", { ascending: true });
+        .from('teachers')
+        .select('id, grade, class_id, name')
+        .order('grade', { ascending: true })
+        .order('class_id', { ascending: true });
 
       if (error) {
         throw error;
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ teachers: data }), {
         status: 200,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       });
     }
 
-    if (body.mode === "updateTeacher") {
+    if (body.mode === 'updateTeacher') {
       const session = await requireValidSession(adminClient, req);
       const { error } = await adminClient
-        .from("teachers")
+        .from('teachers')
         .update({ name: body.name })
-        .eq("id", body.teacherId);
+        .eq('id', body.teacherId);
 
       if (error) {
         throw error;
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ updated: true }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (body.mode === "updateAllTeachers") {
+    if (body.mode === 'updateAllTeachers') {
       const session = await requireValidSession(adminClient, req);
 
       for (const t of body.teachers) {
         const { error } = await adminClient
-          .from("teachers")
+          .from('teachers')
           .update({ name: t.name })
-          .eq("id", t.id);
+          .eq('id', t.id);
 
         if (error) {
           throw error;
@@ -1159,43 +1206,43 @@ Deno.serve(async (req) => {
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ updated: true }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (
-      body.mode === "deleteAllStudentAccounts" ||
-      body.mode === "deleteAccountsByType"
+      body.mode === 'deleteAllStudentAccounts' ||
+      body.mode === 'deleteAccountsByType'
     ) {
       const session = await requireValidSession(adminClient, req);
 
       const resolveAccountType = (
         email?: string | null,
-      ): "student" | "junior" | null => {
-        if (!email || !email.endsWith("@gaiensai.local")) {
+      ): 'student' | 'junior' | null => {
+        if (!email || !email.endsWith('@gaiensai.local')) {
           return null;
         }
 
-        const localPart = email.split("@")[0] ?? "";
+        const localPart = email.split('@')[0] ?? '';
         const asNumber = Number(localPart);
         if (
           Number.isInteger(asNumber) &&
           asNumber >= 10000 &&
           asNumber <= 40000
         ) {
-          return "student";
+          return 'student';
         }
-        return "junior";
+        return 'junior';
       };
 
-      const targetType: "student" | "junior" =
-        body.mode === "deleteAccountsByType" ? body.accountType : "student";
+      const targetType: 'student' | 'junior' =
+        body.mode === 'deleteAccountsByType' ? body.accountType : 'student';
 
       // 生徒アカウントを最大1000件取得
       const {
@@ -1248,9 +1295,9 @@ Deno.serve(async (req) => {
       if (deletedAuthIds.length > 0 || deletedEmails.length > 0) {
         if (deletedAuthIds.length > 0) {
           const { error: deleteUsersByIdError } = await adminClient
-            .from("users")
+            .from('users')
             .delete()
-            .in("id", deletedAuthIds);
+            .in('id', deletedAuthIds);
           if (deleteUsersByIdError) {
             errors.push(
               `public.users(id) delete failed: ${deleteUsersByIdError.message}`,
@@ -1260,9 +1307,9 @@ Deno.serve(async (req) => {
 
         if (deletedEmails.length > 0) {
           const { error: deleteUsersByEmailError } = await adminClient
-            .from("users")
+            .from('users')
             .delete()
-            .in("email", deletedEmails);
+            .in('email', deletedEmails);
           if (deleteUsersByEmailError) {
             errors.push(
               `public.users(email) delete failed: ${deleteUsersByEmailError.message}`,
@@ -1291,9 +1338,9 @@ Deno.serve(async (req) => {
       const remaining = usersRemaining.length;
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
@@ -1305,73 +1352,73 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       );
     }
 
-    if (body.mode === "deleteAllTicketsAndResetCounters") {
+    if (body.mode === 'deleteAllTicketsAndResetCounters') {
       const session = await requireValidSession(adminClient, req);
 
       const { count: ticketCount, error: countError } = await adminClient
-        .from("tickets")
-        .select("id", { count: "exact", head: true });
+        .from('tickets')
+        .select('id', { count: 'exact', head: true });
 
       if (countError) {
         throw countError;
       }
 
       const { error: deleteTicketsError } = await adminClient
-        .from("tickets")
+        .from('tickets')
         .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (deleteTicketsError) {
         throw deleteTicketsError;
       }
 
       const { error: resetClassCountersError } = await adminClient
-        .from("class_ticket_counters")
+        .from('class_ticket_counters')
         .update({
           issued_general: 0,
           issued_junior: 0,
           issued_other: 0,
           updated_at: new Date().toISOString(),
         })
-        .gte("issued_general", 0);
+        .gte('issued_general', 0);
 
       if (resetClassCountersError) {
         throw resetClassCountersError;
       }
 
       const { error: resetGymCountersError } = await adminClient
-        .from("gym_ticket_counters")
+        .from('gym_ticket_counters')
         .update({
           issued_count: 0,
           updated_at: new Date().toISOString(),
         })
-        .gte("issued_count", 0);
+        .gte('issued_count', 0);
 
       if (resetGymCountersError) {
         throw resetGymCountersError;
       }
 
       const { error: resetCodeCountersError } = await adminClient
-        .from("ticket_code_counters")
+        .from('ticket_code_counters')
         .update({
           last_value: 0,
           updated_at: new Date().toISOString(),
         })
-        .gte("last_value", 0);
+        .gte('last_value', 0);
 
       if (resetCodeCountersError) {
         throw resetCodeCountersError;
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
@@ -1381,12 +1428,12 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       );
     }
 
-    if (body.mode === "bulkCreateUsers") {
+    if (body.mode === 'bulkCreateUsers') {
       const session = await requireValidSession(adminClient, req);
 
       const results = { created: 0, skipped: 0, errors: [] as string[] };
@@ -1407,49 +1454,49 @@ Deno.serve(async (req) => {
           if (error) {
             const normalizedErrorMessage = error.message.toLowerCase();
             if (
-              normalizedErrorMessage.includes("already registered") ||
-              normalizedErrorMessage.includes("already been registered")
+              normalizedErrorMessage.includes('already registered') ||
+              normalizedErrorMessage.includes('already been registered')
             ) {
-              return { type: "skipped", user };
+              return { type: 'skipped', user };
             }
             return {
-              type: "error",
+              type: 'error',
               message: `${user.id}: ${error.message}`,
               user,
             };
           }
-          return { type: "created" };
+          return { type: 'created' };
         },
       );
 
       const rawResults = await Promise.all(promises);
       rawResults.forEach((res) => {
-        if (res.type === "created") {
+        if (res.type === 'created') {
           results.created++;
-        } else if (res.type === "skipped") {
+        } else if (res.type === 'skipped') {
           results.skipped++;
           skippedUsers.push(res.user!);
-        } else if (res.type === "error") {
+        } else if (res.type === 'error') {
           results.errors.push(res.message!);
           failedUsers.push(res.user!);
         }
       });
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({ ...results, failedUsers, skippedUsers }),
         {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       );
     }
 
-    if (body.mode === "getStudentUsers") {
+    if (body.mode === 'getStudentUsers') {
       const session = await requireValidSession(adminClient, req);
 
       // 生徒アカウントを最大1000件取得
@@ -1466,9 +1513,9 @@ Deno.serve(async (req) => {
 
       // @gaiensai.local のドメインを持つユーザーのみを抽出
       const studentUsers = users
-        .filter((u) => u.email?.endsWith("@gaiensai.local"))
+        .filter((u) => u.email?.endsWith('@gaiensai.local'))
         .map((u) => ({
-          studentId: u.user_metadata?.student_id || u.email?.split("@")[0],
+          studentId: u.user_metadata?.student_id || u.email?.split('@')[0],
           email: u.email,
           lastSignIn: u.last_sign_in_at,
           createdAt: u.created_at,
@@ -1476,21 +1523,21 @@ Deno.serve(async (req) => {
         .sort((a, b) => a.studentId.localeCompare(b.studentId));
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ users: studentUsers }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (body.mode === "getStatusDashboard") {
+    if (body.mode === 'getStatusDashboard') {
       const session = await requireValidSession(adminClient, req);
       const [dashboardResult, juniorStatusResult] = await Promise.all([
-        adminClient.rpc("get_admin_status_dashboard"),
-        adminClient.rpc("get_admin_junior_status_dashboard"),
+        adminClient.rpc('get_admin_status_dashboard'),
+        adminClient.rpc('get_admin_junior_status_dashboard'),
       ]);
 
       if (dashboardResult.error) {
@@ -1506,105 +1553,229 @@ Deno.serve(async (req) => {
       };
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ dashboard }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (body.mode === "getTicketManagementData") {
+    if (body.mode === 'getTicketManagementData') {
       const session = await requireValidSession(adminClient, req);
-      const [ticketsResult, usersResult, relationshipsResult, typesResult, classTicketsResult, gymTicketsResult, classesResult, schedulesResult, gymsResult] = await Promise.all([
-        adminClient.from("tickets").select("id, code, signature, status, created_at, user_id, relationship, ticket_type, person_count, ticket_name").order("created_at", { ascending: false }).limit(1000),
-        adminClient.from("users").select("id, email, affiliation"),
-        adminClient.from("relationships").select("id, name"),
-        adminClient.from("ticket_types").select("id, name, type"),
-        adminClient.from("class_tickets").select("id, class_id, round_id"),
-        adminClient.from("gym_tickets").select("id, performance_id"),
-        adminClient.from("class_performances").select("id, class_name, title"),
-        adminClient.from("performances_schedule").select("id, round_name, start_at"),
-        adminClient.from("gym_performances").select("id, group_name, round_name, start_at"),
+      const [
+        ticketsResult,
+        usersResult,
+        relationshipsResult,
+        typesResult,
+        classTicketsResult,
+        gymTicketsResult,
+        classesResult,
+        schedulesResult,
+        gymsResult,
+      ] = await Promise.all([
+        adminClient
+          .from('tickets')
+          .select(
+            'id, code, signature, status, created_at, user_id, relationship, ticket_type, person_count, ticket_name',
+          )
+          .order('created_at', { ascending: false })
+          .limit(1000),
+        adminClient.from('users').select('id, email, affiliation'),
+        adminClient.from('relationships').select('id, name'),
+        adminClient.from('ticket_types').select('id, name, type'),
+        adminClient.from('class_tickets').select('id, class_id, round_id'),
+        adminClient.from('gym_tickets').select('id, performance_id'),
+        adminClient.from('class_performances').select('id, class_name, title'),
+        adminClient
+          .from('performances_schedule')
+          .select('id, round_name, start_at'),
+        adminClient
+          .from('gym_performances')
+          .select('id, group_name, round_name, start_at'),
       ]);
-      const results = [ticketsResult, usersResult, relationshipsResult, typesResult, classTicketsResult, gymTicketsResult, classesResult, schedulesResult, gymsResult];
+      const results = [
+        ticketsResult,
+        usersResult,
+        relationshipsResult,
+        typesResult,
+        classTicketsResult,
+        gymTicketsResult,
+        classesResult,
+        schedulesResult,
+        gymsResult,
+      ];
       const failed = results.find((result) => result.error);
-      if (failed?.error) throw failed.error;
+      if (failed?.error) {
+        throw failed.error;
+      }
 
-      await adminClient.from("admin_sessions").update({ last_used_at: new Date().toISOString() }).eq("id", session.id);
-      return new Response(JSON.stringify({
-        tickets: ticketsResult.data ?? [], users: usersResult.data ?? [], relationships: relationshipsResult.data ?? [],
-        ticketTypes: typesResult.data ?? [], classTickets: classTicketsResult.data ?? [], gymTickets: gymTicketsResult.data ?? [],
-        classes: classesResult.data ?? [], schedules: schedulesResult.data ?? [], gyms: gymsResult.data ?? [],
-      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(
+        JSON.stringify({
+          tickets: ticketsResult.data ?? [],
+          users: usersResult.data ?? [],
+          relationships: relationshipsResult.data ?? [],
+          ticketTypes: typesResult.data ?? [],
+          classTickets: classTicketsResult.data ?? [],
+          gymTickets: gymTicketsResult.data ?? [],
+          classes: classesResult.data ?? [],
+          schedules: schedulesResult.data ?? [],
+          gyms: gymsResult.data ?? [],
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
-    if (body.mode === "cancelTicket") {
+    if (body.mode === 'cancelTicket') {
       const session = await requireValidSession(adminClient, req);
       const { data: ticket, error: findError } = await adminClient
-        .from("tickets").select("status").eq("code", body.code).maybeSingle();
-      if (findError) throw findError;
-      if (!ticket) throw new HttpError(404, "チケットが見つかりません。");
-      if ((ticket as { status: string }).status !== "valid") {
-        throw new HttpError(409, "有効なチケットのみ取り消せます。");
+        .from('tickets')
+        .select('status')
+        .eq('code', body.code)
+        .maybeSingle();
+      if (findError) {
+        throw findError;
       }
-      const { error: updateError } = await adminClient.from("tickets")
-        .update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("code", body.code);
-      if (updateError) throw updateError;
-      await adminClient.from("admin_sessions").update({ last_used_at: new Date().toISOString() }).eq("id", session.id);
-      return new Response(JSON.stringify({ cancelled: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (!ticket) {
+        throw new HttpError(404, 'チケットが見つかりません。');
+      }
+      if ((ticket as { status: string }).status !== 'valid') {
+        throw new HttpError(409, '有効なチケットのみ取り消せます。');
+      }
+      const { error: updateError } = await adminClient
+        .from('tickets')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('code', body.code);
+      if (updateError) {
+        throw updateError;
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ cancelled: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    if (body.mode === "adminIssueTickets") {
+    if (body.mode === 'adminIssueTickets') {
       const session = await requireValidSession(adminClient, req);
-      const [{ data: user, error: userError }, { data: ticketType, error: typeError }, { data: config, error: configError }] = await Promise.all([
-        adminClient.from("users").select("id, affiliation").eq("affiliation", body.affiliation).maybeSingle(),
-        adminClient.from("ticket_types").select("id, name, type").eq("id", body.ticketTypeId).maybeSingle(),
-        adminClient.from("configs").select("event_year").order("id", { ascending: true }).maybeSingle(),
+      const [
+        { data: user, error: userError },
+        { data: ticketType, error: typeError },
+        { data: config, error: configError },
+      ] = await Promise.all([
+        adminClient
+          .from('users')
+          .select('id, affiliation')
+          .eq('affiliation', body.affiliation)
+          .maybeSingle(),
+        adminClient
+          .from('ticket_types')
+          .select('id, name, type')
+          .eq('id', body.ticketTypeId)
+          .maybeSingle(),
+        adminClient
+          .from('configs')
+          .select('event_year')
+          .order('id', { ascending: true })
+          .maybeSingle(),
       ]);
-      if (userError || typeError || configError) throw userError ?? typeError ?? configError;
-      if (!user) throw new HttpError(404, "指定した affiliation の利用者が見つかりません。先に利用者登録を確認してください。");
-      if (!ticketType) throw new HttpError(404, "チケット種別が見つかりません。");
-      if (ticketType.name === "クラス公演(リハーサル)" && ticketType.type === "招待券") {
-        throw new HttpError(400, "クラス公演(リハーサル)（招待券）は管理者発券に対応していません。");
+      if (userError || typeError || configError) {
+        throw userError ?? typeError ?? configError;
       }
-      const isJuniorTicket = ticketType.type === "中学生券";
+      if (!user) {
+        throw new HttpError(
+          404,
+          '指定した affiliation の利用者が見つかりません。先に利用者登録を確認してください。',
+        );
+      }
+      if (!ticketType) {
+        throw new HttpError(404, 'チケット種別が見つかりません。');
+      }
+      if (
+        ticketType.name === 'クラス公演(リハーサル)' &&
+        ticketType.type === '招待券'
+      ) {
+        throw new HttpError(
+          400,
+          'クラス公演(リハーサル)（招待券）は管理者発券に対応していません。',
+        );
+      }
+      const isJuniorTicket = ticketType.type === '中学生券';
       if (isJuniorTicket && body.juniorRelationshipId === null) {
-        throw new HttpError(400, "中学生券の利用者区分を選択してください。");
+        throw new HttpError(400, '中学生券の利用者区分を選択してください。');
       }
       const databaseRelationshipId = isJuniorTicket ? 1 : body.relationshipId;
-      const isAdmission = ticketType.name === "入場専用券";
-      const isGym = String(ticketType.name ?? "").includes("体育館");
+      const isAdmission = ticketType.name === '入場専用券';
+      const isGym = String(ticketType.name ?? '').includes('体育館');
       if (isAdmission) {
-        if (body.performanceId !== 0 || body.scheduleId !== 0) throw new HttpError(400, "入場専用券には公演を指定できません。");
+        if (body.performanceId !== 0 || body.scheduleId !== 0) {
+          throw new HttpError(400, '入場専用券には公演を指定できません。');
+        }
       } else if (isGym) {
-        if (body.performanceId < 1) throw new HttpError(400, "体育館公演を選択してください。");
+        if (body.performanceId < 1) {
+          throw new HttpError(400, '体育館公演を選択してください。');
+        }
       } else if (body.performanceId < 1 || body.scheduleId < 1) {
-        throw new HttpError(400, "公演と公演回を選択してください。");
+        throw new HttpError(400, '公演と公演回を選択してください。');
       }
       const issuedYear = Number(config?.event_year);
-      if (!Number.isInteger(issuedYear)) throw new HttpError(500, "年度設定を取得できませんでした。");
+      if (!Number.isInteger(issuedYear)) {
+        throw new HttpError(500, '年度設定を取得できませんでした。');
+      }
       const yearForCode = issuedYear % 2 ** Number(YEAR_BITS);
-      const prefixDigits = `${String(body.affiliation).padStart(5, "0")}${String(body.ticketTypeId).padStart(1, "0")}${String(databaseRelationshipId).padStart(1, "0")}${String(body.performanceId).padStart(2, "0")}${String(body.scheduleId).padStart(2, "0")}${String(yearForCode).padStart(2, "0")}`;
+      const prefixDigits = `${String(body.affiliation).padStart(5, '0')}${String(body.ticketTypeId).padStart(1, '0')}${String(databaseRelationshipId).padStart(1, '0')}${String(body.performanceId).padStart(2, '0')}${String(body.scheduleId).padStart(2, '0')}${String(yearForCode).padStart(2, '0')}`;
       const basePrefix = generateManualCode(BigInt(prefixDigits));
-      const { data: endSerial, error: counterError } = await adminClient.rpc("increment_ticket_code_counter", {
-        p_prefix: basePrefix, p_increment: body.issueCount, p_max_value: 2 ** Number(SERIAL_BITS),
-      });
-      if (counterError) throw new HttpError(409, counterError.message);
+      const { data: endSerial, error: counterError } = await adminClient.rpc(
+        'increment_ticket_code_counter',
+        {
+          p_prefix: basePrefix,
+          p_increment: body.issueCount,
+          p_max_value: 2 ** Number(SERIAL_BITS),
+        },
+      );
+      if (counterError) {
+        throw new HttpError(409, counterError.message);
+      }
       const issuedTickets = await issueWithRollback({
-        adminClient: adminClient as unknown as RpcClient, userId: user.id, issueCount: body.issueCount,
-        issueMode: isGym ? "gym" : "class", ticketTypeId: body.ticketTypeId, relationshipId: databaseRelationshipId,
-        performanceId: body.performanceId, scheduleId: body.scheduleId, affiliation: body.affiliation,
-        issuedYear, basePrefix, endSerial: Number(endSerial), encodingRelationshipId: body.juniorRelationshipId ?? undefined,
-        generateCode: generateTicketCode, signTicketCode: signCode,
+        adminClient: adminClient as unknown as RpcClient,
+        userId: user.id,
+        issueCount: body.issueCount,
+        issueMode: isGym ? 'gym' : 'class',
+        ticketTypeId: body.ticketTypeId,
+        relationshipId: databaseRelationshipId,
+        performanceId: body.performanceId,
+        scheduleId: body.scheduleId,
+        affiliation: body.affiliation,
+        issuedYear,
+        basePrefix,
+        endSerial: Number(endSerial),
+        encodingRelationshipId: body.juniorRelationshipId ?? undefined,
+        generateCode: generateTicketCode,
+        signTicketCode: signCode,
       });
-      await adminClient.from("admin_sessions").update({ last_used_at: new Date().toISOString() }).eq("id", session.id);
-      return new Response(JSON.stringify({ issuedTickets }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ issuedTickets }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    if (body.mode === "resetUserPassword") {
+    if (body.mode === 'resetUserPassword') {
       const session = await requireValidSession(adminClient, req);
 
       const email = `${body.studentId}@gaiensai.local`;
@@ -1627,7 +1798,7 @@ Deno.serve(async (req) => {
       if (!authUser) {
         throw new HttpError(
           404,
-          "対象の生徒アカウントが見つかりませんでした。",
+          '対象の生徒アカウントが見つかりませんでした。',
         );
       }
 
@@ -1642,55 +1813,55 @@ Deno.serve(async (req) => {
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ updated: true }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (body.mode === "getSettings") {
+    if (body.mode === 'getSettings') {
       const session = await requireValidSession(adminClient, req);
       const settings = await fetchAdminSettings(adminClient);
       const maxCapacities = await fetchMaxCapacities(adminClient);
       const ticketIssueModes = await fetchTicketIssueControls(adminClient);
 
       const activeTicketTypeIds: number[] = [];
-      if (ticketIssueModes.classInvite !== "off") {
+      if (ticketIssueModes.classInvite !== 'off') {
         activeTicketTypeIds.push(1);
       }
-      if (ticketIssueModes.rehearsalInvite !== "off") {
+      if (ticketIssueModes.rehearsalInvite !== 'off') {
         activeTicketTypeIds.push(2);
       }
-      if (ticketIssueModes.gymInvite !== "off") {
+      if (ticketIssueModes.gymInvite !== 'off') {
         activeTicketTypeIds.push(3);
       }
-      if (ticketIssueModes.entryOnly !== "off") {
+      if (ticketIssueModes.entryOnly !== 'off') {
         activeTicketTypeIds.push(4);
       }
-      if (ticketIssueModes.sameDayClass !== "off") {
+      if (ticketIssueModes.sameDayClass !== 'off') {
         activeTicketTypeIds.push(8);
       }
-      if (ticketIssueModes.sameDayGym !== "off") {
+      if (ticketIssueModes.sameDayGym !== 'off') {
         activeTicketTypeIds.push(9);
       }
-      if (ticketIssueModes.juniorClass !== "off") {
+      if (ticketIssueModes.juniorClass !== 'off') {
         activeTicketTypeIds.push(5);
       }
-      if (ticketIssueModes.juniorGym !== "off") {
+      if (ticketIssueModes.juniorGym !== 'off') {
         activeTicketTypeIds.push(6);
       }
-      if (ticketIssueModes.juniorEntryOnly !== "off") {
+      if (ticketIssueModes.juniorEntryOnly !== 'off') {
         activeTicketTypeIds.push(7);
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
@@ -1716,18 +1887,18 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...corsHeaders,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         },
       );
     }
 
-    if (body.mode === "updateSettings") {
+    if (body.mode === 'updateSettings') {
       const session = await requireValidSession(adminClient, req);
       const currentSettings = await fetchAdminSettings(adminClient);
 
       const { error: updateError } = await adminClient
-        .from("configs")
+        .from('configs')
         .update({
           event_year: body.eventYear,
           show_length: body.showLength,
@@ -1739,7 +1910,7 @@ Deno.serve(async (req) => {
           junior_release_open: body.juniorReleaseOpen,
           is_active: body.ticketIssuingEnabled,
         })
-        .eq("id", currentSettings.id);
+        .eq('id', currentSettings.id);
 
       if (updateError) {
         throw updateError;
@@ -1747,12 +1918,12 @@ Deno.serve(async (req) => {
 
       // 全クラス公演のキャパシティを一括更新
       const { error: classUpdateError } = await adminClient
-        .from("class_performances")
+        .from('class_performances')
         .update({
           total_capacity: body.defaultClassTotalCapacity,
           junior_capacity: body.defaultClassJuniorCapacity,
         })
-        .neq("id", 0);
+        .neq('id', 0);
 
       if (classUpdateError) {
         throw classUpdateError;
@@ -1760,21 +1931,21 @@ Deno.serve(async (req) => {
 
       // 全体育館公演のキャパシティを一括更新
       const { error: gymUpdateError } = await adminClient
-        .from("gym_performances")
+        .from('gym_performances')
         .update({
           capacity: body.defaultGymCapacity,
           junior_capacity: body.defaultGymJuniorCapacity,
         })
-        .neq("id", 0);
+        .neq('id', 0);
 
       if (gymUpdateError) {
         throw gymUpdateError;
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
@@ -1797,17 +1968,17 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...corsHeaders,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         },
       );
     }
 
-    if (body.mode === "updateTicketTypeSettings") {
+    if (body.mode === 'updateTicketTypeSettings') {
       const session = await requireValidSession(adminClient, req);
 
       const { error: ticketIssueModeUpdateError } = await adminClient
-        .from("ticket_issue_controls")
+        .from('ticket_issue_controls')
         .upsert(
           {
             id: 1,
@@ -1822,7 +1993,7 @@ Deno.serve(async (req) => {
             junior_entry_only_mode: body.ticketIssueModes.juniorEntryOnly,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: "id" },
+          { onConflict: 'id' },
         );
 
       if (ticketIssueModeUpdateError) {
@@ -1830,9 +2001,9 @@ Deno.serve(async (req) => {
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
@@ -1844,118 +2015,118 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...corsHeaders,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         },
       );
     }
 
-    if (body.mode === "updateAcceptingStatus") {
+    if (body.mode === 'updateAcceptingStatus') {
       const session = await requireValidSession(adminClient, req);
 
       const { error: updateError } = await adminClient
         .from(body.table)
         .update({ [body.column]: body.value })
-        .eq("id", body.recordId);
+        .eq('id', body.recordId);
 
       if (updateError) {
         throw updateError;
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ updated: true }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (body.mode === "getJuniorPassword") {
+    if (body.mode === 'getJuniorPassword') {
       const session = await requireValidSession(adminClient, req);
 
       const { data: configData, error: configError } = await adminClient
-        .from("configs")
-        .select("junior_password")
+        .from('configs')
+        .select('junior_password')
         .single();
 
       if (configError) {
-        throw new HttpError(500, "合言葉の取得に失敗しました。");
+        throw new HttpError(500, '合言葉の取得に失敗しました。');
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
           hasPassword:
             configData.junior_password !== null &&
-            configData.junior_password !== "",
+            configData.junior_password !== '',
         }),
         {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       );
     }
 
-    if (body.mode === "updateJuniorPassword") {
+    if (body.mode === 'updateJuniorPassword') {
       const session = await requireValidSession(adminClient, req);
 
       // pgcryptoを使用してハッシュ化（RPC関数との互換性のため）
       const { data: hashData, error: hashError } = await adminClient.rpc(
-        "hash_password",
+        'hash_password',
         { p_password: body.juniorPassword },
       );
 
       if (hashError || !hashData) {
-        throw new HttpError(500, "合言葉のハッシュ化に失敗しました。");
+        throw new HttpError(500, '合言葉のハッシュ化に失敗しました。');
       }
 
       const { error: updateError } = await adminClient
-        .from("configs")
+        .from('configs')
         .update({ junior_password: hashData })
-        .eq("id", 1);
+        .eq('id', 1);
 
       if (updateError) {
-        throw new HttpError(500, "合言葉の更新に失敗しました。");
+        throw new HttpError(500, '合言葉の更新に失敗しました。');
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(JSON.stringify({ updated: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (body.mode === "validateJuniorSecretCode") {
+    if (body.mode === 'validateJuniorSecretCode') {
       // pgcryptoを使用して検証（RPC関数との互換性のため）
       const { data: isValid, error: validateError } = await adminClient.rpc(
-        "validate_junior_secret_code",
+        'validate_junior_secret_code',
         { p_secret_code: body.secretCode },
       );
 
       if (validateError) {
         throw new HttpError(
           500,
-          "合言葉の検証に失敗しました。" + validateError.message,
+          '合言葉の検証に失敗しました。' + validateError.message,
         );
       }
 
       return new Response(JSON.stringify({ valid: isValid || false }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const config = await fetchAdminConfig(adminClient);
 
-    if (body.mode === "changePassword") {
+    if (body.mode === 'changePassword') {
       const clientIp = getClientIp(req);
       const currentRateLimitRow = await getRateLimitRow(adminClient, clientIp);
       ensureIpIsNotLocked(currentRateLimitRow);
@@ -1982,7 +2153,7 @@ Deno.serve(async (req) => {
           );
         }
 
-        throw new HttpError(401, "現在の管理者パスワードが正しくありません。");
+        throw new HttpError(401, '現在の管理者パスワードが正しくありません。');
       }
 
       await clearFailedLoginAttempts(adminClient, clientIp);
@@ -1994,24 +2165,24 @@ Deno.serve(async (req) => {
       if (isSameAsCurrent) {
         throw new HttpError(
           400,
-          "新しいパスワードは現在のパスワードと異なる値を指定してください。",
+          '新しいパスワードは現在のパスワードと異なる値を指定してください。',
         );
       }
 
       const newPasswordHash = await hash(body.newPassword, 12);
       const { error: updateError } = await adminClient
-        .from("configs")
+        .from('configs')
         .update({ admin_password: newPasswordHash })
-        .eq("id", config.id);
+        .eq('id', config.id);
 
       if (updateError) {
         throw updateError;
       }
 
       await adminClient
-        .from("admin_sessions")
+        .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
-        .eq("id", session.id);
+        .eq('id', session.id);
 
       return new Response(
         JSON.stringify({
@@ -2021,7 +2192,7 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...corsHeaders,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         },
       );
@@ -2057,7 +2228,7 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...corsHeaders,
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
         },
       );
@@ -2078,7 +2249,7 @@ Deno.serve(async (req) => {
         status: 200,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       },
     );
@@ -2090,13 +2261,13 @@ Deno.serve(async (req) => {
       JSON.stringify({
         error: isHttpError
           ? error.message
-          : "認証に失敗しました。通信状況と設定を確認してください。",
+          : '認証に失敗しました。通信状況と設定を確認してください。',
       }),
       {
         status: isHttpError ? error.status : 500,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       },
     );

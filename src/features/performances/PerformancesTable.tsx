@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { supabase } from '../../lib/supabase';
 import styles from './PerformancesTable.module.css';
 import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from 'react-icons/ri';
 import { useLocation } from 'preact-iso';
@@ -27,6 +26,13 @@ type ClassTicketCounterRow = {
   issued_general: number | null;
   issued_junior: number | null;
   issued_other: number | null;
+};
+
+type PerformanceAvailabilityData = {
+  class_performances?: Array<PerformanceRow & { is_accepting?: boolean }>;
+  schedules?: Array<PerformanceSchedule & { is_active?: boolean }>;
+  class_counters?: ClassTicketCounterRow[];
+  config?: { junior_release_open?: boolean | null };
 };
 
 const PERFORMANCES_CACHE_KEY = 'performances-table-cache:v1';
@@ -157,11 +163,15 @@ const PerformancesTable = ({
       const canUseCache = !scheduleFilter;
       const cacheKey = `${PERFORMANCES_CACHE_KEY}:${currentRemainingMode}:${filterAccepting ? 'accepting' : 'all'}:${encodeURIComponent(restrictedClassName ?? 'all')}`;
       const restoreCache = () => {
-        if (!canUseCache) return false;
+        if (!canUseCache) {
+          return false;
+        }
 
         try {
           const raw = window.localStorage.getItem(cacheKey);
-          if (!raw) return false;
+          if (!raw) {
+            return false;
+          }
           const cached = JSON.parse(raw) as {
             performances?: PerformanceRow[];
             schedules?: PerformanceSchedule[];
@@ -188,19 +198,14 @@ const PerformancesTable = ({
         }
       };
 
-      let availabilityData: {
-        class_performances?: Array<PerformanceRow & { is_accepting?: boolean }>;
-        schedules?: Array<PerformanceSchedule & { is_active?: boolean }>;
-        class_counters?: ClassTicketCounterRow[];
-        config?: { junior_release_open?: boolean | null };
-      } | null = null;
+      let availabilityData: PerformanceAvailabilityData | null = null;
       let availabilityError: unknown;
       try {
         const result = await withTimeout(
           getPerformanceAvailability(),
           SUPABASE_RESPONSE_TIMEOUT_MS,
         );
-        availabilityData = result.data as typeof availabilityData;
+        availabilityData = result.data as PerformanceAvailabilityData | null;
         availabilityError = result.error;
       } catch {
         if (isMounted && !restoreCache()) {
@@ -227,7 +232,8 @@ const PerformancesTable = ({
       ).filter(
         (performance) =>
           (!filterAccepting || performance.is_accepting === true) &&
-          (!restrictedClassName || performance.class_name === restrictedClassName),
+          (!restrictedClassName ||
+            performance.class_name === restrictedClassName),
       );
       const loadedSchedules = (
         (availabilityData?.schedules ?? []) as Array<

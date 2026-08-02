@@ -8,7 +8,7 @@ import { defineConfig } from "eslint/config";
 export default defineConfig([
   // 1. グローバルな無視設定
   {
-    ignores: ["dist/**", "node_modules/**"]
+    ignores: ["dist/**", "node_modules/**", "supabase/.temp/**"]
   },
 
   // 2. 基本となる推奨設定の適用
