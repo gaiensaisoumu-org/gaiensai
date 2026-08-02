@@ -824,7 +824,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
     void loadRelationships();
   }, [isRelationshipModalOpen, ticket.relationshipId, isJuniorTicket]);
 
-  const ticketUrl = `https://${config.site_url}/t/${token}`;
+  const ticketUrl = `https://${config.site_url}/t/${token}?openExternalBrowser=1`;
   const canCancelTicket =
     !loading && !cancelLoading && ticketStatus === 'valid';
   const isDayTicket = ticket.ticketTypeId === 8 || ticket.ticketTypeId === 9;
@@ -1341,7 +1341,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             </li>
             <li>
               このQRコードは<strong>1度のみ</strong>
-              使用可能です。再入場はできません。
+              使用可能です。再入場の場合は係員にお声がけください。
             </li>
             <li>
               このページで発券されたチケットは、外苑祭当日、入場時に必要となります。忘れずに持参してください。
