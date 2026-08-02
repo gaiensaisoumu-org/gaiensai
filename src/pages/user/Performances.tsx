@@ -27,6 +27,7 @@ interface GymPerformance {
   start_at: string; // timestamptz
   end_at: string; // timestamptz
   capacity: number;
+  junior_capacity: number | null;
   year: number;
   is_accepting: boolean | null;
   description: string | null;
@@ -214,6 +215,12 @@ const Performances = () => {
                       定員:{' '}
                       <span className={styles.capacityValue}>
                         {perf.capacity}名
+                      </span>
+                    </div>
+                    <div>
+                      中学生枠:{' '}
+                      <span className={styles.capacityValue}>
+                        {perf.junior_capacity ?? 0}名
                       </span>
                     </div>
                   </div>

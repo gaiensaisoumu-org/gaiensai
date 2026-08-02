@@ -87,7 +87,7 @@ const buildSnapshot = async () => {
     supabase
       .from('gym_performances')
       .select(
-        'id, group_name, round_name, start_at, end_at, capacity, year, is_accepting, description, image_path',
+        'id, group_name, round_name, start_at, end_at, capacity, junior_capacity, year, is_accepting, description, image_path',
       )
       .order('group_name', { ascending: true })
       .order('id', { ascending: true }),
