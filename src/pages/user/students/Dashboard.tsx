@@ -197,197 +197,6 @@ const Dashboard = ({ userData }: DashboardProps) => {
     };
   }, []);
 
-  useEffect(() => {
-    const loadIssuingState = async () => {
-      const { data } = await supabase
-        .from('configs')
-        .select('is_active')
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (typeof data?.is_active === 'boolean') {
-        setIsTicketIssuingEnabled(data.is_active);
-      }
-    };
-
-    void loadIssuingState();
-  }, []);
-
-  useEffect(() => {
-    const loadInviteTicketTypeState = async () => {
-      const { data, error } = await supabase
-        .from('ticket_issue_controls')
-        .select(
-          'class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode',
-        )
-        .eq('id', 1)
-        .maybeSingle();
-
-      if (error) {
-        return;
-      }
-
-      const hasActive =
-        data &&
-        (data.class_invite_mode !== 'off' ||
-          data.rehearsal_invite_mode !== 'off' ||
-          data.gym_invite_mode !== 'off' ||
-          data.entry_only_mode !== 'off');
-
-      if (data) {
-        setGymInviteMode(data.gym_invite_mode);
-        setClassInviteMode(data.class_invite_mode);
-      }
-      setHasAnyActiveInviteTicketType(!!hasActive);
-    };
-
-    void loadInviteTicketTypeState();
-  }, []);
-
-  useEffect(() => {
-    const loadOwnClassName = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('affiliation')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        return;
-      }
-
-      const affiliation = Number(
-        (data as { affiliation?: number | null } | null)?.affiliation ?? -1,
-      );
-      if (!Number.isInteger(affiliation) || affiliation < 10000) {
-        return;
-      }
-
-      const grade = Math.floor(affiliation / 10000);
-      const classNo = Math.floor((affiliation % 10000) / 100);
-      if (
-        grade >= 1 &&
-        grade <= config.grade_number &&
-        classNo >= 1 &&
-        classNo <= config.class_number
-      ) {
-        setOwnClassName(`${grade}-${classNo}`);
-      }
-    };
-
-    void loadOwnClassName();
-  }, []);
-
-  useEffect(() => {
-    const loadClassInviteMode = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('ticket_issue_controls')
-          .select('class_invite_mode')
-          .eq('id', 1)
-          .maybeSingle();
-
-        if (error) {
-          return;
-        }
-
-        const mode = (data as { class_invite_mode?: unknown } | null)
-          ?.class_invite_mode;
-
-        if (mode === 'open' || mode === 'only-own' || mode === 'off') {
-          setClassInviteMode(mode);
-        }
-      } catch (err) {
-        // 特にエラーは表示しない
-      }
-    };
-
-    void loadClassInviteMode();
-  }, []);
-
-  useEffect(() => {
-    const loadIssueCapacity = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        return;
-      }
-
-      const [
-        { data: configData, error: configError },
-        { count: classCount, error: classCountError },
-        { count: gymCount, error: gymCountError },
-        { data: userCapacityData, error: userCapacityError },
-      ] = await Promise.all([
-        supabase
-          .from('configs')
-          .select('max_tickets_per_user, max_tickets_per_gym_user')
-          .order('id', { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('class_tickets')
-          .select('id, tickets!inner(id)', { count: 'exact', head: true })
-          .eq('tickets.user_id', userId)
-          .eq('tickets.status', 'valid'),
-        supabase
-          .from('gym_tickets')
-          .select('id, tickets!inner(id)', { count: 'exact', head: true })
-          .eq('tickets.user_id', userId)
-          .eq('tickets.status', 'valid'),
-        supabase.from('users').select('clubs').eq('id', userId).maybeSingle(),
-      ]);
-
-      if (
-        configError ||
-        classCountError ||
-        gymCountError ||
-        userCapacityError
-      ) {
-        return;
-      }
-
-      const maxTicketsPerUser = Number(configData?.max_tickets_per_user ?? -1);
-      const maxTicketsPerGymUser = Number(
-        configData?.max_tickets_per_gym_user ?? -1,
-      );
-      const gymTicketLimitMultiplier = Math.max(
-        Array.isArray(userCapacityData?.clubs)
-          ? userCapacityData.clubs.length
-          : 0,
-        1,
-      );
-      if (
-        !Number.isInteger(maxTicketsPerUser) ||
-        !Number.isInteger(maxTicketsPerGymUser) ||
-        maxTicketsPerUser < 0 ||
-        maxTicketsPerGymUser < 0
-      ) {
-        return;
-      }
-
-      const hasReachedLimit =
-        Number(classCount ?? 0) >= maxTicketsPerUser &&
-        Number(gymCount ?? 0) >=
-          maxTicketsPerGymUser * gymTicketLimitMultiplier;
-
-      setHasReachedIssueLimit(hasReachedLimit);
-    };
-
-    void loadIssueCapacity();
-  }, []);
-
   const isIssueReceptionStopped =
     !isTicketIssuingEnabled || !hasAnyActiveInviteTicketType;
 
@@ -428,12 +237,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
       let ticketsError: unknown;
       try {
         const result = await withTimeout(
-          supabase
-            .from('tickets')
-            .select('code, signature, relationship, created_at, ticket_name')
-            .eq('user_id', user.id)
-            .eq('status', 'valid')
-            .order('created_at', { ascending: false }),
+          supabase.rpc('get_student_dashboard'),
           SUPABASE_RESPONSE_TIMEOUT_MS,
         );
         ticketsData = result.data;
@@ -457,6 +261,67 @@ const Dashboard = ({ userData }: DashboardProps) => {
       }
       setIsOnline(true);
 
+      const dashboard = (ticketsData ?? {}) as {
+        profile?: { affiliation?: number | null; clubs?: string[] | null };
+        config?: {
+          is_active?: boolean | null;
+          show_length?: number | null;
+          max_tickets_per_user?: number | null;
+          max_tickets_per_gym_user?: number | null;
+        };
+        controls?: {
+          class_invite_mode?: 'open' | 'only-own' | 'off';
+          rehearsal_invite_mode?: string | null;
+          gym_invite_mode?: 'open' | 'only-own' | 'off';
+          entry_only_mode?: string | null;
+        };
+        class_ticket_count?: number;
+        gym_ticket_count?: number;
+        tickets?: Array<{
+          code: string;
+          signature: string;
+          relationship: number;
+          created_at: string;
+          ticket_name: string | null;
+        }>;
+        class_performances?: unknown[];
+        gym_performances?: unknown[];
+        schedules?: unknown[];
+      };
+      const controls = dashboard.controls;
+      if (typeof dashboard.config?.is_active === 'boolean') {
+        setIsTicketIssuingEnabled(dashboard.config.is_active);
+      }
+      if (controls) {
+        setClassInviteMode(controls.class_invite_mode ?? 'open');
+        setGymInviteMode(controls.gym_invite_mode ?? 'open');
+        setHasAnyActiveInviteTicketType(
+          controls.class_invite_mode !== 'off' ||
+            controls.rehearsal_invite_mode !== 'off' ||
+            controls.gym_invite_mode !== 'off' ||
+            controls.entry_only_mode !== 'off',
+        );
+      }
+      const affiliation = Number(dashboard.profile?.affiliation ?? -1);
+      const grade = Math.floor(affiliation / 10000);
+      const classNo = Math.floor((affiliation % 10000) / 100);
+      if (
+        affiliation >= 10000 &&
+        grade >= 1 && grade <= config.grade_number &&
+        classNo >= 1 && classNo <= config.class_number
+      ) {
+        setOwnClassName(`${grade}-${classNo}`);
+      }
+      const maxClassTickets = Number(dashboard.config?.max_tickets_per_user ?? -1);
+      const maxGymTickets = Number(dashboard.config?.max_tickets_per_gym_user ?? -1);
+      const gymMultiplier = Math.max(dashboard.profile?.clubs?.length ?? 0, 1);
+      if (maxClassTickets >= 0 && maxGymTickets >= 0) {
+        setHasReachedIssueLimit(
+          Number(dashboard.class_ticket_count ?? 0) >= maxClassTickets &&
+            Number(dashboard.gym_ticket_count ?? 0) >= maxGymTickets * gymMultiplier,
+        );
+      }
+
       // Load tickets from local storage (from all users)
       const localStorageTickets = readAllLocalStorageTickets();
       const myAffiliation = String(userData.affiliation);
@@ -467,7 +332,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
           ticket.affiliation !== myAffiliation && ticket.status === 'valid',
       );
 
-      const tickets = (ticketsData ?? []) as Array<{
+      const tickets = (dashboard.tickets ?? []) as Array<{
         code: string;
         signature: string;
         relationship: number;
@@ -492,86 +357,10 @@ const Dashboard = ({ userData }: DashboardProps) => {
         }),
       );
 
-      const classPerformanceIds = [
-        ...new Set(
-          decodedTickets
-            .filter(
-              (item) =>
-                (item.decoded?.performanceId ?? 0) > 0 &&
-                (item.decoded?.scheduleId ?? 0) > 0,
-            )
-            .map((item) => item.decoded?.performanceId ?? 0)
-            .filter((id) => id > 0),
-        ),
-      ];
-
-      const gymPerformanceIds = [
-        ...new Set(
-          decodedTickets
-            .filter(
-              (item) =>
-                (item.decoded?.performanceId ?? 0) > 0 &&
-                (item.decoded?.scheduleId ?? 0) === 0,
-            )
-            .map((item) => item.decoded?.performanceId ?? 0)
-            .filter((id) => id > 0),
-        ),
-      ];
-
-      const scheduleIds = [
-        ...new Set(
-          decodedTickets
-            .map((item) => item.decoded?.scheduleId ?? 0)
-            .filter((id) => id > 0),
-        ),
-      ];
-
-      let classPerformanceData: unknown;
-      let gymPerformanceData: unknown;
-      let scheduleData: unknown;
-      let configData: { show_length?: number | null } | null = null;
-      try {
-        const results = await withTimeout(
-          Promise.all([
-            classPerformanceIds.length > 0
-              ? supabase
-                  .from('class_performances')
-                  .select('id, class_name, title')
-                  .in('id', classPerformanceIds)
-              : { data: [] },
-            gymPerformanceIds.length > 0
-              ? supabase
-                  .from('gym_performances')
-                  .select('id, group_name, round_name, start_at, end_at')
-                  .in('id', gymPerformanceIds)
-              : { data: [] },
-            scheduleIds.length > 0
-              ? supabase
-                  .from('performances_schedule')
-                  .select('id, start_at')
-                  .in('id', scheduleIds)
-              : { data: [] },
-            supabase
-              .from('configs')
-              .select('show_length')
-              .order('id', { ascending: true })
-              .limit(1)
-              .maybeSingle(),
-          ]),
-          SUPABASE_RESPONSE_TIMEOUT_MS,
-        );
-        classPerformanceData = results[0].data;
-        gymPerformanceData = results[1].data;
-        scheduleData = results[2].data;
-        configData = results[3].data;
-      } catch {
-        if (fallbackToCachedTickets()) {
-          return;
-        }
-        setTicketError('チケット詳細の取得がタイムアウトしました。');
-        setTicketLoading(false);
-        return;
-      }
+      const classPerformanceData = dashboard.class_performances ?? [];
+      const gymPerformanceData = dashboard.gym_performances ?? [];
+      const scheduleData = dashboard.schedules ?? [];
+      const configData = dashboard.config ?? null;
 
       const classPerformanceMap = new Map(
         (

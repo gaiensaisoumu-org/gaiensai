@@ -7,6 +7,7 @@ import { useLocation } from 'preact-iso';
 import type { AvailableSeatSelection } from '../../types/types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { withTimeout } from '../../utils/withTimeout';
+import { getPerformanceAvailability } from './performanceAvailability';
 
 type PerformanceRow = {
   id: number;
@@ -187,37 +188,20 @@ const PerformancesTable = ({
         }
       };
 
-      let perfQuery = supabase
-        .from('class_performances')
-        .select('id, class_name, total_capacity, junior_capacity')
-        .order('id', { ascending: true });
-
-      if (filterAccepting) {
-        perfQuery = perfQuery.eq('is_accepting', true);
-      }
-
-      let schQuery = supabase
-        .from('performances_schedule')
-        .select('id, round_name')
-        .order('id', { ascending: true });
-
-      if (filterAccepting) {
-        schQuery = schQuery.eq('is_active', true);
-      }
-
-      let performanceData: unknown;
-      let scheduleData: unknown;
-      let performanceError: unknown;
-      let scheduleError: unknown;
+      let availabilityData: {
+        class_performances?: Array<PerformanceRow & { is_accepting?: boolean }>;
+        schedules?: Array<PerformanceSchedule & { is_active?: boolean }>;
+        class_counters?: ClassTicketCounterRow[];
+        config?: { junior_release_open?: boolean | null };
+      } | null = null;
+      let availabilityError: unknown;
       try {
-        const [performanceResult, scheduleResult] = await withTimeout(
-          Promise.all([perfQuery, schQuery]),
+        const result = await withTimeout(
+          getPerformanceAvailability(),
           SUPABASE_RESPONSE_TIMEOUT_MS,
         );
-        performanceData = performanceResult.data;
-        performanceError = performanceResult.error;
-        scheduleData = scheduleResult.data;
-        scheduleError = scheduleResult.error;
+        availabilityData = result.data as typeof availabilityData;
+        availabilityError = result.error;
       } catch {
         if (isMounted && !restoreCache()) {
           setErrorMessage('公演空き状況の取得がタイムアウトしました。');
@@ -230,74 +214,32 @@ const PerformancesTable = ({
         return;
       }
 
-      if (performanceError || scheduleError) {
+      if (availabilityError) {
         setErrorMessage('公演空き状況の取得に失敗しました。');
         setLoading(false);
         return;
       }
 
       const loadedPerformances = (
-        (performanceData ?? []) as PerformanceRow[]
+        (availabilityData?.class_performances ?? []) as Array<
+          PerformanceRow & { is_accepting?: boolean }
+        >
       ).filter(
         (performance) =>
-          !restrictedClassName ||
-          performance.class_name === restrictedClassName,
+          (!filterAccepting || performance.is_accepting === true) &&
+          (!restrictedClassName || performance.class_name === restrictedClassName),
       );
       const loadedSchedules = (
-        (scheduleData ?? []) as PerformanceSchedule[]
+        (availabilityData?.schedules ?? []) as Array<
+          PerformanceSchedule & { is_active?: boolean }
+        >
       ).filter(
         (schedule) =>
-          !scheduleFilter || scheduleFilter(schedule.id, schedule.round_name),
+          (!filterAccepting || schedule.is_active === true) &&
+          (!scheduleFilter || scheduleFilter(schedule.id, schedule.round_name)),
       );
-
-      const performanceIds = loadedPerformances.map((p) => p.id);
-      const scheduleIds = loadedSchedules.map((s) => s.id);
-
-      const countersQuery =
-        performanceIds.length > 0 && scheduleIds.length > 0
-          ? supabase
-              .from('class_ticket_counters')
-              .select(
-                'class_id, round_id, issued_general, issued_junior, issued_other',
-              )
-              .in('class_id', performanceIds)
-              .in('round_id', scheduleIds)
-          : Promise.resolve({ data: [], error: null });
-
-      let counterData: unknown;
-      let configData: { junior_release_open?: boolean | null } | null = null;
-      let counterError: unknown;
-      let configError: unknown;
-      try {
-        const [counterResult, configResult] = await withTimeout(
-          Promise.all([
-            countersQuery,
-            supabase
-              .from('configs')
-              .select('junior_release_open')
-              .order('id', { ascending: true })
-              .limit(1)
-              .maybeSingle(),
-          ]),
-          SUPABASE_RESPONSE_TIMEOUT_MS,
-        );
-        counterData = counterResult.data;
-        counterError = counterResult.error;
-        configData = configResult.data;
-        configError = configResult.error;
-      } catch {
-        if (isMounted && !restoreCache()) {
-          setErrorMessage('残席情報の取得がタイムアウトしました。');
-          setLoading(false);
-        }
-        return;
-      }
-
-      if ((counterError || configError) && isMounted) {
-        setErrorMessage('残席情報の取得に失敗しました。');
-        setLoading(false);
-        return;
-      }
+      const counterData = availabilityData?.class_counters ?? [];
+      const configData = availabilityData?.config ?? null;
 
       const isJuniorReleased = Boolean(configData?.junior_release_open);
       const counts = new Map<

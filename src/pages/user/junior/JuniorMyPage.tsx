@@ -422,26 +422,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("application_day")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (error) {
-        return;
-      }
-
       const databaseSelection = parseJuniorApplicationDaySelection(
-        data?.application_day,
+        userData.application_day,
       );
       const databaseApplicationDays =
         databaseSelection.classDay ?? databaseSelection.gymDay;
@@ -475,111 +457,6 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
-
-  useEffect(() => {
-    const loadIssuingState = async () => {
-      const { data } = await supabase
-        .from("configs")
-        .select("is_active")
-        .order("id", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (typeof data?.is_active === "boolean") {
-        setIsTicketIssuingEnabled(data.is_active);
-      }
-    };
-
-    void loadIssuingState();
-  }, []);
-
-  useEffect(() => {
-    const loadInviteTicketTypeState = async () => {
-      const { data, error } = await supabase
-        .from("ticket_issue_controls")
-        .select(
-          "class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode",
-        )
-        .eq("id", 1)
-        .maybeSingle();
-
-      if (error) {
-        return;
-      }
-
-      const hasActive =
-        data &&
-        (data.class_invite_mode !== "off" ||
-          data.rehearsal_invite_mode !== "off" ||
-          data.gym_invite_mode !== "off" ||
-          data.entry_only_mode !== "off");
-
-      setHasAnyActiveInviteTicketType(!!hasActive);
-    };
-
-    void loadInviteTicketTypeState();
-  }, []);
-
-  useEffect(() => {
-    const loadJuniorIssueCapacity = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        return;
-      }
-
-      const [
-        { data: configData, error: configError },
-        { count, error: countError },
-        { count: entryOnlyCount, error: entryOnlyCountError },
-      ] = await Promise.all([
-        supabase
-          .from("configs")
-          .select("max_tickets_per_junior_user")
-          .order("id", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("tickets")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("status", "valid")
-          .neq("ticket_type", 7), // 入場専用券を除外
-        supabase
-          .from("tickets")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("status", "valid")
-          .eq("ticket_type", 7), // 入場専用券のみ
-      ]);
-
-      if (configError || countError || entryOnlyCountError) {
-        return;
-      }
-
-      const maxTicketsPerJuniorUser = Number(
-        configData?.max_tickets_per_junior_user ?? -1,
-      );
-      if (
-        !Number.isInteger(maxTicketsPerJuniorUser) ||
-        maxTicketsPerJuniorUser < 0
-      ) {
-        return;
-      }
-
-      const maxIssueCapacity =
-        usageType === 1 ? maxTicketsPerJuniorUser * 2 : maxTicketsPerJuniorUser;
-      const existingIssueCapacity = Number(count ?? 0);
-      const hasReachedLimit =
-        existingIssueCapacity >= maxIssueCapacity && entryOnlyCount !== 0;
-
-      setHasReachedJuniorIssueLimit(hasReachedLimit);
-    };
-
-    void loadJuniorIssueCapacity();
-  }, [usageType]);
 
   useEffect(() => {
     const loadTickets = async () => {
@@ -621,6 +498,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         relationship: number;
         ticket_name: string | null;
       }> | null = null;
+      let pageResponse: unknown;
 
       for (let i = 0; i < LOAD_TICKET_RETRY_MAX; i++) {
         let data: Array<{
@@ -632,14 +510,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         let ticketsError: unknown;
         try {
           const result = await withTimeout(
-            supabase
-              .from("tickets")
-              .select("code, signature, relationship, ticket_name")
-              .eq("user_id", user.id)
-              .eq("status", "valid")
-              .order("created_at", { ascending: false }),
+            supabase.rpc("get_junior_my_page"),
             SUPABASE_RESPONSE_TIMEOUT_MS,
           );
+          pageResponse = result.data;
           data = result.data as typeof data;
           ticketsError = result.error;
         } catch {
@@ -653,7 +527,34 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           return;
         }
 
-        ticketsData = (data ?? []) as Array<{
+        const pageData = (data ?? {}) as {
+          config?: { is_active?: boolean | null; max_tickets_per_junior_user?: number | null };
+          controls?: { class_invite_mode?: string | null; rehearsal_invite_mode?: string | null; gym_invite_mode?: string | null; entry_only_mode?: string | null };
+          non_entry_ticket_count?: number;
+          entry_only_ticket_count?: number;
+          tickets?: Array<{ code: string; signature: string; relationship: number; ticket_name: string | null }>;
+          class_performances?: unknown[];
+          gym_performances?: unknown[];
+        };
+        if (typeof pageData.config?.is_active === "boolean") {
+          setIsTicketIssuingEnabled(pageData.config.is_active);
+        }
+        const controls = pageData.controls;
+        if (controls) {
+          setHasAnyActiveInviteTicketType(
+            controls.class_invite_mode !== "off" || controls.rehearsal_invite_mode !== "off" ||
+              controls.gym_invite_mode !== "off" || controls.entry_only_mode !== "off",
+          );
+        }
+        const maxTickets = Number(pageData.config?.max_tickets_per_junior_user ?? -1);
+        if (maxTickets >= 0) {
+          const maxIssueCapacity = usageType === 1 ? maxTickets * 2 : maxTickets;
+          setHasReachedJuniorIssueLimit(
+            Number(pageData.non_entry_ticket_count ?? 0) >= maxIssueCapacity &&
+              Number(pageData.entry_only_ticket_count ?? 0) !== 0,
+          );
+        }
+        ticketsData = (pageData.tickets ?? []) as Array<{
           code: string;
           signature: string;
           relationship: number;
@@ -689,58 +590,12 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         }),
       );
 
-      const classPerformanceIds = [
-        ...new Set(
-          decodedTickets
-            .filter(
-              (item) =>
-                (item.decoded?.performanceId ?? 0) > 0 &&
-                (item.decoded?.scheduleId ?? 0) > 0,
-            )
-            .map((item) => item.decoded?.performanceId ?? 0)
-            .filter((id) => id > 0),
-        ),
-      ];
-      const gymPerformanceIds = [
-        ...new Set(
-          decodedTickets
-            .filter(
-              (item) =>
-                (item.decoded?.performanceId ?? 0) > 0 &&
-                (item.decoded?.scheduleId ?? 0) === 0,
-            )
-            .map((item) => item.decoded?.performanceId ?? 0)
-            .filter((id) => id > 0),
-        ),
-      ];
-
-      let classPerformanceData: unknown;
-      let gymPerformanceData: unknown;
-      try {
-        const [classPerformanceResult, gymPerformanceResult] =
-          await withTimeout(
-            Promise.all([
-              classPerformanceIds.length > 0
-                ? supabase
-                    .from("class_performances")
-                    .select("id, class_name, title")
-                    .in("id", classPerformanceIds)
-                : Promise.resolve({ data: [] }),
-              gymPerformanceIds.length > 0
-                ? supabase
-                    .from("gym_performances")
-                    .select("id, group_name, round_name")
-                    .in("id", gymPerformanceIds)
-                : Promise.resolve({ data: [] }),
-            ]),
-            SUPABASE_RESPONSE_TIMEOUT_MS,
-          );
-        classPerformanceData = classPerformanceResult.data;
-        gymPerformanceData = gymPerformanceResult.data;
-      } catch {
-        fallbackToCachedTickets("チケット情報の取得がタイムアウトしました。");
-        return;
-      }
+      const pageData = (pageResponse ?? {}) as {
+        class_performances?: unknown[];
+        gym_performances?: unknown[];
+      };
+      const classPerformanceData = pageData.class_performances ?? [];
+      const gymPerformanceData = pageData.gym_performances ?? [];
 
       const classPerformanceMap = new Map(
         (

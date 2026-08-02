@@ -6,6 +6,7 @@ import { useLocation } from "preact-iso";
 import type { AvailableSeatSelection } from "../../types/types";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { withTimeout } from "../../utils/withTimeout";
+import { getPerformanceAvailability } from "./performanceAvailability";
 
 type GymPerformanceRow = {
   id: number;
@@ -115,24 +116,19 @@ const GymPerformancesTable = ({
         }
       };
 
-      let query = supabase
-        .from("gym_performances")
-        .select(
-          "id, group_name, round_name, start_at, capacity, junior_capacity",
-        )
-        .order("start_at", { ascending: true })
-        .order("id", { ascending: true });
-
-      if (filterAccepting) {
-        query = query.eq("is_accepting", true);
-      }
-
-      let performanceData: unknown;
-      let performanceError: unknown;
+      let availabilityData: {
+        gym_performances?: Array<GymPerformanceRow & { is_accepting?: boolean }>;
+        gym_counters?: GymTicketCounterRow[];
+        config?: { junior_release_open?: boolean | null };
+      } | null = null;
+      let availabilityError: unknown;
       try {
-        const result = await withTimeout(query, SUPABASE_RESPONSE_TIMEOUT_MS);
-        performanceData = result.data;
-        performanceError = result.error;
+        const result = await withTimeout(
+          getPerformanceAvailability(),
+          SUPABASE_RESPONSE_TIMEOUT_MS,
+        );
+        availabilityData = result.data as typeof availabilityData;
+        availabilityError = result.error;
       } catch {
         if (!restoreCache()) {
           setErrorMessage("体育館公演の取得がタイムアウトしました。");
@@ -141,16 +137,19 @@ const GymPerformancesTable = ({
         return;
       }
 
-      if (performanceError) {
+      if (availabilityError) {
         setErrorMessage("体育館公演の取得に失敗しました。");
         setLoading(false);
         return;
       }
 
       const loadedPerformances = (
-        (performanceData ?? []) as GymPerformanceRow[]
+        (availabilityData?.gym_performances ?? []) as Array<
+          GymPerformanceRow & { is_accepting?: boolean }
+        >
       ).filter(
         (performance) =>
+          (!filterAccepting || performance.is_accepting === true) &&
           (!restrictedGroupNames ||
             restrictedGroupNames.includes(performance.group_name)) &&
           (!scheduleFilter || scheduleFilter(0, performance.round_name)),
@@ -163,45 +162,8 @@ const GymPerformancesTable = ({
         return;
       }
 
-      const performanceIds = loadedPerformances.map((p) => p.id);
-
-      let counterData: unknown;
-      let configData: { junior_release_open?: boolean | null } | null = null;
-      let counterError: unknown;
-      let configError: unknown;
-      try {
-        const [
-          { data: loadedCounterData, error: loadedCounterError },
-          { data: loadedConfigData, error: loadedConfigError },
-        ] = await withTimeout(Promise.all([
-          supabase
-            .from("gym_ticket_counters")
-            .select("performance_id, issued_general, issued_junior, issued_other")
-            .in("performance_id", performanceIds),
-          supabase
-            .from("configs")
-            .select("junior_release_open")
-            .order("id", { ascending: true })
-            .limit(1)
-            .maybeSingle(),
-        ]), SUPABASE_RESPONSE_TIMEOUT_MS);
-        counterData = loadedCounterData;
-        configData = loadedConfigData;
-        counterError = loadedCounterError;
-        configError = loadedConfigError;
-      } catch {
-        if (!restoreCache()) {
-          setErrorMessage("体育館公演の残席情報の取得がタイムアウトしました。");
-          setLoading(false);
-        }
-        return;
-      }
-
-      if (counterError || configError) {
-        setErrorMessage("体育館公演の残席情報の取得に失敗しました。");
-        setLoading(false);
-        return;
-      }
+      const counterData = availabilityData?.gym_counters ?? [];
+      const configData = availabilityData?.config ?? null;
 
       const counts = new Map<
         number,

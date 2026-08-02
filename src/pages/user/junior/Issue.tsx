@@ -19,6 +19,7 @@ import type {
   TicketTypeOption,
 } from "../../../types/Issue.types";
 import { formatDateText } from "../../../utils/formatDateText";
+import { getJuniorIssueBootstrap } from "../../../features/tickets/juniorIssueBootstrap";
 import styles from "../students/Issue.module.css";
 import {
   getJuniorApplicationDayVisibility,
@@ -167,15 +168,11 @@ const Issue = () => {
 
   useEffect(() => {
     const loadIssuingState = async () => {
-      const { data } = await supabase
-        .from("configs")
-        .select("is_active")
-        .order("id", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      const { data } = await getJuniorIssueBootstrap();
+      const configData = (data as { config?: { is_active?: boolean | null } })?.config;
 
-      if (typeof data?.is_active === "boolean") {
-        setIsTicketIssuingEnabled(data.is_active);
+      if (typeof configData?.is_active === "boolean") {
+        setIsTicketIssuingEnabled(configData.is_active);
       }
     };
     void loadIssuingState();
@@ -225,23 +222,9 @@ const Issue = () => {
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("application_day")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (error) {
-        return;
-      }
+      const { data: bootstrapData } = await getJuniorIssueBootstrap();
+      const data = (bootstrapData as { profile?: { application_day?: string | null } } | null)?.profile;
+      if (!data) return;
 
       const databaseSelection = parseJuniorApplicationDaySelection(
         data?.application_day,
@@ -269,11 +252,8 @@ const Issue = () => {
 
   useEffect(() => {
     const loadIssueControls = async () => {
-      const { data, error } = await supabase
-        .from("ticket_issue_controls")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle();
+      const { data: bootstrapData, error } = await getJuniorIssueBootstrap();
+      const data = (bootstrapData as { controls?: typeof issueControls } | null)?.controls;
 
       if (error || !data) {
         return;
@@ -286,27 +266,11 @@ const Issue = () => {
 
   useEffect(() => {
     const loadHasIssuedJuniorEntryOnlyTicket = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        setHasIssuedJuniorEntryOnlyTicket(false);
-        return;
-      }
-
-      const { count, error } = await supabase
-        .from("tickets")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("status", "valid")
-        .eq("ticket_type", JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
-
+      const { data, error } = await getJuniorIssueBootstrap();
       if (error) {
         return;
       }
-
-      setHasIssuedJuniorEntryOnlyTicket(Number(count ?? 0) > 0);
+      setHasIssuedJuniorEntryOnlyTicket(Number((data as { entry_only_ticket_count?: number } | null)?.entry_only_ticket_count ?? 0) > 0);
     };
 
     void loadHasIssuedJuniorEntryOnlyTicket();
@@ -314,46 +278,20 @@ const Issue = () => {
 
   useEffect(() => {
     const loadJuniorIssueCapacity = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        return;
-      }
-
-      const [
-        { data: configData, error: configError },
-        { data: userData, error: userError },
-        { count, error: countError },
-      ] = await Promise.all([
-        supabase
-          .from("configs")
-          .select("max_tickets_per_junior_user")
-          .order("id", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("users")
-          .select("junior_usage_type")
-          .eq("id", userId)
-          .maybeSingle(),
-        supabase
-          .from("tickets")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("status", "valid")
-          .neq("ticket_type", JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID),
-      ]);
-
-      if (configError || userError || countError) {
+      const { data } = await getJuniorIssueBootstrap();
+      const bootstrap = data as {
+        config?: { max_tickets_per_junior_user?: number | null };
+        profile?: { junior_usage_type?: number | null };
+        non_entry_ticket_count?: number;
+      } | null;
+      if (!bootstrap) {
         return;
       }
 
       const maxTicketsPerJuniorUser = Number(
-        configData?.max_tickets_per_junior_user ?? -1,
+        bootstrap.config?.max_tickets_per_junior_user ?? -1,
       );
-      const juniorUsageType = Number(userData?.junior_usage_type ?? -1);
+      const juniorUsageType = Number(bootstrap.profile?.junior_usage_type ?? -1);
       if (
         !Number.isInteger(maxTicketsPerJuniorUser) ||
         maxTicketsPerJuniorUser < 0
@@ -366,7 +304,7 @@ const Issue = () => {
         juniorUsageType === 0 || juniorUsageType === 1
           ? maxTicketsPerJuniorUser * 2
           : maxTicketsPerJuniorUser;
-      const existingIssueCapacity = Number(count ?? 0);
+      const existingIssueCapacity = Number(bootstrap.non_entry_ticket_count ?? 0);
 
       setJuniorIssueCost(issueCost);
       setRemainingJuniorIssueCapacity(
@@ -379,11 +317,8 @@ const Issue = () => {
 
   useEffect(() => {
     const loadTicketTypes = async () => {
-      const { data, error } = await supabase
-        .from("ticket_types")
-        .select("id, name, type")
-        .eq("type", "中学生券")
-        .order("id", { ascending: true });
+      const { data: bootstrapData, error } = await getJuniorIssueBootstrap();
+      const data = (bootstrapData as { ticket_types?: TicketTypeOption[] } | null)?.ticket_types;
 
       if (error) {
         alert("チケット種別の読み込みに失敗しました。");

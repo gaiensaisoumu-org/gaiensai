@@ -22,6 +22,7 @@ import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTyp
 import Alert from '../../../components/ui/Alert';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useTitle } from '../../../hooks/useTitle';
+import { getStudentIssueBootstrap } from '../../../features/tickets/studentIssueBootstrap';
 
 const MAX_ISSUE_COUNT = 5;
 const PANEL_ANIMATION_MS = 360;
@@ -178,15 +179,12 @@ const Issue = () => {
 
   useEffect(() => {
     const loadIssuingState = async () => {
-      const { data } = await supabase
-        .from('configs')
-        .select('is_active')
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      const { data } = await getStudentIssueBootstrap();
+      const configData = (data as { config?: { is_active?: boolean | null } })
+        ?.config;
 
-      if (typeof data?.is_active === 'boolean') {
-        setIsTicketIssuingEnabled(data.is_active);
+      if (typeof configData?.is_active === 'boolean') {
+        setIsTicketIssuingEnabled(configData.is_active);
       }
     };
 
@@ -195,49 +193,23 @@ const Issue = () => {
 
   useEffect(() => {
     const loadRemainingIssueCapacity = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
+      const { data } = await getStudentIssueBootstrap();
+      const bootstrap = data as {
+        config?: { max_tickets_per_user?: number | null; max_tickets_per_gym_user?: number | null };
+        profile?: { clubs?: string[] | null };
+        class_ticket_count?: number;
+        gym_ticket_count?: number;
+      } | null;
+      if (!bootstrap) {
         return;
       }
 
-      const [
-        { data: configData, error: configError },
-        { count: classCount, error: classCountError },
-        { count: gymCount, error: gymCountError },
-        { data: userData, error: userError },
-      ] = await Promise.all([
-        supabase
-          .from('configs')
-          .select('max_tickets_per_user, max_tickets_per_gym_user')
-          .order('id', { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('class_tickets')
-          .select('id, tickets!inner(id)', { count: 'exact', head: true })
-          .eq('tickets.user_id', userId)
-          .eq('tickets.status', 'valid'),
-        supabase
-          .from('gym_tickets')
-          .select('id, tickets!inner(id)', { count: 'exact', head: true })
-          .eq('tickets.user_id', userId)
-          .eq('tickets.status', 'valid'),
-        supabase.from('users').select('clubs').eq('id', userId).maybeSingle(),
-      ]);
-
-      if (configError || classCountError || gymCountError || userError) {
-        return;
-      }
-
-      const maxTicketsPerUser = Number(configData?.max_tickets_per_user ?? -1);
+      const maxTicketsPerUser = Number(bootstrap.config?.max_tickets_per_user ?? -1);
       const maxTicketsPerGymUser = Number(
-        configData?.max_tickets_per_gym_user ?? -1,
+        bootstrap.config?.max_tickets_per_gym_user ?? -1,
       );
       const gymTicketLimitMultiplier = Math.max(
-        Array.isArray(userData?.clubs) ? userData.clubs.length : 0,
+        Array.isArray(bootstrap.profile?.clubs) ? bootstrap.profile.clubs.length : 0,
         1,
       );
       if (
@@ -250,11 +222,11 @@ const Issue = () => {
       }
 
       setRemainingIssueCapacity({
-        class: Math.max(0, maxTicketsPerUser - Number(classCount ?? 0)),
+        class: Math.max(0, maxTicketsPerUser - Number(bootstrap.class_ticket_count ?? 0)),
         gym: Math.max(
           0,
           maxTicketsPerGymUser * gymTicketLimitMultiplier -
-            Number(gymCount ?? 0),
+            Number(bootstrap.gym_ticket_count ?? 0),
         ),
       });
     };
@@ -264,21 +236,11 @@ const Issue = () => {
 
   useEffect(() => {
     const loadOwnProfile = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (!userId) {
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('users')
-        .select('affiliation, clubs')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
+      const { data: bootstrapData } = await getStudentIssueBootstrap();
+      const data = (bootstrapData as {
+        profile?: { affiliation?: number | null; clubs?: string[] | null };
+      } | null)?.profile;
+      if (!data) {
         return;
       }
 
@@ -309,15 +271,15 @@ const Issue = () => {
   useEffect(() => {
     const loadIssueControls = async () => {
       try {
-        const { data, error } = await supabase
-          .from('ticket_issue_controls')
-          .select('*')
-          .eq('id', 1)
-          .maybeSingle();
-
-        if (error) {
-          return;
-        }
+        const { data: bootstrapData } = await getStudentIssueBootstrap();
+        const data = (bootstrapData as {
+          controls?: {
+            class_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
+            rehearsal_invite_mode: 'open' | 'only-own' | 'off';
+            gym_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
+            entry_only_mode: 'open' | 'only-own' | 'off';
+          } | null;
+        } | null)?.controls;
 
         if (data) {
           setIssueControls(data);
@@ -333,12 +295,9 @@ const Issue = () => {
 
   useEffect(() => {
     const loadTicketTypes = async () => {
-      const { data, error } = await supabase
-        .from('ticket_types')
-        .select('id, name, type')
-        .eq('type', '招待券')
-        .order('id', { ascending: true });
-
+      const { data: bootstrapData, error } = await getStudentIssueBootstrap();
+      const data = (bootstrapData as { ticket_types?: TicketTypeOption[] } | null)
+        ?.ticket_types;
       if (error) {
         alert('チケット種別の読み込みに失敗しました。');
         return;
@@ -399,11 +358,9 @@ const Issue = () => {
     const loadRelationships = async () => {
       setRelationshipLoading(true);
 
-      const { data, error } = await supabase
-        .from('relationships')
-        .select('id, name')
-        .eq('is_accepting', true)
-        .order('id', { ascending: true });
+      const { data: bootstrapData, error } = await getStudentIssueBootstrap();
+      const data = (bootstrapData as { relationships?: RelationshipRow[] } | null)
+        ?.relationships;
 
       if (error) {
         setRelationshipError('間柄の読み込みに失敗しました。');
@@ -447,20 +404,10 @@ const Issue = () => {
       const performanceId = Number(params.get('performanceId'));
       const scheduleId = Number(params.get('scheduleId'));
 
-      const pickTicketTypeIdForVenue = async (
+      const pickTicketTypeIdForVenue = (
         targetVenue: 'class' | 'gym',
-      ): Promise<number | null> => {
-        const { data, error } = await supabase
-          .from('ticket_types')
-          .select('id, name, type')
-          .eq('type', '招待券')
-          .order('id', { ascending: true });
-
-        if (error) {
-          return null;
-        }
-
-        const options = (data ?? []) as Array<{
+      ): number | null => {
+        const options = ticketTypes as Array<{
           id: number;
           name: string;
         }>;
@@ -535,7 +482,7 @@ const Issue = () => {
           return;
         }
 
-        const gymTicketTypeId = await pickTicketTypeIdForVenue('gym');
+        const gymTicketTypeId = pickTicketTypeIdForVenue('gym');
         if (gymTicketTypeId !== null) {
           setSelectedTicketTypeId(gymTicketTypeId);
         }
@@ -605,7 +552,7 @@ const Issue = () => {
           });
 
           if (remaining > 0) {
-            const classTicketTypeId = await pickTicketTypeIdForVenue('class');
+            const classTicketTypeId = pickTicketTypeIdForVenue('class');
             if (classTicketTypeId !== null) {
               setSelectedTicketTypeId(classTicketTypeId);
             }
