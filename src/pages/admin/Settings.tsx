@@ -19,6 +19,7 @@ type ControlPanelSettings = {
   eventYear: number;
   showLength: number;
   maxTicketsPerUser: number;
+  maxTicketsPerGymUser: number;
   maxTicketsPerJuniorUser: number;
   maxAdmissionOnlyJuniorAccounts: number;
   juniorReleaseOpen: boolean;
@@ -137,7 +138,16 @@ const isTicketTypeControlValue = (
 const NUMERIC_SETTING_META = {
   eventYear: { label: "年度", min: 2020, max: 2100 },
   showLength: { label: "1公演の長さ（分）", min: 1, max: 300 },
-  maxTicketsPerUser: { label: "1人あたりのチケット購入上限", min: 1, max: 100 },
+  maxTicketsPerUser: {
+    label: "1人あたりのクラス公演チケット発行上限",
+    min: 1,
+    max: 100,
+  },
+  maxTicketsPerGymUser: {
+    label: "1人あたりの体育館公演チケット発行上限",
+    min: 1,
+    max: 100,
+  },
   maxTicketsPerJuniorUser: {
     label: "中学生のチケット購入上限",
     min: 1,
@@ -192,6 +202,7 @@ const SettingsContent = () => {
     eventYear: 2026,
     showLength: 60,
     maxTicketsPerUser: 20,
+    maxTicketsPerGymUser: 20,
     maxTicketsPerJuniorUser: 2,
     maxAdmissionOnlyJuniorAccounts: 100,
     juniorReleaseOpen: false,
@@ -476,6 +487,7 @@ const SettingsContent = () => {
           typeof nextSettings.eventYear !== "number" ||
           typeof nextSettings.showLength !== "number" ||
           typeof nextSettings.maxTicketsPerUser !== "number" ||
+          typeof nextSettings.maxTicketsPerGymUser !== "number" ||
           typeof nextSettings.maxAdmissionOnlyJuniorAccounts !== "number" ||
           typeof nextSettings.juniorReleaseOpen !== "boolean" ||
           typeof nextSettings.ticketIssuingEnabled !== "boolean" ||
@@ -655,6 +667,7 @@ const SettingsContent = () => {
           eventYear: nextSettings.eventYear,
           showLength: nextSettings.showLength,
           maxTicketsPerUser: nextSettings.maxTicketsPerUser,
+          maxTicketsPerGymUser: nextSettings.maxTicketsPerGymUser,
           maxTicketsPerJuniorUser: nextSettings.maxTicketsPerJuniorUser,
           maxAdmissionOnlyJuniorAccounts:
             nextSettings.maxAdmissionOnlyJuniorAccounts,
@@ -1589,6 +1602,30 @@ const SettingsContent = () => {
                   type="button"
                   className={styles.inlineEditButton}
                   onClick={() => openNumericEditModal("maxTicketsPerUser")}
+                  disabled={isSettingsLoading || isSyncingSetting}
+                >
+                  変更する
+                </button>
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label
+                className={styles.settingLabel}
+                htmlFor="ticket-max-per-gym-user"
+              >
+                1人あたりの体育館公演チケット発行上限
+              </label>
+              <div className={styles.settingControlGroup}>
+                <span
+                  id="ticket-max-per-gym-user"
+                  className={styles.fieldValue}
+                >
+                  {settings.maxTicketsPerGymUser}
+                </span>
+                <button
+                  type="button"
+                  className={styles.inlineEditButton}
+                  onClick={() => openNumericEditModal("maxTicketsPerGymUser")}
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する

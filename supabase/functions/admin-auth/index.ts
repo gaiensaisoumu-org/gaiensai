@@ -21,6 +21,7 @@ type AdminAuthRequest = {
   eventYear?: unknown;
   showLength?: unknown;
   maxTicketsPerUser?: unknown;
+  maxTicketsPerGymUser?: unknown;
   maxTicketsPerJuniorUser?: unknown;
   juniorReleaseOpen?: unknown;
   ticketIssuingEnabled?: unknown;
@@ -91,6 +92,7 @@ type AdminAuthBody =
       eventYear: number;
       showLength: number;
       maxTicketsPerUser: number;
+      maxTicketsPerGymUser: number;
       maxTicketsPerJuniorUser: number;
       maxAdmissionOnlyJuniorAccounts: number;
       juniorReleaseOpen: boolean;
@@ -121,6 +123,7 @@ type AdminSettingsRow = {
   event_year: number;
   show_length: number;
   max_tickets_per_user: number;
+  max_tickets_per_gym_user: number;
   max_tickets_per_junior_user: number;
   max_admission_only_junior_accounts: number;
   junior_release_open: boolean;
@@ -455,6 +458,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
       eventYear,
       showLength,
       maxTicketsPerUser,
+      maxTicketsPerGymUser,
       maxTicketsPerJuniorUser,
       juniorReleaseOpen,
       ticketIssuingEnabled,
@@ -520,6 +524,12 @@ const parseBody = (body: unknown): AdminAuthBody => {
       maxTicketsPerUser: normalizeInteger(
         maxTicketsPerUser,
         "maxTicketsPerUser",
+        1,
+        100,
+      ),
+      maxTicketsPerGymUser: normalizeInteger(
+        maxTicketsPerGymUser,
+        "maxTicketsPerGymUser",
         1,
         100,
       ),
@@ -671,7 +681,7 @@ const fetchAdminSettings = async (adminClient: SupabaseClient) => {
   const { data, error } = await adminClient
     .from("configs")
     .select(
-      "id, event_year, show_length, max_tickets_per_user, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active",
+      "id, event_year, show_length, max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active",
     )
     .limit(1);
 
@@ -1517,6 +1527,7 @@ Deno.serve(async (req) => {
             eventYear: settings.event_year,
             showLength: settings.show_length,
             maxTicketsPerUser: settings.max_tickets_per_user,
+            maxTicketsPerGymUser: settings.max_tickets_per_gym_user,
             maxTicketsPerJuniorUser: settings.max_tickets_per_junior_user,
             maxAdmissionOnlyJuniorAccounts:
               settings.max_admission_only_junior_accounts,
@@ -1550,6 +1561,7 @@ Deno.serve(async (req) => {
           event_year: body.eventYear,
           show_length: body.showLength,
           max_tickets_per_user: body.maxTicketsPerUser,
+          max_tickets_per_gym_user: body.maxTicketsPerGymUser,
           max_tickets_per_junior_user: body.maxTicketsPerJuniorUser,
           max_admission_only_junior_accounts:
             body.maxAdmissionOnlyJuniorAccounts,
@@ -1600,6 +1612,7 @@ Deno.serve(async (req) => {
             eventYear: body.eventYear,
             showLength: body.showLength,
             maxTicketsPerUser: body.maxTicketsPerUser,
+            maxTicketsPerGymUser: body.maxTicketsPerGymUser,
             maxTicketsPerJuniorUser: body.maxTicketsPerJuniorUser,
             maxAdmissionOnlyJuniorAccounts: body.maxAdmissionOnlyJuniorAccounts,
             juniorReleaseOpen: body.juniorReleaseOpen,

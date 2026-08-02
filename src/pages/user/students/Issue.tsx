@@ -1,32 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { useLocation } from "preact-iso";
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useLocation } from 'preact-iso';
 
-import IssueStepDetails from "../../../features/issue/IssueStepDetails";
-import IssueStepPerformance from "../../../features/issue/IssueStepPerformance";
-import IssueStepTicketType from "../../../features/issue/IssueStepTicketType";
-import { ISSUE_RESULT_STORAGE_KEY } from "../../../features/issue/issueResultStorage";
+import IssueStepDetails from '../../../features/issue/IssueStepDetails';
+import IssueStepPerformance from '../../../features/issue/IssueStepPerformance';
+import IssueStepTicketType from '../../../features/issue/IssueStepTicketType';
+import { ISSUE_RESULT_STORAGE_KEY } from '../../../features/issue/issueResultStorage';
 
-import { supabase } from "../../../lib/supabase";
-import performancesSnapshot from "../../../generated/performances-static.json";
+import { supabase } from '../../../lib/supabase';
+import performancesSnapshot from '../../../generated/performances-static.json';
 import type {
   RelationshipRow,
   SelectedPerformance,
   Step,
   TicketTypeOption,
-} from "../../../types/Issue.types";
-import styles from "./Issue.module.css";
-import BackButton from "../../../components/ui/BackButton";
-import { formatDateText } from "../../../utils/formatDateText";
-import { useEventConfig } from "../../../hooks/useEventConfig";
-import { formatTicketTypeLabel } from "../../../features/tickets/formatTicketTypeLabel";
-import Alert from "../../../components/ui/Alert";
-import LoadingSpinner from "../../../components/ui/LoadingSpinner";
-import { useTitle } from "../../../hooks/useTitle";
+} from '../../../types/Issue.types';
+import styles from './Issue.module.css';
+import BackButton from '../../../components/ui/BackButton';
+import { formatDateText } from '../../../utils/formatDateText';
+import { useEventConfig } from '../../../hooks/useEventConfig';
+import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
+import Alert from '../../../components/ui/Alert';
+import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import { useTitle } from '../../../hooks/useTitle';
 
 const MAX_ISSUE_COUNT = 5;
 const PANEL_ANIMATION_MS = 360;
-const ADMISSION_ONLY_TICKET_NAME = "入場専用券";
-const GYM_TICKET_KEYWORD = "体育館";
+const ADMISSION_ONLY_TICKET_NAME = '入場専用券';
+const GYM_TICKET_KEYWORD = '体育館';
 const CLASS_INVITE_TICKET_ID = 1;
 const GYM_INVITE_TICKET_ID = 3;
 
@@ -80,9 +80,9 @@ const calculateClassGeneralRemaining = ({
 
 const readFunctionErrorMessage = async (error: unknown): Promise<string> => {
   const fallback =
-    error instanceof Error ? error.message : "不明なエラーが発生しました。";
+    error instanceof Error ? error.message : '不明なエラーが発生しました。';
 
-  if (!error || typeof error !== "object") {
+  if (!error || typeof error !== 'object') {
     return fallback;
   }
 
@@ -101,23 +101,23 @@ const readFunctionErrorMessage = async (error: unknown): Promise<string> => {
             text?: () => Promise<string>;
           });
 
-    if (typeof response.json === "function") {
+    if (typeof response.json === 'function') {
       const payload = await response.json();
 
-      if (payload && typeof payload === "object") {
+      if (payload && typeof payload === 'object') {
         const maybeMessage =
           (payload as { error?: unknown; message?: unknown; msg?: unknown })
             .error ??
           (payload as { message?: unknown }).message ??
           (payload as { msg?: unknown }).msg;
 
-        if (typeof maybeMessage === "string" && maybeMessage.length > 0) {
+        if (typeof maybeMessage === 'string' && maybeMessage.length > 0) {
           return maybeMessage;
         }
       }
     }
 
-    if (typeof response.text === "function") {
+    if (typeof response.text === 'function') {
       const text = await response.text();
 
       if (text.length > 0) {
@@ -138,10 +138,10 @@ const Issue = () => {
     useState<SelectedPerformance>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketTypeOption[]>([]);
   const [issueControls, setIssueControls] = useState<{
-    class_invite_mode: "open" | "only-own" | "off";
-    rehearsal_invite_mode: "open" | "only-own" | "off";
-    gym_invite_mode: "open" | "only-own" | "off";
-    entry_only_mode: "open" | "only-own" | "off";
+    class_invite_mode: 'open' | 'only-own' | 'off';
+    rehearsal_invite_mode: 'open' | 'only-own' | 'off';
+    gym_invite_mode: 'open' | 'only-own' | 'off';
+    entry_only_mode: 'open' | 'only-own' | 'off';
   } | null>(null);
   const [relationships, setRelationships] = useState<RelationshipRow[]>([]);
   const [relationshipLoading, setRelationshipLoading] = useState(true);
@@ -152,14 +152,15 @@ const Issue = () => {
     number | null
   >(null);
   const [issueCount, setIssueCount] = useState(1);
-  const [remainingIssueCapacity, setRemainingIssueCapacity] = useState<
-    number | null
-  >(null);
+  const [remainingIssueCapacity, setRemainingIssueCapacity] = useState<{
+    class: number;
+    gym: number;
+  } | null>(null);
   const [isIssuing, setIsIssuing] = useState(false);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
   const [classInviteMode, setClassInviteMode] = useState<
-    "open" | "only-own" | "off"
-  >("open");
+    'open' | 'only-own' | 'off'
+  >('open');
   const [ownClassName, setOwnClassName] = useState<string | null>(null);
   const [ownClubs, setOwnClubs] = useState<string[] | null>(null);
   const [leavingStep, setLeavingStep] = useState<Step | null>(null);
@@ -173,18 +174,18 @@ const Issue = () => {
   const { route } = useLocation();
   const { config } = useEventConfig();
 
-  useTitle("チケット発券 - 生徒用ページ");
+  useTitle('チケット発券 - 生徒用ページ');
 
   useEffect(() => {
     const loadIssuingState = async () => {
       const { data } = await supabase
-        .from("configs")
-        .select("is_active")
-        .order("id", { ascending: true })
+        .from('configs')
+        .select('is_active')
+        .order('id', { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (typeof data?.is_active === "boolean") {
+      if (typeof data?.is_active === 'boolean') {
         setIsTicketIssuingEnabled(data.is_active);
       }
     };
@@ -204,35 +205,48 @@ const Issue = () => {
 
       const [
         { data: configData, error: configError },
-        { count, error: countError },
+        { count: classCount, error: classCountError },
+        { count: gymCount, error: gymCountError },
       ] = await Promise.all([
         supabase
-          .from("configs")
-          .select("max_tickets_per_user")
-          .order("id", { ascending: true })
+          .from('configs')
+          .select('max_tickets_per_user, max_tickets_per_gym_user')
+          .order('id', { ascending: true })
           .limit(1)
           .maybeSingle(),
         supabase
-          .from("tickets")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("status", "valid")
-          .neq("ticket_type", 4), // 入場専用券を除外
+          .from('class_tickets')
+          .select('id, tickets!inner(id)', { count: 'exact', head: true })
+          .eq('tickets.user_id', userId)
+          .eq('tickets.status', 'valid'),
+        supabase
+          .from('gym_tickets')
+          .select('id, tickets!inner(id)', { count: 'exact', head: true })
+          .eq('tickets.user_id', userId)
+          .eq('tickets.status', 'valid'),
       ]);
 
-      if (configError || countError) {
+      if (configError || classCountError || gymCountError) {
         return;
       }
 
       const maxTicketsPerUser = Number(configData?.max_tickets_per_user ?? -1);
-      if (!Number.isInteger(maxTicketsPerUser) || maxTicketsPerUser < 0) {
+      const maxTicketsPerGymUser = Number(
+        configData?.max_tickets_per_gym_user ?? -1,
+      );
+      if (
+        !Number.isInteger(maxTicketsPerUser) ||
+        !Number.isInteger(maxTicketsPerGymUser) ||
+        maxTicketsPerUser < 0 ||
+        maxTicketsPerGymUser < 0
+      ) {
         return;
       }
 
-      const existingTicketCount = Number(count ?? 0);
-      setRemainingIssueCapacity(
-        Math.max(0, maxTicketsPerUser - existingTicketCount),
-      );
+      setRemainingIssueCapacity({
+        class: Math.max(0, maxTicketsPerUser - Number(classCount ?? 0)),
+        gym: Math.max(0, maxTicketsPerGymUser - Number(gymCount ?? 0)),
+      });
     };
 
     void loadRemainingIssueCapacity();
@@ -249,9 +263,9 @@ const Issue = () => {
       }
 
       const { data, error } = await supabase
-        .from("users")
-        .select("affiliation, clubs")
-        .eq("id", userId)
+        .from('users')
+        .select('affiliation, clubs')
+        .eq('id', userId)
         .maybeSingle();
 
       if (error) {
@@ -286,9 +300,9 @@ const Issue = () => {
     const loadIssueControls = async () => {
       try {
         const { data, error } = await supabase
-          .from("ticket_issue_controls")
-          .select("*")
-          .eq("id", 1)
+          .from('ticket_issue_controls')
+          .select('*')
+          .eq('id', 1)
           .maybeSingle();
 
         if (error) {
@@ -310,13 +324,13 @@ const Issue = () => {
   useEffect(() => {
     const loadTicketTypes = async () => {
       const { data, error } = await supabase
-        .from("ticket_types")
-        .select("id, name, type")
-        .eq("type", "招待券")
-        .order("id", { ascending: true });
+        .from('ticket_types')
+        .select('id, name, type')
+        .eq('type', '招待券')
+        .order('id', { ascending: true });
 
       if (error) {
-        alert("チケット種別の読み込みに失敗しました。");
+        alert('チケット種別の読み込みに失敗しました。');
         return;
       }
 
@@ -332,24 +346,27 @@ const Issue = () => {
     if (!issueControls) {
       return [];
     }
-    const hasReachedCapacity =
-      remainingIssueCapacity !== null && remainingIssueCapacity <= 0;
+    const hasReachedClassCapacity =
+      remainingIssueCapacity !== null && remainingIssueCapacity.class <= 0;
+    const hasReachedGymCapacity =
+      remainingIssueCapacity !== null && remainingIssueCapacity.gym <= 0;
     return ticketTypes.map((t) => {
       let isActive = false;
       if (t.id === 1) {
         isActive =
-          issueControls.class_invite_mode !== "off" && !hasReachedCapacity;
+          issueControls.class_invite_mode !== 'off' && !hasReachedClassCapacity;
       } else if (t.id === 2) {
         isActive =
-          issueControls.rehearsal_invite_mode !== "off" && !hasReachedCapacity;
+          issueControls.rehearsal_invite_mode !== 'off' &&
+          !hasReachedClassCapacity;
       } else if (t.id === 3) {
         isActive =
-          issueControls.gym_invite_mode !== "off" &&
-          !hasReachedCapacity &&
-          (issueControls.gym_invite_mode !== "only-own" ||
+          issueControls.gym_invite_mode !== 'off' &&
+          !hasReachedGymCapacity &&
+          (issueControls.gym_invite_mode !== 'only-own' ||
             (ownClubs !== null && ownClubs.length > 0));
       } else if (t.id === 4) {
-        isActive = issueControls.entry_only_mode !== "off";
+        isActive = issueControls.entry_only_mode !== 'off';
       }
       return { ...t, is_active: isActive };
     });
@@ -373,13 +390,13 @@ const Issue = () => {
       setRelationshipLoading(true);
 
       const { data, error } = await supabase
-        .from("relationships")
-        .select("id, name")
-        .eq("is_accepting", true)
-        .order("id", { ascending: true });
+        .from('relationships')
+        .select('id, name')
+        .eq('is_accepting', true)
+        .order('id', { ascending: true });
 
       if (error) {
-        setRelationshipError("間柄の読み込みに失敗しました。");
+        setRelationshipError('間柄の読み込みに失敗しました。');
         setRelationshipLoading(false);
         return;
       }
@@ -416,18 +433,18 @@ const Issue = () => {
       setSelectionFromQueryHasRun(true);
       setIsInitializing(true); // 読み込み開始
       const params = new URLSearchParams(window.location.search);
-      const venue = params.get("venue");
-      const performanceId = Number(params.get("performanceId"));
-      const scheduleId = Number(params.get("scheduleId"));
+      const venue = params.get('venue');
+      const performanceId = Number(params.get('performanceId'));
+      const scheduleId = Number(params.get('scheduleId'));
 
       const pickTicketTypeIdForVenue = async (
-        targetVenue: "class" | "gym",
+        targetVenue: 'class' | 'gym',
       ): Promise<number | null> => {
         const { data, error } = await supabase
-          .from("ticket_types")
-          .select("id, name, type")
-          .eq("type", "招待券")
-          .order("id", { ascending: true });
+          .from('ticket_types')
+          .select('id, name, type')
+          .eq('type', '招待券')
+          .order('id', { ascending: true });
 
         if (error) {
           return null;
@@ -444,7 +461,7 @@ const Issue = () => {
             ticketType.name === ADMISSION_ONLY_TICKET_NAME;
           const isGym = ticketType.name.includes(GYM_TICKET_KEYWORD);
 
-          if (targetVenue === "gym") {
+          if (targetVenue === 'gym') {
             return isGym;
           }
 
@@ -454,7 +471,7 @@ const Issue = () => {
         return picked?.id ?? null;
       };
 
-      if (venue === "gym") {
+      if (venue === 'gym') {
         if (!Number.isInteger(performanceId) || performanceId <= 0) {
           return;
         }
@@ -465,19 +482,19 @@ const Issue = () => {
           { data: configData, error: configError },
         ] = await Promise.all([
           supabase
-            .from("gym_performances")
-            .select("id, group_name, round_name, capacity, junior_capacity")
-            .eq("id", performanceId)
+            .from('gym_performances')
+            .select('id, group_name, round_name, capacity, junior_capacity')
+            .eq('id', performanceId)
             .maybeSingle(),
           supabase
-            .from("gym_ticket_counters")
-            .select("issued_general, issued_junior, issued_other")
-            .eq("performance_id", performanceId)
+            .from('gym_ticket_counters')
+            .select('issued_general, issued_junior, issued_other')
+            .eq('performance_id', performanceId)
             .maybeSingle(),
           supabase
-            .from("configs")
-            .select("junior_release_open")
-            .order("id", { ascending: true })
+            .from('configs')
+            .select('junior_release_open')
+            .order('id', { ascending: true })
             .limit(1)
             .maybeSingle(),
         ]);
@@ -508,7 +525,7 @@ const Issue = () => {
           return;
         }
 
-        const gymTicketTypeId = await pickTicketTypeIdForVenue("gym");
+        const gymTicketTypeId = await pickTicketTypeIdForVenue('gym');
         if (gymTicketTypeId !== null) {
           setSelectedTicketTypeId(gymTicketTypeId);
         }
@@ -536,25 +553,25 @@ const Issue = () => {
           { data: configData, error: configError },
         ] = await Promise.all([
           supabase
-            .from("class_performances")
-            .select("id, class_name, total_capacity, junior_capacity")
-            .eq("id", performanceId)
+            .from('class_performances')
+            .select('id, class_name, total_capacity, junior_capacity')
+            .eq('id', performanceId)
             .maybeSingle(),
           supabase
-            .from("performances_schedule")
-            .select("id, round_name")
-            .eq("id", scheduleId)
+            .from('performances_schedule')
+            .select('id, round_name')
+            .eq('id', scheduleId)
             .maybeSingle(),
           supabase
-            .from("class_ticket_counters")
-            .select("issued_general, issued_junior, issued_other")
-            .eq("class_id", performanceId)
-            .eq("round_id", scheduleId)
+            .from('class_ticket_counters')
+            .select('issued_general, issued_junior, issued_other')
+            .eq('class_id', performanceId)
+            .eq('round_id', scheduleId)
             .maybeSingle(),
           supabase
-            .from("configs")
-            .select("junior_release_open")
-            .order("id", { ascending: true })
+            .from('configs')
+            .select('junior_release_open')
+            .order('id', { ascending: true })
             .limit(1)
             .maybeSingle(),
         ]);
@@ -578,7 +595,7 @@ const Issue = () => {
           });
 
           if (remaining > 0) {
-            const classTicketTypeId = await pickTicketTypeIdForVenue("class");
+            const classTicketTypeId = await pickTicketTypeIdForVenue('class');
             if (classTicketTypeId !== null) {
               setSelectedTicketTypeId(classTicketTypeId);
             }
@@ -634,12 +651,12 @@ const Issue = () => {
     !isTicketIssuingEnabled || !hasAnyActiveTicketType;
   const restrictedClassName =
     selectedTicketType?.id === CLASS_INVITE_TICKET_ID &&
-    classInviteMode === "only-own"
-      ? (ownClassName ?? "__NO_CLASS__")
+    classInviteMode === 'only-own'
+      ? (ownClassName ?? '__NO_CLASS__')
       : null;
   const restrictedGroupNames =
     selectedTicketType?.id === GYM_INVITE_TICKET_ID &&
-    issueControls?.gym_invite_mode === "only-own"
+    issueControls?.gym_invite_mode === 'only-own'
       ? (ownClubs ?? [])
       : null;
 
@@ -656,9 +673,9 @@ const Issue = () => {
       ) {
         setSelectedPerformance({
           performanceId: 0,
-          performanceName: "-",
+          performanceName: '-',
           scheduleId: 0,
-          scheduleName: "-",
+          scheduleName: '-',
           remaining: 0,
         });
       }
@@ -715,32 +732,46 @@ const Issue = () => {
     selectedRelationshipId !== null &&
     issueCount > 0;
   const isSelectedEntryOnlyTicket = selectedTicketType?.id === 4;
+  const selectedRemainingIssueCapacity =
+    remainingIssueCapacity === null
+      ? null
+      : isGymPerformanceTicket
+        ? remainingIssueCapacity.gym
+        : remainingIssueCapacity.class;
+  const isAtClassIssueLimit =
+    remainingIssueCapacity !== null && remainingIssueCapacity.class <= 0;
+  const isAtGymIssueLimit =
+    remainingIssueCapacity !== null && remainingIssueCapacity.gym <= 0;
+  const isAtAllIssueLimits = isAtClassIssueLimit && isAtGymIssueLimit;
   const isAtIssueLimit =
     !isSelectedEntryOnlyTicket &&
-    remainingIssueCapacity !== null &&
-    remainingIssueCapacity <= 0;
+    selectedRemainingIssueCapacity !== null &&
+    selectedRemainingIssueCapacity <= 0;
   const isOverRemainingIssueCapacity =
     !isSelectedEntryOnlyTicket &&
-    remainingIssueCapacity !== null &&
-    issueCount > remainingIssueCapacity;
+    selectedRemainingIssueCapacity !== null &&
+    issueCount > selectedRemainingIssueCapacity;
   const maxSelectableIssueCount =
-    remainingIssueCapacity === null || isSelectedEntryOnlyTicket
+    selectedRemainingIssueCapacity === null || isSelectedEntryOnlyTicket
       ? MAX_ISSUE_COUNT
-      : Math.max(1, Math.min(MAX_ISSUE_COUNT, remainingIssueCapacity));
+      : Math.max(1, Math.min(MAX_ISSUE_COUNT, selectedRemainingIssueCapacity));
 
   useEffect(() => {
-    if (remainingIssueCapacity === null || remainingIssueCapacity <= 0) {
+    if (
+      selectedRemainingIssueCapacity === null ||
+      selectedRemainingIssueCapacity <= 0
+    ) {
       return;
     }
 
     if (issueCount > maxSelectableIssueCount) {
       setIssueCount(maxSelectableIssueCount);
     }
-  }, [issueCount, maxSelectableIssueCount, remainingIssueCapacity]);
+  }, [issueCount, maxSelectableIssueCount, selectedRemainingIssueCapacity]);
 
   const shouldShowOnlyOwnClassAlert = useMemo(() => {
     if (
-      classInviteMode !== "only-own" ||
+      classInviteMode !== 'only-own' ||
       !ownClassName ||
       !selectedTicketType
     ) {
@@ -785,7 +816,7 @@ const Issue = () => {
 
   const shouldShowOnlyOwnGymAlert = useMemo(() => {
     if (
-      issueControls?.gym_invite_mode !== "only-own" ||
+      issueControls?.gym_invite_mode !== 'only-own' ||
       !ownClubs ||
       !selectedTicketType
     ) {
@@ -833,7 +864,7 @@ const Issue = () => {
     setStep(nextStep);
 
     if (movingForward) {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }
 
     animationTimerRef.current = window.setTimeout(() => {
@@ -864,7 +895,7 @@ const Issue = () => {
 
   const handleIssue = async () => {
     if (isIssueReceptionStopped) {
-      alert("現在チケット発券は受付停止中です。");
+      alert('現在チケット発券は受付停止中です。');
       return;
     }
 
@@ -886,47 +917,47 @@ const Issue = () => {
     ] = await Promise.all([
       !isGymSelection && selectedPerformance.performanceId > 0
         ? supabase
-            .from("class_performances")
-            .select("title")
-            .eq("id", selectedPerformance.performanceId)
+            .from('class_performances')
+            .select('title')
+            .eq('id', selectedPerformance.performanceId)
             .maybeSingle()
         : { data: null },
       selectedPerformance.scheduleId > 0
         ? supabase
-            .from("performances_schedule")
-            .select("start_at, end_at")
-            .eq("id", selectedPerformance.scheduleId)
+            .from('performances_schedule')
+            .select('start_at, end_at')
+            .eq('id', selectedPerformance.scheduleId)
             .maybeSingle()
         : { data: null },
       isGymSelection
         ? supabase
-            .from("gym_performances")
-            .select("start_at")
-            .eq("id", selectedPerformance.performanceId)
+            .from('gym_performances')
+            .select('start_at')
+            .eq('id', selectedPerformance.performanceId)
             .maybeSingle()
         : { data: null },
       supabase
-        .from("configs")
-        .select("show_length")
-        .order("id", { ascending: true })
+        .from('configs')
+        .select('show_length')
+        .order('id', { ascending: true })
         .limit(1)
         .maybeSingle(),
     ]);
 
     // Calculate schedule date/time
-    let scheduleDate = "-";
-    let scheduleTime = "";
-    let scheduleEndTime = "";
+    let scheduleDate = '-';
+    let scheduleTime = '';
+    let scheduleEndTime = '';
 
     if (selectedPerformance.scheduleId === 0) {
       if (selectedPerformance.performanceId === 0) {
         // Admission only
         const eventDates = (config.date ?? []).filter(
-          (date) => typeof date === "string" && date.length > 0,
+          (date) => typeof date === 'string' && date.length > 0,
         );
-        scheduleDate = formatDateText(eventDates) || "-";
-        scheduleTime = "";
-        scheduleEndTime = "";
+        scheduleDate = formatDateText(eventDates) || '-';
+        scheduleTime = '';
+        scheduleEndTime = '';
       } else if (gymPerformanceData?.start_at) {
         const snapshot = (gymPerformanceSnapshot.gymPerformances ?? []).find(
           (performance) => performance.id === selectedPerformance.performanceId,
@@ -942,25 +973,25 @@ const Issue = () => {
             ? new Date(gymEndAt)
             : null;
 
-        scheduleDate = startAt.toLocaleDateString("ja-JP", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
+        scheduleDate = startAt.toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
         });
-        scheduleTime = startAt.toLocaleTimeString("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit",
+        scheduleTime = startAt.toLocaleTimeString('ja-JP', {
+          hour: '2-digit',
+          minute: '2-digit',
         });
         scheduleEndTime = endAt
-          ? endAt.toLocaleTimeString("ja-JP", {
-              hour: "2-digit",
-              minute: "2-digit",
+          ? endAt.toLocaleTimeString('ja-JP', {
+              hour: '2-digit',
+              minute: '2-digit',
             })
-          : "-";
+          : '-';
       } else {
-        scheduleDate = "-";
-        scheduleTime = "-";
-        scheduleEndTime = "-";
+        scheduleDate = '-';
+        scheduleTime = '-';
+        scheduleEndTime = '-';
       }
     } else if (scheduleData?.start_at) {
       const startAt = new Date(scheduleData.start_at);
@@ -969,24 +1000,24 @@ const Issue = () => {
         ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
         : null;
 
-      scheduleDate = startAt.toLocaleDateString("ja-JP", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+      scheduleDate = startAt.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
       });
-      scheduleTime = startAt.toLocaleTimeString("ja-JP", {
-        hour: "2-digit",
-        minute: "2-digit",
+      scheduleTime = startAt.toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
       });
       scheduleEndTime = endAt
-        ? endAt.toLocaleTimeString("ja-JP", {
-            hour: "2-digit",
-            minute: "2-digit",
+        ? endAt.toLocaleTimeString('ja-JP', {
+            hour: '2-digit',
+            minute: '2-digit',
           })
-        : "-";
+        : '-';
     }
 
-    const { data, error } = await supabase.functions.invoke("issue-tickets", {
+    const { data, error } = await supabase.functions.invoke('issue-tickets', {
       body: {
         ticketTypeId: selectedTicketType.id,
         relationshipId: selectedRelationshipId,
@@ -1010,7 +1041,7 @@ const Issue = () => {
     )?.issuedTickets;
 
     if (!issuedTickets || issuedTickets.length === 0) {
-      alert("発券結果を取得できませんでした。");
+      alert('発券結果を取得できませんでした。');
       setIsIssuing(false);
       return;
     }
@@ -1032,7 +1063,7 @@ const Issue = () => {
           type: selectedTicketType.type,
           name: selectedTicketType.name,
         }),
-        relationshipName: selectedRelationshipName ?? "-",
+        relationshipName: selectedRelationshipName ?? '-',
         relationshipId: selectedRelationshipId ?? 1,
         issuedTickets,
       }),
@@ -1040,7 +1071,7 @@ const Issue = () => {
     setIssueCount(1);
     setSelectedRelationshipId(null);
     setIsIssuing(false);
-    route("/students/issue/result");
+    route('/students/issue/result');
   };
 
   const isInitialLoading = !issueControls || ticketTypes.length === 0;
@@ -1048,7 +1079,7 @@ const Issue = () => {
   if (isInitialLoading) {
     return (
       <div className={styles.issuePage}>
-        <BackButton href="/students/dashboard" />
+        <BackButton href='/students/dashboard' />
         <h1 className={styles.pageTitle}>チケット発券</h1>
         <LoadingSpinner />
       </div>
@@ -1058,9 +1089,9 @@ const Issue = () => {
   if (isIssueReceptionStopped) {
     return (
       <div className={styles.issuePage}>
-        <BackButton href="/students/dashboard" />
+        <BackButton href='/students/dashboard' />
         <h1 className={styles.pageTitle}>チケット発券</h1>
-        <Alert type="warning">
+        <Alert type='warning'>
           <p>現在チケット発券は受付停止中です。</p>
         </Alert>
       </div>
@@ -1069,22 +1100,36 @@ const Issue = () => {
 
   return (
     <div className={styles.issuePage}>
-      <BackButton href="/students/dashboard" />
+      <BackButton href='/students/dashboard' />
       <h1 className={styles.pageTitle}>チケット発券</h1>
       {shouldShowOnlyOwnClassAlert && (
-        <Alert type="info" className={styles.onlyOwnClassAlert}>
+        <Alert type='info' className={styles.onlyOwnClassAlert}>
           <p>現在自クラスのみ発券可能です。</p>
         </Alert>
       )}
       {shouldShowOnlyOwnGymAlert && (
-        <Alert type="info" className={styles.onlyOwnClassAlert}>
+        <Alert type='info' className={styles.onlyOwnClassAlert}>
           <p>現在自部活のみ発券可能です。</p>
         </Alert>
       )}
-      {isAtIssueLimit && (
-        <Alert type="warning" className={styles.onlyOwnClassAlert}>
+      {isAtAllIssueLimits ? (
+        <Alert type='warning' className={styles.onlyOwnClassAlert}>
           <p>
             最大発行可能枚数に達しているため、入場専用券のみ発券できます。さらに必要な場合は、不要なチケットをキャンセルするか、友達からもらってください。
+          </p>
+        </Alert>
+      ) : null}
+      {isAtClassIssueLimit && !isAtAllIssueLimits && (
+        <Alert type='info' className={styles.onlyOwnClassAlert}>
+          <p>
+            クラス公演のチケット発行上限に達しています。さらに必要な場合は、不要なチケットをキャンセルするか、友達からもらってください。
+          </p>
+        </Alert>
+      )}
+      {isAtGymIssueLimit && !isAtAllIssueLimits && (
+        <Alert type='info' className={styles.onlyOwnClassAlert}>
+          <p>
+            体育館公演のチケット発行上限に達しています。さらに必要な場合は、不要なチケットをキャンセルするか、友達からもらってください。
           </p>
         </Alert>
       )}
@@ -1145,7 +1190,7 @@ const Issue = () => {
             })()}
           </div>
           <button
-            type="button"
+            type='button'
             className={styles.backButton}
             onClick={() => {
               if (step === 3 && isAdmissionOnlyTicket) {
@@ -1157,13 +1202,13 @@ const Issue = () => {
                 transitionToStep((step - 1) as Step);
               }
             }}
-            style={step === 1 ? { visibility: "hidden" } : undefined}
+            style={step === 1 ? { visibility: 'hidden' } : undefined}
           >
             戻る
           </button>
           <div>
             <button
-              type="button"
+              type='button'
               className={styles.nextButton}
               onClick={() => {
                 if (step === 1) {
@@ -1180,12 +1225,12 @@ const Issue = () => {
                 (step === 2 && !selectedPerformance) ||
                 step === 3
               }
-              style={step === 3 ? { display: "none" } : undefined}
+              style={step === 3 ? { display: 'none' } : undefined}
             >
               次へ
             </button>
             <button
-              type="button"
+              type='button'
               className={styles.generateButton}
               onClick={handleIssue}
               disabled={
@@ -1195,9 +1240,9 @@ const Issue = () => {
                 isAtIssueLimit ||
                 isOverRemainingIssueCapacity
               }
-              style={step !== 3 ? { display: "none" } : undefined}
+              style={step !== 3 ? { display: 'none' } : undefined}
             >
-              {isIssuing ? "発券中..." : "発券する"}
+              {isIssuing ? '発券中...' : '発券する'}
             </button>
           </div>
         </div>

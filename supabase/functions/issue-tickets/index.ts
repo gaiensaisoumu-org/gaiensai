@@ -36,11 +36,7 @@ type IssueTicketsRequest = {
 };
 
 type TicketIssueMode =
-  | 'open'
-  | 'only-own'
-  | 'public-rehearsals'
-  | 'auto'
-  | 'off';
+  'open' | 'only-own' | 'public-rehearsals' | 'auto' | 'off';
 
 type TicketIssueControls = {
   classInvite: TicketIssueMode;
@@ -90,7 +86,13 @@ const parseRequestBody = (body: unknown): IssueTicketsRequest => {
   const scheduleId = Number(parsed.scheduleId);
   const issueCount = Number(parsed.issueCount);
   const cancelCodeRaw = parsed.cancelCode;
-  const targetRelationshipId = Number(parsed.targetRelationshipId);
+  const targetRelationshipIdRaw = parsed.targetRelationshipId;
+  const targetRelationshipId =
+    targetRelationshipIdRaw === undefined ||
+    targetRelationshipIdRaw === null ||
+    targetRelationshipIdRaw === ''
+      ? undefined
+      : Number(targetRelationshipIdRaw);
   const affiliationRaw = parsed.affiliation;
 
   if (
@@ -110,6 +112,16 @@ const parseRequestBody = (body: unknown): IssueTicketsRequest => {
     throw new HttpError(
       400,
       'リクエストボディに無効な数値範囲が含まれています。システム担当にお問い合わせください。',
+    );
+  }
+
+  if (
+    targetRelationshipId !== undefined &&
+    (!Number.isInteger(targetRelationshipId) || targetRelationshipId < 1)
+  ) {
+    throw new HttpError(
+      400,
+      'targetRelationshipId は1以上の整数で指定してください。',
     );
   }
 
@@ -459,7 +471,10 @@ export const handleIssueTicketsRequest = async (
             '中学生アカウントの所属番号が不正です。外苑祭総務にお問い合わせください。',
           );
         }
-      } else if ((affiliation < 10000 || affiliation > 39999) && !body.cancelCode) {
+      } else if (
+        (affiliation < 10000 || affiliation > 39999) &&
+        !body.cancelCode
+      ) {
         throw new HttpError(
           400,
           'ユーザーデータの学年クラス番号が不正です。外苑祭総務にお問い合わせください。',
@@ -517,7 +532,7 @@ export const handleIssueTicketsRequest = async (
     const { data: configRow, error: configError } = await adminClient
       .from('configs')
       .select(
-        'max_tickets_per_user, max_tickets_per_junior_user, is_active, event_year',
+        'max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, is_active, event_year',
       )
       .order('id', { ascending: true })
       .maybeSingle();
@@ -532,6 +547,7 @@ export const handleIssueTicketsRequest = async (
     if (
       !configRow ||
       configRow.max_tickets_per_user === null ||
+      configRow.max_tickets_per_gym_user === null ||
       configRow.max_tickets_per_junior_user === null ||
       configRow.event_year === null
     ) {
@@ -771,7 +787,9 @@ export const handleIssueTicketsRequest = async (
 
     const maxTicketsPerUser = isJuniorUser
       ? Number(configRow.max_tickets_per_junior_user)
-      : Number(configRow.max_tickets_per_user);
+      : issueMode === 'gym'
+        ? Number(configRow.max_tickets_per_gym_user)
+        : Number(configRow.max_tickets_per_user);
     const configuredYear = Number(configRow.event_year);
     if (!Number.isInteger(configuredYear) || configuredYear < 0) {
       throw new HttpError(
@@ -890,23 +908,41 @@ export const handleIssueTicketsRequest = async (
       replaceTicketOffset = 1;
     }
 
-    let existingCountQuery = adminClient
-      .from('tickets')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', issueUserId)
-      .eq('status', 'valid');
-
-    // 入場専用券は上限カウントの対象外とする
-    if (admissionOnlyTicketTypeIds.length > 0) {
-      existingCountQuery = existingCountQuery.not(
-        'ticket_type',
-        'in',
-        `(${admissionOnlyTicketTypeIds.join(',')})`,
-      );
-    }
+    // 生徒アカウントでは、クラス公演・体育館公演の上限を別々に数える。
+    // 中学生アカウントの上限計算は従来どおり全公演の合算を維持する。
+    const existingCountResult =
+      !isJuniorUser && issueMode === 'class'
+        ? await adminClient
+            .from('tickets')
+            .select('id, class_tickets!inner(id)', {
+              count: 'exact',
+              head: true,
+            })
+            .eq('user_id', issueUserId)
+            .eq('status', 'valid')
+        : !isJuniorUser && issueMode === 'gym'
+          ? await adminClient
+              .from('tickets')
+              .select('id, gym_tickets!inner(id)', {
+                count: 'exact',
+                head: true,
+              })
+              .eq('user_id', issueUserId)
+              .eq('status', 'valid')
+          : await adminClient
+              .from('tickets')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', issueUserId)
+              .eq('status', 'valid')
+              // 入場専用券は上限カウントの対象外とする
+              .not(
+                'ticket_type',
+                'in',
+                `(${admissionOnlyTicketTypeIds.join(',')})`,
+              );
 
     const { count: existingCount, error: existingCountError } =
-      await existingCountQuery;
+      existingCountResult;
 
     if (existingCountError) {
       throw new HttpError(
@@ -937,7 +973,7 @@ export const handleIssueTicketsRequest = async (
         ? 2
         : 1;
     const totalPersonCount = numCodes * personCountPerTicket;
-    const maxTicketsPerJuniorUser =
+    const maxTicketsForLimit =
       juniorUsageType === 0 || juniorUsageType === 1
         ? maxTicketsPerUser * 2
         : maxTicketsPerUser;
@@ -948,7 +984,7 @@ export const handleIssueTicketsRequest = async (
     if (
       !isDayTicket &&
       !isExemptLimit &&
-      effectiveExisting + totalPersonCount > maxTicketsPerJuniorUser
+      effectiveExisting + totalPersonCount > maxTicketsForLimit
     ) {
       throw new HttpError(
         409,

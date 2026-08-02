@@ -1,40 +1,40 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
-import { supabase } from '../../../lib/supabase';
-import performancesSnapshot from '../../../generated/performances-static.json';
+import { useEffect, useMemo, useState } from "preact/hooks";
+import { supabase } from "../../../lib/supabase";
+import performancesSnapshot from "../../../generated/performances-static.json";
 import {
   decodeTicketCodeWithEnv,
   toTicketDecodedDisplaySeed,
-} from '../../../features/tickets/ticketCodeDecode';
+} from "../../../features/tickets/ticketCodeDecode";
 import {
   listTicketDisplayCache,
   subscribeTicketDisplayCacheUpdated,
-} from '../../../features/tickets/ticketDisplayCache';
-import { useEventConfig } from '../../../hooks/useEventConfig';
+} from "../../../features/tickets/ticketDisplayCache";
+import { useEventConfig } from "../../../hooks/useEventConfig";
 
-import type { UserData } from '../../../types/types';
-import NormalSection from '../../../components/ui/NormalSection';
+import type { UserData } from "../../../types/types";
+import NormalSection from "../../../components/ui/NormalSection";
 import {
   type TicketCardItem,
   type TicketListSortMode,
-} from '../../../features/tickets/IssuedTicketCardList';
-import TicketListContent from '../../../features/tickets/TicketListContent';
-import type { CachedTicketDisplay } from '../../../types/types';
+} from "../../../features/tickets/IssuedTicketCardList";
+import TicketListContent from "../../../features/tickets/TicketListContent";
+import type { CachedTicketDisplay } from "../../../types/types";
 
-import subPageStyles from '../../../styles/sub-pages.module.css';
-import sharedStyles from '../../../styles/shared.module.css';
-import styles from './Dashboard.module.css';
-import { IoMdAdd } from 'react-icons/io';
-import PerformancesTable from '../../../features/performances/PerformancesTable';
-import GymPerformancesTable from '../../../features/performances/GymPerformancesTable';
-import { readCachedTicketCards, writeCachedTicketCards } from './offlineCache';
-import Alert from '../../../components/ui/Alert';
-import { formatDateText } from '../../../utils/formatDateText';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
-import { useTicketStorage } from '../../../features/tickets/useTicketStorage';
-import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
-import { useTitle } from '../../../hooks/useTitle';
+import subPageStyles from "../../../styles/sub-pages.module.css";
+import sharedStyles from "../../../styles/shared.module.css";
+import styles from "./Dashboard.module.css";
+import { IoMdAdd } from "react-icons/io";
+import PerformancesTable from "../../../features/performances/PerformancesTable";
+import GymPerformancesTable from "../../../features/performances/GymPerformancesTable";
+import { readCachedTicketCards, writeCachedTicketCards } from "./offlineCache";
+import Alert from "../../../components/ui/Alert";
+import { formatDateText } from "../../../utils/formatDateText";
+import LoadingSpinner from "../../../components/ui/LoadingSpinner";
+import { useTicketStorage } from "../../../features/tickets/useTicketStorage";
+import { formatTicketTypeLabel } from "../../../features/tickets/formatTicketTypeLabel";
+import { useTitle } from "../../../hooks/useTitle";
 
-const STUDENT_TICKETS_CACHE_PREFIX = 'ticket-display-cache:v1:';
+const STUDENT_TICKETS_CACHE_PREFIX = "ticket-display-cache:v1:";
 
 const readAllLocalStorageTickets = (): Array<
   TicketCardItem & { relationshipId: number; affiliation: string }
@@ -48,8 +48,10 @@ const readAllLocalStorageTickets = (): Array<
       if (key?.startsWith(STUDENT_TICKETS_CACHE_PREFIX)) {
         const raw = window.localStorage.getItem(key);
         if (raw) {
-          const parsed = JSON.parse(raw).ticket as
-            TicketCardItem & { relationshipId: number; affiliation: string };
+          const parsed = JSON.parse(raw).ticket as TicketCardItem & {
+            relationshipId: number;
+            affiliation: string;
+          };
           allTickets.push(parsed);
         }
       }
@@ -103,11 +105,11 @@ const Dashboard = ({ userData }: DashboardProps) => {
       try {
         return (
           (localStorage.getItem(
-            'ticketListSortMode.myTicket',
-          ) as TicketListSortMode) || 'recent'
+            "ticketListSortMode.myTicket",
+          ) as TicketListSortMode) || "recent"
         );
       } catch {
-        return 'recent';
+        return "recent";
       }
     },
   );
@@ -116,41 +118,41 @@ const Dashboard = ({ userData }: DashboardProps) => {
       try {
         return (
           (localStorage.getItem(
-            'ticketListSortMode.guestTicket',
-          ) as TicketListSortMode) || 'recent'
+            "ticketListSortMode.guestTicket",
+          ) as TicketListSortMode) || "recent"
         );
       } catch {
-        return 'recent';
+        return "recent";
       }
     });
   const [ticketDisplayCacheVersion, setTicketDisplayCacheVersion] = useState(0);
   const [classInviteMode, setClassInviteMode] = useState<
-    'open' | 'only-own' | 'off'
-  >('open');
+    "open" | "only-own" | "off"
+  >("open");
   const [gymInviteMode, setGymInviteMode] = useState<
-    'open' | 'only-own' | 'off'
-  >('open');
+    "open" | "only-own" | "off"
+  >("open");
   const [ownClassName, setOwnClassName] = useState<string | null>(null);
   const [hasReachedIssueLimit, setHasReachedIssueLimit] = useState(false);
 
-  useTitle('ダッシュボード - 生徒用ページ');
+  useTitle("ダッシュボード - 生徒用ページ");
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem('ticketListSortMode.myTicket', myTicketSortMode);
+      localStorage.setItem("ticketListSortMode.myTicket", myTicketSortMode);
     } catch {
       // Ignore errors
     }
@@ -159,7 +161,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
   useEffect(() => {
     try {
       localStorage.setItem(
-        'ticketListSortMode.guestTicket',
+        "ticketListSortMode.guestTicket",
         guestTicketSortMode,
       );
     } catch {
@@ -173,23 +175,23 @@ const Dashboard = ({ userData }: DashboardProps) => {
     const unsubscribe = subscribeTicketDisplayCacheUpdated(() => {
       refresh();
     });
-    window.addEventListener('storage', refresh);
+    window.addEventListener("storage", refresh);
     return () => {
       unsubscribe();
-      window.removeEventListener('storage', refresh);
+      window.removeEventListener("storage", refresh);
     };
   }, []);
 
   useEffect(() => {
     const loadIssuingState = async () => {
       const { data } = await supabase
-        .from('configs')
-        .select('is_active')
-        .order('id', { ascending: true })
+        .from("configs")
+        .select("is_active")
+        .order("id", { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (typeof data?.is_active === 'boolean') {
+      if (typeof data?.is_active === "boolean") {
         setIsTicketIssuingEnabled(data.is_active);
       }
     };
@@ -200,11 +202,11 @@ const Dashboard = ({ userData }: DashboardProps) => {
   useEffect(() => {
     const loadInviteTicketTypeState = async () => {
       const { data, error } = await supabase
-        .from('ticket_issue_controls')
+        .from("ticket_issue_controls")
         .select(
-          'class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode',
+          "class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode",
         )
-        .eq('id', 1)
+        .eq("id", 1)
         .maybeSingle();
 
       if (error) {
@@ -213,10 +215,10 @@ const Dashboard = ({ userData }: DashboardProps) => {
 
       const hasActive =
         data &&
-        (data.class_invite_mode !== 'off' ||
-          data.rehearsal_invite_mode !== 'off' ||
-          data.gym_invite_mode !== 'off' ||
-          data.entry_only_mode !== 'off');
+        (data.class_invite_mode !== "off" ||
+          data.rehearsal_invite_mode !== "off" ||
+          data.gym_invite_mode !== "off" ||
+          data.entry_only_mode !== "off");
 
       if (data) {
         setGymInviteMode(data.gym_invite_mode);
@@ -239,9 +241,9 @@ const Dashboard = ({ userData }: DashboardProps) => {
       }
 
       const { data, error } = await supabase
-        .from('users')
-        .select('affiliation')
-        .eq('id', userId)
+        .from("users")
+        .select("affiliation")
+        .eq("id", userId)
         .maybeSingle();
 
       if (error) {
@@ -274,9 +276,9 @@ const Dashboard = ({ userData }: DashboardProps) => {
     const loadClassInviteMode = async () => {
       try {
         const { data, error } = await supabase
-          .from('ticket_issue_controls')
-          .select('class_invite_mode')
-          .eq('id', 1)
+          .from("ticket_issue_controls")
+          .select("class_invite_mode")
+          .eq("id", 1)
           .maybeSingle();
 
         if (error) {
@@ -286,7 +288,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
         const mode = (data as { class_invite_mode?: unknown } | null)
           ?.class_invite_mode;
 
-        if (mode === 'open' || mode === 'only-own' || mode === 'off') {
+        if (mode === "open" || mode === "only-own" || mode === "off") {
           setClassInviteMode(mode);
         }
       } catch (err) {
@@ -309,33 +311,47 @@ const Dashboard = ({ userData }: DashboardProps) => {
 
       const [
         { data: configData, error: configError },
-        { count, error: countError },
+        { count: classCount, error: classCountError },
+        { count: gymCount, error: gymCountError },
       ] = await Promise.all([
         supabase
-          .from('configs')
-          .select('max_tickets_per_user')
-          .order('id', { ascending: true })
+          .from("configs")
+          .select("max_tickets_per_user, max_tickets_per_gym_user")
+          .order("id", { ascending: true })
           .limit(1)
           .maybeSingle(),
         supabase
-          .from('tickets')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('status', 'valid')
-          .neq('ticket_type', 4), // 入場専用券を除外
+          .from("class_tickets")
+          .select("id, tickets!inner(id)", { count: "exact", head: true })
+          .eq("tickets.user_id", userId)
+          .eq("tickets.status", "valid"),
+        supabase
+          .from("gym_tickets")
+          .select("id, tickets!inner(id)", { count: "exact", head: true })
+          .eq("tickets.user_id", userId)
+          .eq("tickets.status", "valid"),
       ]);
 
-      if (configError || countError) {
+      if (configError || classCountError || gymCountError) {
         return;
       }
 
       const maxTicketsPerUser = Number(configData?.max_tickets_per_user ?? -1);
-      if (!Number.isInteger(maxTicketsPerUser) || maxTicketsPerUser < 0) {
+      const maxTicketsPerGymUser = Number(
+        configData?.max_tickets_per_gym_user ?? -1,
+      );
+      if (
+        !Number.isInteger(maxTicketsPerUser) ||
+        !Number.isInteger(maxTicketsPerGymUser) ||
+        maxTicketsPerUser < 0 ||
+        maxTicketsPerGymUser < 0
+      ) {
         return;
       }
 
-      const existingTicketCount = Number(count ?? 0);
-      const hasReachedLimit = existingTicketCount >= maxTicketsPerUser;
+      const hasReachedLimit =
+        Number(classCount ?? 0) >= maxTicketsPerUser &&
+        Number(gymCount ?? 0) >= maxTicketsPerGymUser;
 
       setHasReachedIssueLimit(hasReachedLimit);
     };
@@ -359,7 +375,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
       const user = session?.user;
 
       if (sessionError || !user) {
-        setTicketError('ログイン情報の取得に失敗しました。');
+        setTicketError("ログイン情報の取得に失敗しました。");
         setTicketLoading(false);
         return;
       }
@@ -369,7 +385,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
         if (cachedTickets) {
           setTicketCards(cachedTickets);
           setTicketNotice(
-            'チケット情報の取得に失敗したため、前回読み込んだ発券済みチケットを表示しています。',
+            "チケット情報の取得に失敗したため、前回読み込んだ発券済みチケットを表示しています。",
           );
           setTicketError(null);
           setTicketLoading(false);
@@ -381,18 +397,18 @@ const Dashboard = ({ userData }: DashboardProps) => {
 
       const [{ data: ticketsData, error: ticketsError }] = await Promise.all([
         supabase
-          .from('tickets')
-          .select('code, signature, relationship, created_at')
-          .eq('user_id', user.id)
-          .eq('status', 'valid')
-          .order('created_at', { ascending: false }),
+          .from("tickets")
+          .select("code, signature, relationship, created_at")
+          .eq("user_id", user.id)
+          .eq("status", "valid")
+          .order("created_at", { ascending: false }),
       ]);
 
       if (ticketsError) {
         if (fallbackToCachedTickets()) {
           return;
         }
-        setTicketError('チケット情報の取得に失敗しました。');
+        setTicketError("チケット情報の取得に失敗しました。");
         setTicketLoading(false);
         return;
       }
@@ -404,7 +420,8 @@ const Dashboard = ({ userData }: DashboardProps) => {
 
       // Filter local storage tickets: only include those issued by other users
       const otherUsersLocalStorageTickets = localStorageTickets.filter(
-        (ticket) => ticket.affiliation !== myAffiliation && ticket.status === 'valid',
+        (ticket) =>
+          ticket.affiliation !== myAffiliation && ticket.status === "valid",
       );
 
       const tickets = (ticketsData ?? []) as Array<{
@@ -473,26 +490,26 @@ const Dashboard = ({ userData }: DashboardProps) => {
       ] = await Promise.all([
         classPerformanceIds.length > 0
           ? supabase
-              .from('class_performances')
-              .select('id, class_name, title')
-              .in('id', classPerformanceIds)
+              .from("class_performances")
+              .select("id, class_name, title")
+              .in("id", classPerformanceIds)
           : { data: [] },
         gymPerformanceIds.length > 0
           ? supabase
-              .from('gym_performances')
-              .select('id, group_name, round_name, start_at, end_at')
-              .in('id', gymPerformanceIds)
+              .from("gym_performances")
+              .select("id, group_name, round_name, start_at, end_at")
+              .in("id", gymPerformanceIds)
           : { data: [] },
         scheduleIds.length > 0
           ? supabase
-              .from('performances_schedule')
-              .select('id, start_at')
-              .in('id', scheduleIds)
+              .from("performances_schedule")
+              .select("id, start_at")
+              .in("id", scheduleIds)
           : { data: [] },
         supabase
-          .from('configs')
-          .select('show_length')
-          .order('id', { ascending: true })
+          .from("configs")
+          .select("show_length")
+          .order("id", { ascending: true })
           .limit(1)
           .maybeSingle(),
       ]);
@@ -554,24 +571,24 @@ const Dashboard = ({ userData }: DashboardProps) => {
             schedule.id,
             {
               scheduleDate: startAt
-                ? startAt.toLocaleDateString('ja-JP', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
+                ? startAt.toLocaleDateString("ja-JP", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
                   })
-                : '-',
+                : "-",
               scheduleTime: startAt
-                ? startAt.toLocaleTimeString('ja-JP', {
-                    hour: '2-digit',
-                    minute: '2-digit',
+                ? startAt.toLocaleTimeString("ja-JP", {
+                    hour: "2-digit",
+                    minute: "2-digit",
                   })
-                : '',
+                : "",
               scheduleEndTime: endAt
-                ? endAt.toLocaleTimeString('ja-JP', {
-                    hour: '2-digit',
-                    minute: '2-digit',
+                ? endAt.toLocaleTimeString("ja-JP", {
+                    hour: "2-digit",
+                    minute: "2-digit",
                   })
-                : '',
+                : "",
             },
           ];
         }),
@@ -635,29 +652,29 @@ const Dashboard = ({ userData }: DashboardProps) => {
           signature: ticket.signature,
           serial: decoded?.serial,
           performanceName: isAdmissionOnly
-            ? '入場専用券'
+            ? "入場専用券"
             : isGymPerformance
-              ? (gymPerformance?.group_name ?? '-')
-              : (classPerformance?.class_name ?? '-'),
+              ? (gymPerformance?.group_name ?? "-")
+              : (classPerformance?.class_name ?? "-"),
           performanceTitle: isGymPerformance
             ? null
             : (classPerformance?.title ?? null),
           scheduleName: isAdmissionOnly
-            ? ''
+            ? ""
             : isGymPerformance
-              ? (gymPerformance?.round_name ?? '-')
-              : (schedule?.round_name ?? '-'),
+              ? (gymPerformance?.round_name ?? "-")
+              : (schedule?.round_name ?? "-"),
           ticketTypeLabel: decoded
             ? (ticketTypeMap.get(decoded.ticketTypeId) ??
               `券種${decoded.ticketTypeId}`)
-            : '-',
+            : "-",
           relationshipName: decoded
             ? (relationshipMap.get(decoded.relationshipId) ??
               `間柄${decoded.relationshipId}`)
-            : '-',
-          status: 'valid' as const,
+            : "-",
+          status: "valid" as const,
           relationshipId,
-          affiliation: decoded?.affiliation ?? '',
+          affiliation: decoded?.affiliation ?? "",
         };
       });
 
@@ -680,8 +697,8 @@ const Dashboard = ({ userData }: DashboardProps) => {
               snapshotPerformanceMap.get(decoded.performanceId))
             : undefined;
           const gymPerformance = decoded
-            ? snapshotGymPerformanceMap.get(decoded.performanceId) ??
-              gymPerformanceMap.get(decoded.performanceId)
+            ? (snapshotGymPerformanceMap.get(decoded.performanceId) ??
+              gymPerformanceMap.get(decoded.performanceId))
             : undefined;
           const schedule =
             !isGymPerformance && decoded
@@ -694,17 +711,17 @@ const Dashboard = ({ userData }: DashboardProps) => {
           const isAdmissionOnly =
             decoded?.performanceId === 0 && decoded?.scheduleId === 0;
 
-          let scheduleDate = scheduleTimes?.scheduleDate ?? '-';
-          let scheduleTime = scheduleTimes?.scheduleTime ?? '';
-          let scheduleEndTime = scheduleTimes?.scheduleEndTime ?? '';
+          let scheduleDate = scheduleTimes?.scheduleDate ?? "-";
+          let scheduleTime = scheduleTimes?.scheduleTime ?? "";
+          let scheduleEndTime = scheduleTimes?.scheduleEndTime ?? "";
 
           if (isAdmissionOnly) {
             const eventDates = (config.date ?? []).filter(
-              (date) => typeof date === 'string' && date.length > 0,
+              (date) => typeof date === "string" && date.length > 0,
             );
-            scheduleDate = formatDateText(eventDates) || '-';
-            scheduleTime = '';
-            scheduleEndTime = '';
+            scheduleDate = formatDateText(eventDates) || "-";
+            scheduleTime = "";
+            scheduleEndTime = "";
           } else if (isGymPerformance) {
             const startAt = gymPerformance?.start_at
               ? new Date(gymPerformance.start_at)
@@ -714,24 +731,24 @@ const Dashboard = ({ userData }: DashboardProps) => {
               : null;
 
             scheduleDate = startAt
-              ? startAt.toLocaleDateString('ja-JP', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
+              ? startAt.toLocaleDateString("ja-JP", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
                 })
-              : '-';
+              : "-";
             scheduleTime = startAt
-              ? startAt.toLocaleTimeString('ja-JP', {
-                  hour: '2-digit',
-                  minute: '2-digit',
+              ? startAt.toLocaleTimeString("ja-JP", {
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })
-              : '';
+              : "";
             scheduleEndTime = endAt
-              ? endAt.toLocaleTimeString('ja-JP', {
-                  hour: '2-digit',
-                  minute: '2-digit',
+              ? endAt.toLocaleTimeString("ja-JP", {
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })
-              : '';
+              : "";
           }
 
           return saveTicketToCache(
@@ -739,32 +756,32 @@ const Dashboard = ({ userData }: DashboardProps) => {
             ticket.signature,
             {
               performanceName: isAdmissionOnly
-                ? '入場専用券'
+                ? "入場専用券"
                 : isGymPerformance
-                  ? (gymPerformance?.group_name ?? '-')
-                  : (classPerformance?.class_name ?? '-'),
+                  ? (gymPerformance?.group_name ?? "-")
+                  : (classPerformance?.class_name ?? "-"),
               performanceTitle: isGymPerformance
                 ? null
                 : (classPerformance?.title ?? null),
               scheduleName: isAdmissionOnly
-                ? ''
+                ? ""
                 : isGymPerformance
-                  ? (gymPerformance?.round_name ?? '-')
-                  : (schedule?.round_name ?? '-'),
+                  ? (gymPerformance?.round_name ?? "-")
+                  : (schedule?.round_name ?? "-"),
               scheduleDate,
               scheduleTime,
               scheduleEndTime,
               ticketTypeLabel: decoded
                 ? (ticketTypeMap.get(decoded.ticketTypeId) ??
                   `券種${decoded.ticketTypeId}`)
-                : '-',
+                : "-",
               relationshipName: decoded
                 ? (relationshipMap.get(decoded.relationshipId) ??
                   `間柄${decoded.relationshipId}`)
-                : '-',
+                : "-",
               relationshipId: decoded?.relationshipId ?? ticket.relationship,
             },
-            'valid',
+            "valid",
           );
         }),
       );
@@ -779,7 +796,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
     const lastOpenedAtByCode = new Map(
       listTicketDisplayCache<CachedTicketDisplay>().map((ticket) => [
         ticket.code,
-        typeof ticket.lastOpenedAt === 'number' ? ticket.lastOpenedAt : 0,
+        typeof ticket.lastOpenedAt === "number" ? ticket.lastOpenedAt : 0,
       ]),
     );
 
@@ -791,17 +808,13 @@ const Dashboard = ({ userData }: DashboardProps) => {
 
   const myAffiliation = String(userData.affiliation);
 
-  const ownUseTickets = useMemo(
-    () => {
-      return ticketCardsWithLastOpenedAt.filter(
-        (ticket) =>
-          (ticket.relationshipId === 1 && ticket.affiliation === myAffiliation) ||
-          (ticket.relationshipId === 3 &&
-            (ticket.affiliation !== myAffiliation)),
-      );
-    },
-    [ticketCardsWithLastOpenedAt, myAffiliation],
-  );
+  const ownUseTickets = useMemo(() => {
+    return ticketCardsWithLastOpenedAt.filter(
+      (ticket) =>
+        (ticket.relationshipId === 1 && ticket.affiliation === myAffiliation) ||
+        (ticket.relationshipId === 3 && ticket.affiliation !== myAffiliation),
+    );
+  }, [ticketCardsWithLastOpenedAt, myAffiliation]);
 
   const guestTickets = useMemo(
     () =>
@@ -831,13 +844,13 @@ const Dashboard = ({ userData }: DashboardProps) => {
 
   const restrictedClassName = useMemo(() => {
     const result =
-      classInviteMode === 'only-own' ? (ownClassName ?? null) : null;
+      classInviteMode === "only-own" ? (ownClassName ?? null) : null;
     return result;
   }, [classInviteMode, ownClassName]);
 
   const restrictedGroupNames = useMemo(() => {
     const clubs = (userData as { clubs?: string[] | null }).clubs;
-    return gymInviteMode === 'only-own' ? (clubs ?? []) : null;
+    return gymInviteMode === "only-own" ? (clubs ?? []) : null;
   }, [gymInviteMode, userData]);
 
   return (
@@ -847,11 +860,11 @@ const Dashboard = ({ userData }: DashboardProps) => {
         <h2 className={sharedStyles.normalH2}>
           {Math.floor(userData.affiliation / 10000)}-
           {Math.floor((userData.affiliation % 10000) / 100)}
-          {' ' + (userData.affiliation % 100) + '番 '}
+          {" " + (userData.affiliation % 100) + "番 "}
         </h2>
         <a
-          href='/students/issue'
-          className={`${styles.buttonLink} ${!isOnline || isIssueReceptionStopped ? styles.buttonLinkDisabled : ''}`}
+          href="/students/issue"
+          className={`${styles.buttonLink} ${!isOnline || isIssueReceptionStopped ? styles.buttonLinkDisabled : ""}`}
           aria-disabled={!isOnline || isIssueReceptionStopped}
           tabIndex={!isOnline || isIssueReceptionStopped ? -1 : 0}
           onClick={(event) => {
@@ -884,7 +897,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
           )}
       </section>
       {ticketNotice && (
-        <Alert type='info'>
+        <Alert type="info">
           <p>{ticketNotice}</p>
         </Alert>
       )}
@@ -926,7 +939,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
           showSortControl
           sortMode={myTicketSortMode}
           onSortModeChange={setMyTicketSortMode}
-          emptyMessage='自分が使うチケットはまだありません。'
+          emptyMessage="自分が使うチケットはまだありません。"
         />
       </NormalSection>
       <NormalSection>
@@ -938,15 +951,15 @@ const Dashboard = ({ userData }: DashboardProps) => {
           showSortControl
           sortMode={guestTicketSortMode}
           onSortModeChange={setGuestTicketSortMode}
-          emptyMessage='招待者用のチケットはまだありません。'
+          emptyMessage="招待者用のチケットはまだありません。"
         />
       </NormalSection>
       <NormalSection>
         <h2>公演空き状況</h2>
-        <a href='/performances' className={styles.smallButtonLink}>
+        <a href="/performances" className={styles.smallButtonLink}>
           公演の詳細はこちら
         </a>
-        <a href='/timetable' className={styles.smallButtonLink}>
+        <a href="/timetable" className={styles.smallButtonLink}>
           タイムテーブルはこちら
         </a>
         <h3>クラス公演</h3>
