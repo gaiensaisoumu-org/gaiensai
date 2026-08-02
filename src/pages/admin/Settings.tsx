@@ -1102,7 +1102,7 @@ const SettingsContent = () => {
   return (
     <div>
       {!isSettingsLoading && settings.eventYear !== config.year && (
-        <Alert type="error">
+        <Alert type='error'>
           <p>
             Supabase側の設定年度 ({settings.eventYear}) と、 config.yamlの年度 (
             {config.year}) が一致していません。
@@ -1110,7 +1110,7 @@ const SettingsContent = () => {
           </p>
         </Alert>
       )}
-      <Alert type="warning">
+      <Alert type='warning'>
         <p>
           このページはシステム全体に影響を与えます。設定変更には十分ご注意ください。
         </p>
@@ -1122,7 +1122,7 @@ const SettingsContent = () => {
             <div className={styles.settingLabelGroup}>
               <label
                 className={styles.settingLabel}
-                htmlFor="settings-event-year"
+                htmlFor='settings-event-year'
               >
                 年度
               </label>
@@ -1131,13 +1131,13 @@ const SettingsContent = () => {
               </p>
             </div>
             <div className={styles.settingControlGroup}>
-              <span id="settings-event-year" className={styles.fieldValue}>
+              <span id='settings-event-year' className={styles.fieldValue}>
                 {settings.eventYear}
               </span>
               <button
-                type="button"
+                type='button'
                 className={styles.inlineEditButton}
-                onClick={() => openNumericEditModal("eventYear")}
+                onClick={() => openNumericEditModal('eventYear')}
                 disabled={isSettingsLoading || isSyncingSetting}
               >
                 変更する
@@ -1147,21 +1147,21 @@ const SettingsContent = () => {
           <div className={styles.field}>
             <label
               className={styles.settingLabel}
-              htmlFor="settings-show-length-minutes"
+              htmlFor='settings-show-length-minutes'
             >
               1公演の長さ（分）
             </label>
             <div className={styles.settingControlGroup}>
               <span
-                id="settings-show-length-minutes"
+                id='settings-show-length-minutes'
                 className={styles.fieldValue}
               >
                 {settings.showLength}
               </span>
               <button
-                type="button"
+                type='button'
                 className={styles.inlineEditButton}
-                onClick={() => openNumericEditModal("showLength")}
+                onClick={() => openNumericEditModal('showLength')}
                 disabled={isSettingsLoading || isSyncingSetting}
               >
                 変更する
@@ -1169,13 +1169,13 @@ const SettingsContent = () => {
             </div>
           </div>
         </div>
-        {settingsMessageScope === "globalSection" && isSettingsLoading && (
-          <LoadingSpinner message="設定を読み込み中です..." />
+        {settingsMessageScope === 'globalSection' && isSettingsLoading && (
+          <LoadingSpinner message='設定を読み込み中です...' />
         )}
-        {settingsMessageScope === "globalSection" && settingsError && (
+        {settingsMessageScope === 'globalSection' && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === "globalSection" && settingsSuccess && (
+        {settingsMessageScope === 'globalSection' && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
@@ -1185,7 +1185,7 @@ const SettingsContent = () => {
         <p className={styles.noteText}>
           学年・クラス・出席番号の全組み合わせに対するログインアカウントを一括生成し、Authへ登録します。
         </p>
-        <a href="/admin/student-accounts" className={styles.linkButton}>
+        <a href='/admin/student-accounts' className={styles.linkButton}>
           こちらで変更
         </a>
       </NormalSection>
@@ -1195,7 +1195,7 @@ const SettingsContent = () => {
         <p className={styles.noteText}>
           csvファイルから、中学生アカウントのIDとパスワードを一括でAuthへ登録します。
         </p>
-        <a href="/admin/junior-accounts" className={styles.linkButton}>
+        <a href='/admin/junior-accounts' className={styles.linkButton}>
           こちらで変更
         </a>
       </NormalSection>
@@ -1208,36 +1208,36 @@ const SettingsContent = () => {
         <div className={styles.formGroup}>
           <label className={styles.settingLabel}>現在の合言葉設定</label>
           <p className={styles.fieldValue}>
-            {hasJuniorPassword ? "設定済み" : "未設定"}
+            {hasJuniorPassword ? '設定済み' : '未設定'}
           </p>
         </div>
         <form onSubmit={handleJuniorPasswordUpdate}>
           <div className={styles.formGroup}>
-            <label htmlFor="junior-password" className={styles.label}>
+            <label htmlFor='junior-password' className={styles.label}>
               新しい合言葉
             </label>
             <input
-              id="junior-password"
-              type="text"
+              id='junior-password'
+              type='text'
               className={styles.input}
               value={juniorPassword}
               onChange={(e) => setJuniorPassword(e.currentTarget.value)}
-              placeholder="4文字以上の合言葉"
+              placeholder='4文字以上の合言葉'
               minLength={4}
               required
             />
           </div>
           <div className={styles.formGroup}>
-            <label htmlFor="junior-password-confirm" className={styles.label}>
+            <label htmlFor='junior-password-confirm' className={styles.label}>
               合言葉（確認）
             </label>
             <input
-              id="junior-password-confirm"
-              type="text"
+              id='junior-password-confirm'
+              type='text'
               className={styles.input}
               value={juniorPasswordConfirm}
               onChange={(e) => setJuniorPasswordConfirm(e.currentTarget.value)}
-              placeholder="同じ合言葉を再度入力"
+              placeholder='同じ合言葉を再度入力'
               minLength={4}
               required
             />
@@ -1249,11 +1249,11 @@ const SettingsContent = () => {
             <p className={styles.authSuccess}>{juniorPasswordSuccess}</p>
           )}
           <button
-            type="submit"
+            type='submit'
             className={styles.submitButton}
             disabled={isUpdatingJuniorPassword}
           >
-            {isUpdatingJuniorPassword ? "更新中..." : "合言葉を更新"}
+            {isUpdatingJuniorPassword ? '更新中...' : '合言葉を更新'}
           </button>
         </form>
       </NormalSection>
@@ -1274,7 +1274,7 @@ const SettingsContent = () => {
               <label className={styles.settingLabel}>チケット発券全体</label>
               <label>
                 <Switch
-                  id="ticket-issuing-enabled"
+                  id='ticket-issuing-enabled'
                   onChange={(checked: boolean) => {
                     if (isSettingsLoading || isSyncingSetting) {
                       return;
@@ -1285,9 +1285,9 @@ const SettingsContent = () => {
                       void syncSettings(
                         next,
                         checked
-                          ? "チケット発券を有効化しました。"
-                          : "チケット発券を停止しました。",
-                        "ticketSection",
+                          ? 'チケット発券を有効化しました。'
+                          : 'チケット発券を停止しました。',
+                        'ticketSection',
                       ).then((updated) => {
                         if (!updated) {
                           setSettings((current) => ({
@@ -1306,76 +1306,76 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-class-invite"
+                htmlFor='ticket-class-invite'
               >
                 招待券(クラス公演)受付
               </label>
               <select
-                id="ticket-class-invite"
+                id='ticket-class-invite'
                 className={styles.fieldControl}
                 value={ticketTypeControls.classInvite}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    "classInvite",
+                    'classInvite',
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value="open">すべて</option>
-                <option value="only-own">自クラスのみ</option>
-                <option value="off">無効</option>
+                <option value='open'>すべて</option>
+                <option value='only-own'>自クラスのみ</option>
+                <option value='off'>無効</option>
               </select>
             </div>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-rehearsal-invite"
+                htmlFor='ticket-rehearsal-invite'
               >
                 招待券(リハーサル)受付
               </label>
               <select
-                id="ticket-rehearsal-invite"
+                id='ticket-rehearsal-invite'
                 className={styles.fieldControl}
                 value={ticketTypeControls.rehearsalInvite}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    "rehearsalInvite",
+                    'rehearsalInvite',
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value="open">すべて</option>
-                <option value="public-rehearsals">公開リハーサルのみ</option>
-                <option value="off">無効</option>
+                <option value='open'>すべて</option>
+                <option value='public-rehearsals'>公開リハーサルのみ</option>
+                <option value='off'>無効</option>
               </select>
             </div>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-gym-invite"
+                htmlFor='ticket-gym-invite'
               >
                 招待券(体育館公演)受付
               </label>
               <select
-                id="ticket-gym-invite"
+                id='ticket-gym-invite'
                 className={styles.fieldControl}
                 value={ticketTypeControls.gymInvite}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    "gymInvite",
+                    'gymInvite',
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value="open">すべて</option>
-                <option value="only-own">自部活のみ</option>
-                <option value="off">無効</option>
+                <option value='open'>すべて</option>
+                <option value='only-own'>自部活のみ</option>
+                <option value='off'>無効</option>
               </select>
             </div>
             <div className={styles.field}>
@@ -1384,12 +1384,12 @@ const SettingsContent = () => {
               </span>
               <label>
                 <Switch
-                  id="ticket-entry-only"
-                  checked={ticketTypeControls.entryOnly === "open"}
+                  id='ticket-entry-only'
+                  checked={ticketTypeControls.entryOnly === 'open'}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      "entryOnly",
-                      checked ? "open" : "off",
+                      'entryOnly',
+                      checked ? 'open' : 'off',
                     )
                   }
                 ></Switch>
@@ -1402,11 +1402,11 @@ const SettingsContent = () => {
               </label>
               <label>
                 <Switch
-                  checked={ticketTypeControls.juniorClass === "open"}
+                  checked={ticketTypeControls.juniorClass === 'open'}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      "juniorClass",
-                      checked ? "open" : "off",
+                      'juniorClass',
+                      checked ? 'open' : 'off',
                     )
                   }
                 />
@@ -1418,11 +1418,11 @@ const SettingsContent = () => {
               </label>
               <label>
                 <Switch
-                  checked={ticketTypeControls.juniorGym === "open"}
+                  checked={ticketTypeControls.juniorGym === 'open'}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      "juniorGym",
-                      checked ? "open" : "off",
+                      'juniorGym',
+                      checked ? 'open' : 'off',
                     )
                   }
                 />
@@ -1434,11 +1434,11 @@ const SettingsContent = () => {
               </label>
               <label>
                 <Switch
-                  checked={ticketTypeControls.juniorEntryOnly === "open"}
+                  checked={ticketTypeControls.juniorEntryOnly === 'open'}
                   onChange={(checked) =>
                     handleTicketTypeControlChange(
-                      "juniorEntryOnly",
-                      checked ? "open" : "off",
+                      'juniorEntryOnly',
+                      checked ? 'open' : 'off',
                     )
                   }
                 />
@@ -1447,51 +1447,51 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-same-day-class"
+                htmlFor='ticket-same-day-class'
               >
                 当日券(クラス公演)受付
               </label>
               <select
-                id="ticket-same-day-class"
+                id='ticket-same-day-class'
                 className={styles.fieldControl}
                 value={ticketTypeControls.sameDayClass}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    "sameDayClass",
+                    'sameDayClass',
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value="open">有効</option>
-                <option value="auto">当日のみ</option>
-                <option value="off">無効</option>
+                <option value='open'>有効</option>
+                <option value='auto'>当日のみ</option>
+                <option value='off'>無効</option>
               </select>
             </div>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-same-day-gym"
+                htmlFor='ticket-same-day-gym'
               >
                 当日券(体育館公演)受付
               </label>
               <select
-                id="ticket-same-day-gym"
+                id='ticket-same-day-gym'
                 className={styles.fieldControl}
                 value={ticketTypeControls.sameDayGym}
                 onChange={(event) =>
                   handleTicketTypeControlChange(
-                    "sameDayGym",
+                    'sameDayGym',
                     (event.target as HTMLSelectElement)
                       .value as TicketTypeControlValue,
                   )
                 }
                 disabled={isSettingsLoading || isSyncingSetting}
               >
-                <option value="open">有効</option>
-                <option value="auto">当日のみ</option>
-                <option value="off">無効</option>
+                <option value='open'>有効</option>
+                <option value='auto'>当日のみ</option>
+                <option value='off'>無効</option>
               </select>
             </div>
           </div>
@@ -1500,19 +1500,19 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-class-total"
+                htmlFor='ticket-class-total'
               >
                 クラス公演の1公演あたりのチケット数(中学生券含む)
               </label>
               <div className={styles.settingControlGroup}>
-                <span id="ticket-class-total" className={styles.fieldValue}>
+                <span id='ticket-class-total' className={styles.fieldValue}>
                   {settings.defaultClassTotalCapacity}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal("defaultClassTotalCapacity")
+                    openNumericEditModal('defaultClassTotalCapacity')
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1523,19 +1523,19 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-class-junior"
+                htmlFor='ticket-class-junior'
               >
                 クラス公演の1公演あたり中学生枠
               </label>
               <div className={styles.settingControlGroup}>
-                <span id="ticket-class-junior" className={styles.fieldValue}>
+                <span id='ticket-class-junior' className={styles.fieldValue}>
                   {settings.defaultClassJuniorCapacity}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal("defaultClassJuniorCapacity")
+                    openNumericEditModal('defaultClassJuniorCapacity')
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1544,17 +1544,17 @@ const SettingsContent = () => {
               </div>
             </div>
             <div className={styles.field}>
-              <label className={styles.settingLabel} htmlFor="ticket-gym-total">
-                体育館公演の1公演あたりのチケット数
+              <label className={styles.settingLabel} htmlFor='ticket-gym-total'>
+                体育館公演の1公演あたりのチケット数(中学生券含む)
               </label>
               <div className={styles.settingControlGroup}>
-                <span id="ticket-gym-total" className={styles.fieldValue}>
+                <span id='ticket-gym-total' className={styles.fieldValue}>
                   {settings.defaultGymCapacity}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
-                  onClick={() => openNumericEditModal("defaultGymCapacity")}
+                  onClick={() => openNumericEditModal('defaultGymCapacity')}
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する
@@ -1564,19 +1564,19 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-gym-junior"
+                htmlFor='ticket-gym-junior'
               >
                 体育館公演の1公演あたり中学生枠
               </label>
               <div className={styles.settingControlGroup}>
-                <span id="ticket-gym-junior" className={styles.fieldValue}>
+                <span id='ticket-gym-junior' className={styles.fieldValue}>
                   {settings.defaultGymJuniorCapacity}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal("defaultGymJuniorCapacity")
+                    openNumericEditModal('defaultGymJuniorCapacity')
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1590,18 +1590,18 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-max-per-user"
+                htmlFor='ticket-max-per-user'
               >
                 1人あたりのチケット発行上限
               </label>
               <div className={styles.settingControlGroup}>
-                <span id="ticket-max-per-user" className={styles.fieldValue}>
+                <span id='ticket-max-per-user' className={styles.fieldValue}>
                   {settings.maxTicketsPerUser}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
-                  onClick={() => openNumericEditModal("maxTicketsPerUser")}
+                  onClick={() => openNumericEditModal('maxTicketsPerUser')}
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する
@@ -1611,21 +1611,21 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-max-per-gym-user"
+                htmlFor='ticket-max-per-gym-user'
               >
                 1人あたりの体育館公演チケット発行上限
               </label>
               <div className={styles.settingControlGroup}>
                 <span
-                  id="ticket-max-per-gym-user"
+                  id='ticket-max-per-gym-user'
                   className={styles.fieldValue}
                 >
                   {settings.maxTicketsPerGymUser}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
-                  onClick={() => openNumericEditModal("maxTicketsPerGymUser")}
+                  onClick={() => openNumericEditModal('maxTicketsPerGymUser')}
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する
@@ -1635,22 +1635,22 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-junior-max-per-user"
+                htmlFor='ticket-junior-max-per-user'
               >
                 中学生のチケット発行上限
               </label>
               <div className={styles.settingControlGroup}>
                 <span
-                  id="ticket-junior-max-per-user"
+                  id='ticket-junior-max-per-user'
                   className={styles.fieldValue}
                 >
                   {settings.maxTicketsPerJuniorUser}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal("maxTicketsPerJuniorUser")
+                    openNumericEditModal('maxTicketsPerJuniorUser')
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1661,22 +1661,22 @@ const SettingsContent = () => {
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor="ticket-admission-only-max-junior"
+                htmlFor='ticket-admission-only-max-junior'
               >
                 入場専用券のみ登録可能な中学生アカウント上限
               </label>
               <div className={styles.settingControlGroup}>
                 <span
-                  id="ticket-admission-only-max-junior"
+                  id='ticket-admission-only-max-junior'
                   className={styles.fieldValue}
                 >
                   {settings.maxAdmissionOnlyJuniorAccounts}
                 </span>
                 <button
-                  type="button"
+                  type='button'
                   className={styles.inlineEditButton}
                   onClick={() =>
-                    openNumericEditModal("maxAdmissionOnlyJuniorAccounts")
+                    openNumericEditModal('maxAdmissionOnlyJuniorAccounts')
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1688,7 +1688,7 @@ const SettingsContent = () => {
               <label className={styles.settingLabel}>中学生枠の一般解放</label>
               <label>
                 <Switch
-                  id="ticket-junior-release"
+                  id='ticket-junior-release'
                   onChange={(checked: boolean) => {
                     if (isSettingsLoading || isSyncingSetting) {
                       return;
@@ -1699,8 +1699,8 @@ const SettingsContent = () => {
                       // 非同期通信をバックグラウンドで実行
                       void syncSettings(
                         next,
-                        "中学生枠の一般解放設定を更新しました。",
-                        "ticketSection",
+                        '中学生枠の一般解放設定を更新しました。',
+                        'ticketSection',
                       ).then((updated) => {
                         // 失敗した場合は以前の値を参照して戻す
                         if (!updated) {
@@ -1719,59 +1719,59 @@ const SettingsContent = () => {
             </div>
           </div>
         </div>
-        {settingsMessageScope === "ticketSection" && isSettingsLoading && (
-          <LoadingSpinner message="設定を読み込み中です..." />
+        {settingsMessageScope === 'ticketSection' && isSettingsLoading && (
+          <LoadingSpinner message='設定を読み込み中です...' />
         )}
-        {settingsMessageScope === "ticketSection" && settingsError && (
+        {settingsMessageScope === 'ticketSection' && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === "ticketSection" && settingsSuccess && (
+        {settingsMessageScope === 'ticketSection' && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
       <NormalSection>
         <h2>詳細な受付・有効設定</h2>
-        <div className={styles.tabList} role="tablist">
+        <div className={styles.tabList} role='tablist'>
           <button
-            type="button"
-            role="tab"
-            className={`${styles.tabButton} ${activeDetailTab === "performances" ? styles.tabButtonActive : ""}`}
-            aria-selected={activeDetailTab === "performances"}
-            onClick={() => setActiveDetailTab("performances")}
+            type='button'
+            role='tab'
+            className={`${styles.tabButton} ${activeDetailTab === 'performances' ? styles.tabButtonActive : ''}`}
+            aria-selected={activeDetailTab === 'performances'}
+            onClick={() => setActiveDetailTab('performances')}
           >
             クラス
           </button>
           <button
-            type="button"
-            role="tab"
-            className={`${styles.tabButton} ${activeDetailTab === "gym_performances" ? styles.tabButtonActive : ""}`}
-            aria-selected={activeDetailTab === "gym_performances"}
-            onClick={() => setActiveDetailTab("gym_performances")}
+            type='button'
+            role='tab'
+            className={`${styles.tabButton} ${activeDetailTab === 'gym_performances' ? styles.tabButtonActive : ''}`}
+            aria-selected={activeDetailTab === 'gym_performances'}
+            onClick={() => setActiveDetailTab('gym_performances')}
           >
             部活
           </button>
           <button
-            type="button"
-            role="tab"
-            className={`${styles.tabButton} ${activeDetailTab === "schedules" ? styles.tabButtonActive : ""}`}
-            aria-selected={activeDetailTab === "schedules"}
-            onClick={() => setActiveDetailTab("schedules")}
+            type='button'
+            role='tab'
+            className={`${styles.tabButton} ${activeDetailTab === 'schedules' ? styles.tabButtonActive : ''}`}
+            aria-selected={activeDetailTab === 'schedules'}
+            onClick={() => setActiveDetailTab('schedules')}
           >
             公演回
           </button>
           <button
-            type="button"
-            role="tab"
-            className={`${styles.tabButton} ${activeDetailTab === "relationships" ? styles.tabButtonActive : ""}`}
-            aria-selected={activeDetailTab === "relationships"}
-            onClick={() => setActiveDetailTab("relationships")}
+            type='button'
+            role='tab'
+            className={`${styles.tabButton} ${activeDetailTab === 'relationships' ? styles.tabButtonActive : ''}`}
+            aria-selected={activeDetailTab === 'relationships'}
+            onClick={() => setActiveDetailTab('relationships')}
           >
             間柄
           </button>
         </div>
 
         <div className={styles.tabContent}>
-          {activeDetailTab === "performances" && (
+          {activeDetailTab === 'performances' && (
             <div className={styles.toggleList}>
               <h3>クラス公演の受付</h3>
               {classPerformances.map((p) => (
@@ -1782,14 +1782,14 @@ const SettingsContent = () => {
                       定員: {p.total_capacity}名
                     </span>
                     <button
-                      type="button"
+                      type='button'
                       className={styles.inlineEditButton}
                       onClick={(e) => {
                         e.preventDefault();
                         openIndividualNumericEditModal(
-                          "class_performances",
+                          'class_performances',
                           p.id,
-                          "total_capacity",
+                          'total_capacity',
                           `${p.class_name}の合計定員`,
                           1,
                           1000,
@@ -1803,14 +1803,14 @@ const SettingsContent = () => {
                       中学生: {p.junior_capacity}名
                     </span>
                     <button
-                      type="button"
+                      type='button'
                       className={styles.inlineEditButton}
                       onClick={(e) => {
                         e.preventDefault();
                         openIndividualNumericEditModal(
-                          "class_performances",
+                          'class_performances',
                           p.id,
-                          "junior_capacity",
+                          'junior_capacity',
                           `${p.class_name}の中学生枠`,
                           0,
                           1000,
@@ -1825,11 +1825,11 @@ const SettingsContent = () => {
                         checked={p.is_accepting}
                         onChange={(val) =>
                           handleToggleTableValue(
-                            "class_performances",
+                            'class_performances',
                             p.id,
-                            "is_accepting",
+                            'is_accepting',
                             val,
-                            "detailSection",
+                            'detailSection',
                           )
                         }
                       />
@@ -1840,7 +1840,7 @@ const SettingsContent = () => {
             </div>
           )}
 
-          {activeDetailTab === "gym_performances" && (
+          {activeDetailTab === 'gym_performances' && (
             <div className={styles.toggleList}>
               <h3>部活(体育館公演)の受付</h3>
               {gymPerformances.map((p) => (
@@ -1853,14 +1853,14 @@ const SettingsContent = () => {
                       定員: {p.capacity}名
                     </span>
                     <button
-                      type="button"
+                      type='button'
                       className={styles.inlineEditButton}
                       onClick={(e) => {
                         e.preventDefault();
                         openIndividualNumericEditModal(
-                          "gym_performances",
+                          'gym_performances',
                           p.id,
-                          "capacity",
+                          'capacity',
                           `${p.group_name} ${p.round_name}の定員`,
                           1,
                           2000,
@@ -1874,14 +1874,14 @@ const SettingsContent = () => {
                       中学生: {p.junior_capacity}名
                     </span>
                     <button
-                      type="button"
+                      type='button'
                       className={styles.inlineEditButton}
                       onClick={(e) => {
                         e.preventDefault();
                         openIndividualNumericEditModal(
-                          "gym_performances",
+                          'gym_performances',
                           p.id,
-                          "junior_capacity",
+                          'junior_capacity',
                           `${p.group_name} ${p.round_name}の中学生枠`,
                           0,
                           2000,
@@ -1896,11 +1896,11 @@ const SettingsContent = () => {
                         checked={p.is_accepting}
                         onChange={(val) =>
                           handleToggleTableValue(
-                            "gym_performances",
+                            'gym_performances',
                             p.id,
-                            "is_accepting",
+                            'is_accepting',
                             val,
-                            "detailSection",
+                            'detailSection',
                           )
                         }
                       />
@@ -1911,7 +1911,7 @@ const SettingsContent = () => {
             </div>
           )}
 
-          {activeDetailTab === "schedules" && (
+          {activeDetailTab === 'schedules' && (
             <div className={styles.toggleList}>
               <h3>公演回の有効状態</h3>
               {schedules.map((s) => (
@@ -1922,11 +1922,11 @@ const SettingsContent = () => {
                       checked={s.is_active}
                       onChange={(val) =>
                         handleToggleTableValue(
-                          "performances_schedule",
+                          'performances_schedule',
                           s.id,
-                          "is_active",
+                          'is_active',
                           val,
-                          "detailSection",
+                          'detailSection',
                         )
                       }
                     />
@@ -1936,7 +1936,7 @@ const SettingsContent = () => {
             </div>
           )}
 
-          {activeDetailTab === "relationships" && (
+          {activeDetailTab === 'relationships' && (
             <div className={styles.toggleList}>
               <h3>間柄の受付</h3>
               {relationships.map((r) => (
@@ -1947,11 +1947,11 @@ const SettingsContent = () => {
                       checked={r.is_accepting}
                       onChange={(val) =>
                         handleToggleTableValue(
-                          "relationships",
+                          'relationships',
                           r.id,
-                          "is_accepting",
+                          'is_accepting',
                           val,
-                          "detailSection",
+                          'detailSection',
                         )
                       }
                     />
@@ -1961,13 +1961,13 @@ const SettingsContent = () => {
             </div>
           )}
         </div>
-        {settingsMessageScope === "detailSection" && isSyncingSetting && (
+        {settingsMessageScope === 'detailSection' && isSyncingSetting && (
           <p className={styles.statusMessage}>設定を更新中です...</p>
         )}
-        {settingsMessageScope === "detailSection" && settingsError && (
+        {settingsMessageScope === 'detailSection' && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === "detailSection" && settingsSuccess && (
+        {settingsMessageScope === 'detailSection' && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
@@ -1982,7 +1982,7 @@ const SettingsContent = () => {
             全ての発券済みチケットを削除し、残席カウンターとチケット採番カウンターをリセットします。
           </p>
           <button
-            type="button"
+            type='button'
             className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
             onClick={() => setShowDeleteAllTicketsModal(true)}
             disabled={isDeletingAllAccounts || isDeletingAllTickets}
@@ -1991,10 +1991,10 @@ const SettingsContent = () => {
           </button>
           <h3>生徒アカウントの削除</h3>
           <button
-            type="button"
+            type='button'
             className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
             onClick={() => {
-              setPendingDeleteAccountType("student");
+              setPendingDeleteAccountType('student');
               setShowDeleteAllAccountsModal(true);
             }}
             disabled={isDeletingAllAccounts || isDeletingAllTickets}
@@ -2003,10 +2003,10 @@ const SettingsContent = () => {
           </button>
           <h3>中学生アカウントの削除</h3>
           <button
-            type="button"
+            type='button'
             className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
             onClick={() => {
-              setPendingDeleteAccountType("junior");
+              setPendingDeleteAccountType('junior');
               setShowDeleteAllAccountsModal(true);
             }}
             disabled={isDeletingAllAccounts || isDeletingAllTickets}
@@ -2014,60 +2014,60 @@ const SettingsContent = () => {
             全ての中学生アカウントを削除
           </button>
         </div>
-        {settingsMessageScope === "deletionTool" && settingsError && (
+        {settingsMessageScope === 'deletionTool' && settingsError && (
           <p className={styles.authError}>{settingsError}</p>
         )}
-        {settingsMessageScope === "deletionTool" && settingsSuccess && (
+        {settingsMessageScope === 'deletionTool' && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
       </NormalSection>
       <NormalSection>
         <h2>パスワード変更</h2>
         <form className={styles.passwordForm} onSubmit={handlePasswordChange}>
-          <label className={styles.authLabel} htmlFor="admin-current-password">
+          <label className={styles.authLabel} htmlFor='admin-current-password'>
             現在の管理者パスワード
           </label>
           <input
-            id="admin-current-password"
-            type="password"
+            id='admin-current-password'
+            type='password'
             className={styles.authInput}
             value={currentPassword}
             onInput={(event) =>
               setCurrentPassword((event.target as HTMLInputElement).value)
             }
-            autoComplete="current-password"
+            autoComplete='current-password'
             required
           />
-          <label className={styles.authLabel} htmlFor="admin-new-password">
+          <label className={styles.authLabel} htmlFor='admin-new-password'>
             新しい管理者パスワード
           </label>
           <input
-            id="admin-new-password"
-            type="password"
+            id='admin-new-password'
+            type='password'
             className={styles.authInput}
             value={newPassword}
             onInput={(event) =>
               setNewPassword((event.target as HTMLInputElement).value)
             }
-            autoComplete="new-password"
+            autoComplete='new-password'
             minLength={8}
             required
           />
           <label
             className={styles.authLabel}
-            htmlFor="admin-new-password-confirm"
+            htmlFor='admin-new-password-confirm'
           >
             新しい管理者パスワード（確認）
           </label>
           <input
-            id="admin-new-password-confirm"
-            type="password"
+            id='admin-new-password-confirm'
+            type='password'
             className={styles.authInput}
             value={confirmNewPassword}
             onInput={(event) =>
               setConfirmNewPassword((event.target as HTMLInputElement).value)
             }
-            autoComplete="new-password"
+            autoComplete='new-password'
             minLength={8}
             required
           />
@@ -2078,28 +2078,28 @@ const SettingsContent = () => {
             <p className={styles.authSuccess}>{passwordChangeSuccess}</p>
           )}
           <button
-            type="submit"
+            type='submit'
             className={styles.authButton}
             disabled={isChangingPassword}
           >
-            {isChangingPassword ? "変更中..." : "パスワードを変更"}
+            {isChangingPassword ? '変更中...' : 'パスワードを変更'}
           </button>
         </form>
       </NormalSection>
       {(editingNumericKey || editingPerformanceInfo) && (
         <div
           className={styles.settingModalOverlay}
-          role="presentation"
+          role='presentation'
           onClick={closeNumericEditModal}
         >
           <div
             className={styles.settingModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-edit-title"
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='settings-edit-title'
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 id="settings-edit-title" className={styles.settingModalTitle}>
+            <h3 id='settings-edit-title' className={styles.settingModalTitle}>
               {editingNumericKey
                 ? NUMERIC_SETTING_META[editingNumericKey].label
                 : editingPerformanceInfo?.label}
@@ -2107,7 +2107,7 @@ const SettingsContent = () => {
             </h3>
             <input
               className={styles.fieldControl}
-              type="number"
+              type='number'
               min={
                 editingNumericKey
                   ? NUMERIC_SETTING_META[editingNumericKey].min
@@ -2123,15 +2123,15 @@ const SettingsContent = () => {
                 setEditingNumericValue((event.target as HTMLInputElement).value)
               }
             />
-            {settingsMessageScope === "modal" && settingsError && (
+            {settingsMessageScope === 'modal' && settingsError && (
               <p className={styles.authError}>{settingsError}</p>
             )}
-            {settingsMessageScope === "modal" && settingsSuccess && (
+            {settingsMessageScope === 'modal' && settingsSuccess && (
               <p className={styles.authSuccess}>{settingsSuccess}</p>
             )}
             <div className={styles.settingModalActions}>
               <button
-                type="button"
+                type='button'
                 className={styles.settingModalCancel}
                 onClick={closeNumericEditModal}
                 disabled={isModalSubmitting}
@@ -2139,12 +2139,12 @@ const SettingsContent = () => {
                 キャンセル
               </button>
               <button
-                type="button"
+                type='button'
                 className={styles.settingModalConfirm}
                 onClick={handleConfirmNumericEdit}
                 disabled={isModalSubmitting}
               >
-                {isModalSubmitting ? "同期中..." : "OK"}
+                {isModalSubmitting ? '同期中...' : 'OK'}
               </button>
             </div>
           </div>
@@ -2154,34 +2154,34 @@ const SettingsContent = () => {
       {showDeleteAllAccountsModal && (
         <div
           className={styles.settingModalOverlay}
-          role="presentation"
+          role='presentation'
           onClick={() => setShowDeleteAllAccountsModal(false)}
         >
           <div
             className={styles.settingModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-all-accounts-title"
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='delete-all-accounts-title'
             onClick={(event) => event.stopPropagation()}
           >
             <h3
-              id="delete-all-accounts-title"
+              id='delete-all-accounts-title'
               className={styles.settingModalTitle}
             >
-              {pendingDeleteAccountType === "student"
-                ? "全ての生徒アカウントを削除しますか？"
-                : "全ての中学生アカウントを削除しますか？"}
+              {pendingDeleteAccountType === 'student'
+                ? '全ての生徒アカウントを削除しますか？'
+                : '全ての中学生アカウントを削除しますか？'}
             </h3>
             <p>
               この操作は取り消せません。
-              {pendingDeleteAccountType === "student"
-                ? "全ての生徒アカウント"
-                : "全ての中学生アカウント"}
+              {pendingDeleteAccountType === 'student'
+                ? '全ての生徒アカウント'
+                : '全ての中学生アカウント'}
               がAuthとpublic.usersの両方から削除されます。本当に実行しますか？
             </p>
             <div className={styles.settingModalActions}>
               <button
-                type="button"
+                type='button'
                 className={styles.settingModalCancel}
                 onClick={() => setShowDeleteAllAccountsModal(false)}
                 disabled={isDeletingAllAccounts}
@@ -2189,12 +2189,12 @@ const SettingsContent = () => {
                 キャンセル
               </button>
               <button
-                type="button"
+                type='button'
                 className={`${styles.settingModalConfirm} ${styles.settingModalConfirmDanger}`}
                 onClick={handleDeleteAllAccounts}
                 disabled={isDeletingAllAccounts}
               >
-                {isDeletingAllAccounts ? "削除中..." : "削除"}
+                {isDeletingAllAccounts ? '削除中...' : '削除'}
               </button>
             </div>
           </div>
@@ -2204,18 +2204,18 @@ const SettingsContent = () => {
       {showDeleteAllTicketsModal && (
         <div
           className={styles.settingModalOverlay}
-          role="presentation"
+          role='presentation'
           onClick={() => setShowDeleteAllTicketsModal(false)}
         >
           <div
             className={styles.settingModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-all-tickets-title"
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='delete-all-tickets-title'
             onClick={(event) => event.stopPropagation()}
           >
             <h3
-              id="delete-all-tickets-title"
+              id='delete-all-tickets-title'
               className={styles.settingModalTitle}
             >
               全てのチケットを削除してカウンターをリセットしますか？
@@ -2225,7 +2225,7 @@ const SettingsContent = () => {
             </p>
             <div className={styles.settingModalActions}>
               <button
-                type="button"
+                type='button'
                 className={styles.settingModalCancel}
                 onClick={() => setShowDeleteAllTicketsModal(false)}
                 disabled={isDeletingAllTickets}
@@ -2233,12 +2233,12 @@ const SettingsContent = () => {
                 キャンセル
               </button>
               <button
-                type="button"
+                type='button'
                 className={`${styles.settingModalConfirm} ${styles.settingModalConfirmDanger}`}
                 onClick={handleDeleteAllTickets}
                 disabled={isDeletingAllTickets}
               >
-                {isDeletingAllTickets ? "削除中..." : "削除してリセット"}
+                {isDeletingAllTickets ? '削除中...' : '削除してリセット'}
               </button>
             </div>
           </div>
@@ -2249,9 +2249,9 @@ const SettingsContent = () => {
         <div className={styles.settingModalOverlay}>
           <LoadingSpinner
             message={
-              pendingDeleteAccountType === "student"
-                ? "全ての生徒アカウントを削除中です..."
-                : "全ての中学生アカウントを削除中です..."
+              pendingDeleteAccountType === 'student'
+                ? '全ての生徒アカウントを削除中です...'
+                : '全ての中学生アカウントを削除中です...'
             }
           />
         </div>
@@ -2259,7 +2259,7 @@ const SettingsContent = () => {
 
       {isDeletingAllTickets && (
         <div className={styles.settingModalOverlay}>
-          <LoadingSpinner message="全てのチケットを削除し、カウンターをリセット中です..." />
+          <LoadingSpinner message='全てのチケットを削除し、カウンターをリセット中です...' />
         </div>
       )}
     </div>
