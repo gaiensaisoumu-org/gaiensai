@@ -1,8 +1,8 @@
 import { useEffect } from 'preact/hooks';
 import { clearTicketDisplayCacheBefore } from './ticketDisplayCache';
 
-const CLEANUP_THRESHOLD = 1775925349556;
-const EXPIRATION_PERIOD_MS = 30 * 24 * 60 * 60 * 1000; // 1ヶ月 (30日間)
+const CLEANUP_THRESHOLD = 1785650825682;
+const EXPIRATION_PERIOD_MS = 45 * 24 * 60 * 60 * 1000; // 1ヶ月半 (45日間)
 
 export const useTicketCleanup = () => {
   useEffect(() => {
