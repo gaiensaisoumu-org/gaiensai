@@ -11,6 +11,9 @@ export interface TicketData {
 // チケットデータのビット割り当て（合計36ビット + MAC 10ビット = 46ビット）
 export const MAC_BITS = 10n;
 export const SERIAL_BITS = 5n;
+// 中学生モードでは serial Bit4 を juniorId Bit11 に使用するため、入力値は4bit。
+export const JUNIOR_SERIAL_BITS = 4n;
+export const JUNIOR_SERIAL_LIMIT = 1n << JUNIOR_SERIAL_BITS;
 export const YEAR_BITS = 3n;
 export const SCHEDULE_BITS = 4n;
 export const PERFORMANCE_BITS = 5n;

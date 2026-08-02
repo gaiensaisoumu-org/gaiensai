@@ -31,6 +31,7 @@ import {
   SERIAL_BITS,
   SERIAL_MASK,
   SERIAL_SHIFT,
+  JUNIOR_SERIAL_BITS,
   TYPE_BITS,
   TYPE_MASK,
   TYPE_SHIFT,
@@ -42,8 +43,6 @@ import {
   JUNIOR_AFFILIATION_PREFIX,
   isDayTicketAffiliation,
 } from './ticketDataType.ts';
-
-const JUNIOR_SERIAL_BITS = 4n;
 
 // ---------------------------------------------------------
 // チケットコード生成関数

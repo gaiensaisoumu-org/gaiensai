@@ -17,6 +17,7 @@ import {
   YEAR_BITS,
   AFFILIATION_NUMBER_BITS,
   SERIAL_BITS,
+  JUNIOR_SERIAL_LIMIT,
 } from '@shared/ticketDataType.ts';
 
 type IssueTicketsRequest = {
@@ -989,8 +990,8 @@ export const handleIssueTicketsRequest = async (
       affiliation === DAY_TICKET_ANONYMOUS_AFFILIATION && isDayTicket
         ? 2 ** (Number(AFFILIATION_NUMBER_BITS) + Number(SERIAL_BITS))
         : isJuniorUser && !isDayTicket
-          ? 2 ** 4
-        : 2 ** Number(SERIAL_BITS);
+          ? Number(JUNIOR_SERIAL_LIMIT)
+          : 2 ** Number(SERIAL_BITS);
 
     // プレフィックスをキーとして発行枚数をデータベースに登録し、シリアル番号を取得
     const { data: counterData, error: counterError } = await adminClient.rpc(
