@@ -35,6 +35,8 @@ import {
   writeCachedJuniorTicketCards,
 } from "./offlineCache";
 import { withTimeout } from "../../../utils/withTimeout";
+import { clearAllUserCaches } from "../../../features/tickets/ticketDisplayCache";
+import Modal from "../../../components/ui/Modal";
 
 type TicketSnapshot = {
   performances?: Array<{
@@ -100,6 +102,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const [splitErrorMessage, setSplitErrorMessage] = useState<string | null>(
     null,
   );
+  const [isClearCacheModalOpen, setIsClearCacheModalOpen] = useState(false);
 
   const { route } = useLocation();
 
@@ -107,6 +110,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     window.localStorage.removeItem("junior_application_day");
     await supabase.auth.signOut();
     route("/junior/login");
+  };
+
+  const handleClearAllCaches = () => {
+    clearAllUserCaches();
+    setIsClearCacheModalOpen(false);
   };
 
   const handleSplitConfirmationYes = async () => {
@@ -863,21 +871,21 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       <section>
         <h1 className={subPageStyles.pageTitle}>中学生用マイページ</h1>
         <h2 className={sharedStyles.normalH2}>
-          ID: {loginId}{" "}
+          ID: {loginId}{' '}
           {usageType === 0
-            ? "中学生と保護者(共通のチケット使用)"
+            ? '中学生と保護者(共通のチケット使用)'
             : usageType === 1
-              ? "中学生と保護者(別々のチケット使用)"
+              ? '中学生と保護者(別々のチケット使用)'
               : usageType === 2
-                ? "中学生のみ"
+                ? '中学生のみ'
                 : usageType === 3
-                  ? "保護者のみ"
-                  : "不明"}
+                  ? '保護者のみ'
+                  : '不明'}
         </h2>
         {(!isAdmissionOnlyAccount || !hasEntryOnlyTicket) && (
           <a
-            href="/junior/issue"
-            className={`${dashboardStyles.buttonLink} ${!isOnline || isIssueReceptionStopped ? dashboardStyles.buttonLinkDisabled : ""}`}
+            href='/junior/issue'
+            className={`${dashboardStyles.buttonLink} ${!isOnline || isIssueReceptionStopped ? dashboardStyles.buttonLinkDisabled : ''}`}
             aria-disabled={!isOnline || isIssueReceptionStopped}
             tabIndex={!isOnline || isIssueReceptionStopped ? -1 : 0}
             onClick={(event) => {
@@ -923,16 +931,16 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           showSortControl
           sortMode={myTicketSortMode}
           onSortModeChange={setMyTicketSortMode}
-          emptyMessage="自分が使うチケットはまだありません。"
+          emptyMessage='自分が使うチケットはまだありません。'
         />
       </NormalSection>
       {!isAdmissionOnlyAccount && (
         <NormalSection>
           <h2>公演空き状況</h2>
-          <a href="/performances" className={dashboardStyles.smallButtonLink}>
+          <a href='/performances' className={dashboardStyles.smallButtonLink}>
             公演の詳細はこちら
           </a>
-          <a href="/timetable" className={dashboardStyles.smallButtonLink}>
+          <a href='/timetable' className={dashboardStyles.smallButtonLink}>
             タイムテーブルはこちら
           </a>
           {ticketLoading ? <LoadingSpinner /> : null}
@@ -953,8 +961,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                     <h3>クラス公演</h3>
                     <PerformancesTable
                       enableIssueJump={true}
-                      issuePath="/junior/issue"
-                      remainingMode="junior"
+                      issuePath='/junior/issue'
+                      remainingMode='junior'
                       filterAccepting={true}
                       scheduleFilter={
                         classApplicationDays && classApplicationDays.length > 0
@@ -969,8 +977,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                     <h3>体育館公演</h3>
                     <GymPerformancesTable
                       enableIssueJump={true}
-                      issuePath="/junior/issue"
-                      remainingMode="junior"
+                      issuePath='/junior/issue'
+                      remainingMode='junior'
                       filterAccepting={true}
                       scheduleFilter={
                         gymApplicationDays && gymApplicationDays.length > 0
@@ -1000,21 +1008,44 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         </NormalSection>
       )}
 
+      <NormalSection>
+        <h2>設定</h2>
+        <button
+          type='button'
+          className={subPageStyles.removeButton}
+          onClick={() => setIsClearCacheModalOpen(true)}
+        >
+          すべてのキャッシュを削除
+        </button>
+      </NormalSection>
+
       <section>
         <button onClick={handleLogout} className={dashboardStyles.logoutBtn}>
           ログアウト
         </button>
       </section>
 
+      {isClearCacheModalOpen ? (
+        <Modal
+          setIsOpen={setIsClearCacheModalOpen}
+          handleAction={handleClearAllCaches}
+          headingText='すべてのキャッシュを削除しますか？'
+          buttonText='削除する'
+        >
+          <p>チケット表示履歴が消去されます。</p>
+          <p>チケットはキャンセルされません。</p>
+        </Modal>
+      ) : null}
+
       {/* アカウント分割確認ダイアログ */}
       {accountSplit.showConfirmation && (
         <div
           className={registrationStyles.modal}
-          role="dialog"
-          aria-labelledby="split-dialog-title"
+          role='dialog'
+          aria-labelledby='split-dialog-title'
         >
           <div className={registrationStyles.modalContent}>
-            <h2 id="split-dialog-title">アカウント分割確認</h2>
+            <h2 id='split-dialog-title'>アカウント分割確認</h2>
             <p className={registrationStyles.modalText}>
               中学生と保護者でアカウントを分割しますか？
             </p>
@@ -1026,14 +1057,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
             </p>
             <div className={registrationStyles.modalActions}>
               <button
-                type="button"
+                type='button'
                 onClick={handleSplitConfirmationNo}
                 className={registrationStyles.modalButtonSecondary}
               >
                 いいえ
               </button>
               <button
-                type="button"
+                type='button'
                 onClick={handleSplitConfirmationYes}
                 className={registrationStyles.modalButtonPrimary}
               >
@@ -1048,11 +1079,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       {accountSplit.showParentForm && (
         <div
           className={registrationStyles.modal}
-          role="dialog"
-          aria-labelledby="parent-form-title"
+          role='dialog'
+          aria-labelledby='parent-form-title'
         >
           <div className={registrationStyles.modalContent}>
-            <h2 id="parent-form-title">保護者情報入力</h2>
+            <h2 id='parent-form-title'>保護者情報入力</h2>
             <p>
               ここで入力した情報を用いて、保護者のデバイスでログインをお願いします。
             </p>
@@ -1061,18 +1092,18 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
               className={registrationStyles.parentForm}
             >
               <div className={registrationStyles.formGroup}>
-                <label htmlFor="parent-id" className={registrationStyles.label}>
+                <label htmlFor='parent-id' className={registrationStyles.label}>
                   保護者のID (そのままでも可)
                 </label>
                 <input
-                  id="parent-id"
-                  type="text"
+                  id='parent-id'
+                  type='text'
                   className={registrationStyles.input}
                   value={parentGuardianId}
                   onChange={(e) => {
                     setParentGuardianId(e.currentTarget.value);
                   }}
-                  placeholder="例: 12345"
+                  placeholder='例: 12345'
                   required
                 />
               </div>
@@ -1084,10 +1115,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   </legend>
                   <label className={registrationStyles.birthdayLabel}>
                     <input
-                      type="number"
+                      type='number'
                       className={registrationStyles.birthdayInput}
-                      placeholder="2000"
-                      inputMode="numeric"
+                      placeholder='2000'
+                      inputMode='numeric'
                       value={birthdayYear}
                       required={true}
                       min={1000}
@@ -1098,10 +1129,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   </label>
                   <label className={registrationStyles.birthdayLabel}>
                     <input
-                      type="number"
+                      type='number'
                       className={registrationStyles.birthdayInput}
-                      placeholder="1"
-                      inputMode="numeric"
+                      placeholder='1'
+                      inputMode='numeric'
                       value={birthdayMonth}
                       required={true}
                       min={1}
@@ -1112,10 +1143,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   </label>
                   <label className={registrationStyles.birthdayLabel}>
                     <input
-                      type="number"
+                      type='number'
                       className={registrationStyles.birthdayInput}
-                      placeholder="1"
-                      inputMode="numeric"
+                      placeholder='1'
+                      inputMode='numeric'
                       value={birthdayDay}
                       required={true}
                       min={1}
@@ -1133,7 +1164,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
 
               <div className={registrationStyles.modalActions}>
                 <button
-                  type="button"
+                  type='button'
                   onClick={handleCloseSplit}
                   className={registrationStyles.modalButtonSecondary}
                   disabled={splitLoading}
@@ -1141,11 +1172,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
                   キャンセル
                 </button>
                 <button
-                  type="submit"
+                  type='submit'
                   className={registrationStyles.modalButtonPrimary}
                   disabled={splitLoading}
                 >
-                  {splitLoading ? "分割中..." : "分割を実行"}
+                  {splitLoading ? '分割中...' : '分割を実行'}
                 </button>
               </div>
             </form>
@@ -1156,8 +1187,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       {splitLoading && !accountSplit.showParentForm && (
         <div
           className={registrationStyles.loadingOverlay}
-          role="status"
-          aria-live="polite"
+          role='status'
+          aria-live='polite'
         >
           <div className={registrationStyles.loadingOverlayContent}>
             <LoadingSpinner />

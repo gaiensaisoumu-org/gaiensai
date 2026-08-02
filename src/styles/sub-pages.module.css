@@ -63,6 +63,11 @@
   /* 中央寄せにしたい場合 */
 }
 
+.buttonContainerLeft {
+  margin: 20px 0;
+  padding-left: 1rem;
+}
+
 /* ボタン風の見た目にするスタイル */
 .openButton {
   display: inline-block;
@@ -94,4 +99,14 @@
   border: 1px solid var(--login-input-border);
   border-radius: 8px;
   box-sizing: border-box;
+}
+
+.removeButton {
+  background: transparent;
+  color: var(--error-text-color);
+  border: 1px solid var(--error-text-color);
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
 }

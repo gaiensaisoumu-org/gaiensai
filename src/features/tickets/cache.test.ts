@@ -5,6 +5,9 @@ import {
   listTicketDisplayCache,
   markTicketDisplayCacheCancelled,
   touchTicketDisplayCacheOpenedAt,
+  clearTicketDisplayCache,
+  clearTicketHistoryCaches,
+  clearAllUserCaches,
 } from './ticketDisplayCache';
 
 describe('ticketDisplayCache', () => {
@@ -78,5 +81,55 @@ describe('ticketDisplayCache', () => {
     expect(after?.lastOpenedAt).toBe(2000);
     expect((after?.lastOpenedAt ?? 0) > beforeOpenedAt).toBe(true);
     vi.restoreAllMocks();
+  });
+
+  it('clears ticket display history without removing other local storage', () => {
+    writeTicketDisplayCache(sample.code, sample);
+    localStorage.setItem('unrelated-setting', 'keep');
+
+    clearTicketDisplayCache();
+
+    expect(listTicketDisplayCache()).toEqual([]);
+    expect(localStorage.getItem('unrelated-setting')).toBe('keep');
+  });
+
+  it('clears ticket list caches for students and junior users', () => {
+    writeTicketDisplayCache(sample.code, sample);
+    localStorage.setItem('students_ticket_cards_cache:v1:student-1', '{}');
+    localStorage.setItem('junior_ticket_cards_cache:v1:junior-1', '{}');
+    localStorage.setItem('unrelated-setting', 'keep');
+
+    clearTicketHistoryCaches();
+
+    expect(listTicketDisplayCache()).toEqual([]);
+    expect(localStorage.getItem('students_ticket_cards_cache:v1:student-1')).toBeNull();
+    expect(localStorage.getItem('junior_ticket_cards_cache:v1:junior-1')).toBeNull();
+    expect(localStorage.getItem('unrelated-setting')).toBe('keep');
+  });
+
+  it('clears all local storage except authentication sessions', () => {
+    localStorage.setItem('students_profile_cache:v1:student-1', '{}');
+    localStorage.setItem('junior_profile_cache:v1:junior-1', '{}');
+    localStorage.setItem('performances-table-cache:v1:general:all:all', '{}');
+    localStorage.setItem('gym-performances-table-cache:v1:general:all:all', '{}');
+    localStorage.setItem('event_config', '{}');
+    localStorage.setItem('unrelated-setting', 'remove');
+    localStorage.setItem('admin_control_panel_session_v2', 'keep');
+    localStorage.setItem('sb-project-auth-token', 'keep');
+
+    clearAllUserCaches();
+
+    expect(localStorage.getItem('students_profile_cache:v1:student-1')).toBeNull();
+    expect(localStorage.getItem('junior_profile_cache:v1:junior-1')).toBeNull();
+    expect(
+      localStorage.getItem('performances-table-cache:v1:general:all:all'),
+    ).toBeNull();
+    expect(
+      localStorage.getItem('gym-performances-table-cache:v1:general:all:all'),
+    ).toBeNull();
+    expect(localStorage.getItem('event_config')).toBeNull();
+    expect(localStorage.getItem('unrelated-setting')).toBeNull();
+    expect(localStorage.getItem('admin_control_panel_session_v2')).toBe('keep');
+    expect(localStorage.getItem('sb-project-auth-token')).toBe('keep');
   });
 });

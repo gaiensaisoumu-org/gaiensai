@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import TicketListContent from '../../features/tickets/TicketListContent';
+import Modal from '../../components/ui/Modal';
 import {
+  clearTicketHistoryCaches,
   listTicketDisplayCache,
   subscribeTicketDisplayCacheUpdated,
 } from '../../features/tickets/ticketDisplayCache';
@@ -15,6 +17,8 @@ import { useTitle } from '../../hooks/useTitle';
 
 const TicketHistory = () => {
   const [cacheVersion, setCacheVersion] = useState(0);
+  const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] =
+    useState(false);
   const [validSortMode, setValidSortMode] = useState<TicketListSortMode>(() => {
     try {
       return (
@@ -109,9 +113,24 @@ const TicketHistory = () => {
     [tickets],
   );
 
+  const handleClearHistory = () => {
+    clearTicketHistoryCaches();
+    setIsClearHistoryModalOpen(false);
+  };
+
   return (
     <>
       <h1 className={pageStyles.pageTitle}>チケット表示履歴</h1>
+      <div className={pageStyles.buttonContainerLeft}>
+        <button
+          type='button'
+          className={pageStyles.removeButton}
+          onClick={() => setIsClearHistoryModalOpen(true)}
+          disabled={tickets.length === 0}
+        >
+          履歴を消去
+        </button>
+      </div>
       <section>
         <h2>有効なチケット</h2>
         <TicketListContent
@@ -145,6 +164,16 @@ const TicketHistory = () => {
           emptyMessage='この端末で開いたことがあるその他のチケットはまだありません。'
         />
       </section>
+      {isClearHistoryModalOpen ? (
+        <Modal
+          setIsOpen={setIsClearHistoryModalOpen}
+          handleAction={handleClearHistory}
+          headingText='履歴を消去しますか？'
+          buttonText='消去する'
+        >
+          <p>チケットはキャンセルされません。</p>
+        </Modal>
+      ) : null}
     </>
   );
 };

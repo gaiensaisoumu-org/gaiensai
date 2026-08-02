@@ -2,6 +2,8 @@ import type { TicketCardStatus } from './IssuedTicketCardList';
 import { resolveJuniorRelationshipName } from './juniorRelationship';
 
 const TICKET_CACHE_PREFIX = 'ticket-display-cache:v1:';
+const STUDENT_TICKETS_CACHE_PREFIX = 'students_ticket_cards_cache:v1:';
+const JUNIOR_TICKETS_CACHE_PREFIX = 'junior_ticket_cards_cache:v1:';
 const TICKET_CACHE_UPDATED_EVENT = 'ticket-display-cache:updated';
 const DEFAULT_TICKET_STATUS: TicketCardStatus = 'unknown';
 
@@ -212,6 +214,92 @@ export const deleteTicketDisplayCache = (code: string): void => {
     notifyTicketDisplayCacheUpdated(code);
   } catch {
     // ignore
+  }
+};
+
+/** この端末に保存されたチケット表示履歴をすべて削除する。 */
+export const clearTicketDisplayCache = (): void => {
+  const keysToRemove: string[] = [];
+
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (key?.startsWith(TICKET_CACHE_PREFIX)) {
+      keysToRemove.push(key);
+    }
+  }
+
+  for (const key of keysToRemove) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Ignore errors and continue clearing the remaining entries.
+    }
+  }
+
+  if (keysToRemove.length > 0) {
+    notifyTicketDisplayCacheUpdated('');
+  }
+};
+
+/**
+ * この端末に保存されたチケット表示履歴と、マイページ用のチケット一覧キャッシュを削除する。
+ * チケット自体のキャンセルやサーバー上のデータ変更は行わない。
+ */
+export const clearTicketHistoryCaches = (): void => {
+  const keysToRemove: string[] = [];
+  const cachePrefixes = [
+    TICKET_CACHE_PREFIX,
+    STUDENT_TICKETS_CACHE_PREFIX,
+    JUNIOR_TICKETS_CACHE_PREFIX,
+  ];
+
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (key && cachePrefixes.some((prefix) => key.startsWith(prefix))) {
+      keysToRemove.push(key);
+    }
+  }
+
+  for (const key of keysToRemove) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Ignore errors and continue clearing the remaining entries.
+    }
+  }
+
+  if (keysToRemove.length > 0) {
+    notifyTicketDisplayCacheUpdated('');
+  }
+};
+
+/**
+ * この端末のローカルストレージを削除する。
+ * 管理画面とSupabaseの認証情報、チケットのキャンセル状態、サーバー上のデータは変更しない。
+ */
+export const clearAllUserCaches = (): void => {
+  const keysToRemove: string[] = [];
+
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    const isPreservedKey =
+      key?.startsWith('admin_control_panel_session') ||
+      /^sb-.+-auth-token$/.test(key ?? '');
+    if (key && !isPreservedKey) {
+      keysToRemove.push(key);
+    }
+  }
+
+  for (const key of keysToRemove) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Ignore errors and continue clearing the remaining entries.
+    }
+  }
+
+  if (keysToRemove.length > 0) {
+    notifyTicketDisplayCacheUpdated('');
   }
 };
 

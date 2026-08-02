@@ -6,6 +6,7 @@ import {
   toTicketDecodedDisplaySeed,
 } from '../../../features/tickets/ticketCodeDecode';
 import {
+  clearAllUserCaches,
   listTicketDisplayCache,
   subscribeTicketDisplayCacheUpdated,
 } from '../../../features/tickets/ticketDisplayCache';
@@ -34,6 +35,7 @@ import { useTicketStorage } from '../../../features/tickets/useTicketStorage';
 import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
 import { useTitle } from '../../../hooks/useTitle';
 import { withTimeout } from '../../../utils/withTimeout';
+import Modal from '../../../components/ui/Modal';
 
 const STUDENT_TICKETS_CACHE_PREFIX = 'ticket-display-cache:v1:';
 const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
@@ -146,6 +148,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState<
     string | null
   >(null);
+  const [isClearCacheModalOpen, setIsClearCacheModalOpen] = useState(false);
 
   useTitle('ダッシュボード - 生徒用ページ');
 
@@ -900,6 +903,11 @@ const Dashboard = ({ userData }: DashboardProps) => {
     await supabase.auth.signOut();
   };
 
+  const handleClearAllCaches = () => {
+    clearAllUserCaches();
+    setIsClearCacheModalOpen(false);
+  };
+
   const handlePasswordChange = async (event: Event) => {
     event.preventDefault();
     setPasswordChangeError(null);
@@ -1185,11 +1193,32 @@ const Dashboard = ({ userData }: DashboardProps) => {
           </button>
         </form>
       </NormalSection>
+      <NormalSection>
+        <h2>設定</h2>
+        <button
+          type='button'
+          className={subPageStyles.removeButton}
+          onClick={() => setIsClearCacheModalOpen(true)}
+        >
+          すべてのキャッシュを削除
+        </button>
+      </NormalSection>
       <section>
         <button onClick={handleLogout} className={styles.logoutBtn}>
           ログアウト
         </button>
       </section>
+      {isClearCacheModalOpen ? (
+        <Modal
+          setIsOpen={setIsClearCacheModalOpen}
+          handleAction={handleClearAllCaches}
+          headingText='すべてのキャッシュを削除しますか？'
+          buttonText='削除する'
+        >
+          <p>チケット表示履歴が消去されます。</p>
+          <p>チケットはキャンセルされません。</p>
+        </Modal>
+      ) : null}
     </>
   );
 };
