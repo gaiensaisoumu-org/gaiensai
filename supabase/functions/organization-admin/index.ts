@@ -169,6 +169,7 @@ Deno.serve(async (req) => {
           ]),
         );
         return json({
+          username: admin.username,
           performance: own.performance,
           kind: own.kind,
           tickets: generalTickets.map((link) => ({ ...link, round_name: roundNames.get((link as { performance_id?: number }).performance_id) ?? '未設定' })),
@@ -182,6 +183,7 @@ Deno.serve(async (req) => {
       if (scheduleError) {throw scheduleError;}
       const roundNames = new Map((schedules ?? []).map((schedule) => [schedule.id, schedule.round_name]));
       return json({
+        username: admin.username,
         performance: own.performance,
         kind: own.kind,
         tickets: generalTickets.map((link) => ({

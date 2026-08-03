@@ -26,10 +26,12 @@ type TicketLink = {
   };
 };
 type Dashboard = {
+  username: string;
   kind: 'class' | 'gym';
   performance: Record<string, unknown>;
   tickets: TicketLink[];
 };
+type MessageScope = 'performance' | 'image' | 'ticketSettings' | 'password';
 
 const csvCell = (value: unknown) =>
   `"${String(value ?? '').replaceAll('"', '""')}"`;
@@ -71,6 +73,7 @@ const OrganizationAdmin = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [messageScope, setMessageScope] = useState<MessageScope | null>(null);
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -153,6 +156,7 @@ const OrganizationAdmin = () => {
   const save = async (event: Event) => {
     event.preventDefault();
     setBusy(true);
+    setMessageScope('performance');
     setError(null);
     setNotice(null);
     try {
@@ -188,6 +192,7 @@ const OrganizationAdmin = () => {
     }
     setError(null);
     setNotice(null);
+    setMessageScope('image');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setError('JPEG・PNG・WebP形式の画像を選択してください。');
       return;
@@ -230,6 +235,7 @@ const OrganizationAdmin = () => {
   const changePassword = async (event: Event) => {
     event.preventDefault();
     setBusy(true);
+    setMessageScope('password');
     setError(null);
     setNotice(null);
     try {
@@ -266,6 +272,7 @@ const OrganizationAdmin = () => {
     nextJuniorCapacity = juniorCapacity,
   ) => {
     setBusy(true);
+    setMessageScope('ticketSettings');
     setError(null);
     setNotice(null);
     try {
@@ -416,8 +423,6 @@ const OrganizationAdmin = () => {
             ログアウト
           </button>
         </div>
-        {error && <Alert type='error'>{error}</Alert>}
-        {notice && <Alert type='info'>{notice}</Alert>}
         <NormalSection>
           <h2>公演情報</h2>
           <form onSubmit={save} className={styles.form}>
@@ -446,6 +451,8 @@ const OrganizationAdmin = () => {
             </label>
             <button disabled={busy}>{busy ? '保存中...' : '変更を保存'}</button>
           </form>
+          {messageScope === 'performance' && error && <Alert type='error'>{error}</Alert>}
+          {messageScope === 'performance' && notice && <Alert type='info'>{notice}</Alert>}
         </NormalSection>
         <NormalSection>
           <h2>公演画像</h2>
@@ -474,6 +481,8 @@ const OrganizationAdmin = () => {
               JPEG・PNG・WebP形式、5MB以下の画像を選択してください。
             </p>
           </div>
+          {messageScope === 'image' && error && <Alert type='error'>{error}</Alert>}
+          {messageScope === 'image' && notice && <Alert type='info'>{notice}</Alert>}
         </NormalSection>
         <NormalSection>
           <h2>受付・定員設定</h2>
@@ -508,6 +517,8 @@ const OrganizationAdmin = () => {
               </button>
             </div>
           </div>
+          {messageScope === 'ticketSettings' && error && <Alert type='error'>{error}</Alert>}
+          {messageScope === 'ticketSettings' && notice && <Alert type='info'>{notice}</Alert>}
         </NormalSection>
         <NormalSection>
           <div className={styles.ticketHeading}>
@@ -563,6 +574,14 @@ const OrganizationAdmin = () => {
         <NormalSection>
           <h2>パスワード変更</h2>
           <form onSubmit={changePassword} className={styles.form}>
+            <input
+            type='text'
+            name='username'
+            value={dashboard.username}
+            autocomplete='username'
+            style='display: none;'
+            aria-hidden='true'
+          />
             <label>
               現在のパスワード
               <input
@@ -603,6 +622,8 @@ const OrganizationAdmin = () => {
             </label>
             <button disabled={busy}>パスワードを変更</button>
           </form>
+          {messageScope === 'password' && error && <Alert type='error'>{error}</Alert>}
+          {messageScope === 'password' && notice && <Alert type='info'>{notice}</Alert>}
         </NormalSection>
       {showCapacityModal && (
           <div
@@ -651,6 +672,9 @@ const OrganizationAdmin = () => {
                     required
                   />
                 </label>
+                {messageScope === 'ticketSettings' && error && (
+                  <Alert type='error'>{error}</Alert>
+                )}
                 <div className={styles.modalActions}>
                   <button
                     type='button'
