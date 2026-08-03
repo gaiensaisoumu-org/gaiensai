@@ -90,6 +90,7 @@
   background: transparent;
   padding: 0.35rem 0.7rem;
   cursor: pointer;
+  margin: 0 0.5rem;
 }
 
 .inlineEditButton:disabled {

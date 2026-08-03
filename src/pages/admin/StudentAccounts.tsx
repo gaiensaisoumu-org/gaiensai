@@ -30,6 +30,7 @@ const generateBase58Password = (length = 8): string => {
 type StudentUser = {
   studentId: string;
   email: string;
+  clubs: string[];
   lastSignIn?: string;
   createdAt: string;
 };
@@ -73,6 +74,13 @@ const StudentAccountsContent = () => {
   >([]);
   const [existingUsers, setExistingUsers] = useState<StudentUser[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [availableClubs, setAvailableClubs] = useState<string[]>([]);
+  const [clubEditTarget, setClubEditTarget] = useState<StudentUser | null>(
+    null,
+  );
+  const [editedClubs, setEditedClubs] = useState<string[]>([]);
+  const [clubEditError, setClubEditError] = useState<string | null>(null);
+  const [isSavingClubs, setIsSavingClubs] = useState(false);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState<{
@@ -135,6 +143,24 @@ const StudentAccountsContent = () => {
 
   useEffect(() => {
     void fetchExistingUsers();
+  }, []);
+
+  useEffect(() => {
+    const fetchAvailableClubs = async () => {
+      const { data, error } = await supabase
+        .from('gym_performances')
+        .select('group_name');
+
+      if (!error && data) {
+        setAvailableClubs(
+          Array.from(
+            new Set(data.map((performance) => performance.group_name).filter(Boolean)),
+          ).sort(),
+        );
+      }
+    };
+
+    void fetchAvailableClubs();
   }, []);
 
   const filteredAccounts = useMemo(() => {
@@ -329,6 +355,57 @@ const StudentAccountsContent = () => {
   const closePasswordResetModal = () => {
     if (!isResettingPassword) {
       setPasswordResetTarget(null);
+    }
+  };
+
+  const openClubEditModal = (user: StudentUser) => {
+    setClubEditTarget(user);
+    setEditedClubs(user.clubs);
+    setClubEditError(null);
+  };
+
+  const closeClubEditModal = () => {
+    if (!isSavingClubs) {
+      setClubEditTarget(null);
+    }
+  };
+
+  const handleSaveClubs = async (event: Event) => {
+    event.preventDefault();
+    if (!clubEditTarget) {
+      return;
+    }
+
+    setClubEditError(null);
+    setIsSavingClubs(true);
+    try {
+      const token = getSessionToken();
+      const { error } = await supabase.functions.invoke('admin-auth', {
+        body: {
+          action: 'updateStudentClubs',
+          studentId: clubEditTarget.studentId,
+          clubs: editedClubs,
+        },
+        headers: { 'x-admin-session-token': token ?? '' },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setExistingUsers((users) =>
+        users.map((user) =>
+          user.studentId === clubEditTarget.studentId
+            ? { ...user, clubs: editedClubs }
+            : user,
+        ),
+      );
+      setClubEditTarget(null);
+    } catch (err) {
+      const errorMsg = await readErrorMessage(err);
+      setClubEditError(`変更に失敗しました: ${errorMsg}`);
+    } finally {
+      setIsSavingClubs(false);
     }
   };
 
@@ -742,6 +819,7 @@ const StudentAccountsContent = () => {
               <thead>
                 <tr>
                   <th>学年クラス番号 (ID)</th>
+                  <th>部活</th>
                   <th>最終ログイン</th>
                   <th>操作</th>
                 </tr>
@@ -749,7 +827,7 @@ const StudentAccountsContent = () => {
               <tbody>
                 {existingUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className={styles.info}>
+                    <td colSpan={4} className={styles.info}>
                       登録済みの生徒アカウントはありません。
                     </td>
                   </tr>
@@ -758,11 +836,28 @@ const StudentAccountsContent = () => {
                     <tr key={user.studentId}>
                       <td>{user.studentId}</td>
                       <td className={styles.tableCellSub}>
+                        {user.clubs.length > 0
+                          ? user.clubs.join('、')
+                          : user.lastSignIn
+                            ? 'なし'
+                            : '未選択'}
+                      </td>
+                      <td className={styles.tableCellSub}>
                         {user.lastSignIn
                           ? new Date(user.lastSignIn).toLocaleString()
                           : '未ログイン'}
                       </td>
                       <td>
+                        <button
+                          type='button'
+                          className={styles.inlineEditButton}
+                          onClick={() => openClubEditModal(user)}
+                          disabled={
+                            isGenerating || isSavingClubs || !user.lastSignIn
+                          }
+                        >
+                          部活変更
+                        </button>
                         <button
                           type='button'
                           className={styles.inlineEditButton}
@@ -789,6 +884,12 @@ const StudentAccountsContent = () => {
           <LoadingSpinner
             message={`アカウントを生成・登録中です。5分以上時間がかかる場合があります。 (${progress.current} / ${progress.total}) ...`}
           />
+        </div>
+      )}
+
+      {isLoadingUsers && (
+        <div className={styles.settingModalOverlay}>
+          <LoadingSpinner message='生徒アカウントを読み込み中です...' />
         </div>
       )}
 
@@ -906,6 +1007,84 @@ const StudentAccountsContent = () => {
                 disabled={isResettingPassword}
               >
                 {isResettingPassword ? '変更中...' : '変更する'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {clubEditTarget && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeClubEditModal();
+            }
+          }}
+        >
+          <form
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='student-club-edit-title'
+            onSubmit={handleSaveClubs}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='student-club-edit-title'
+              className={styles.settingModalTitle}
+            >
+              ID: {clubEditTarget.studentId} の部活を変更
+            </h3>
+            <p className={styles.noteText}>
+              所属している部活をすべて選択してください。
+            </p>
+            {Array.from(
+              new Set([...availableClubs, ...clubEditTarget.clubs]),
+            ).sort().map((club) => (
+              <label key={club} className={styles.settingLabel}>
+                <input
+                  type='checkbox'
+                  checked={editedClubs.includes(club)}
+                  disabled={isSavingClubs}
+                  onChange={(event) => {
+                    const isChecked = event.currentTarget.checked;
+                    setEditedClubs((clubs) =>
+                      isChecked
+                        ? [...clubs, club]
+                        : clubs.filter((selectedClub) => selectedClub !== club),
+                    );
+                  }}
+                />{' '}
+                {club}
+              </label>
+            ))}
+            {availableClubs.length === 0 && clubEditTarget.clubs.length === 0 && (
+              <p className={styles.authError}>
+                部活候補を取得できませんでした。
+              </p>
+            )}
+            {clubEditError && (
+              <p className={styles.authError} role='alert'>
+                {clubEditError}
+              </p>
+            )}
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={closeClubEditModal}
+                disabled={isSavingClubs}
+              >
+                キャンセル
+              </button>
+              <button
+                type='submit'
+                className={styles.settingModalConfirm}
+                disabled={isSavingClubs}
+              >
+                {isSavingClubs ? '変更中...' : '変更する'}
               </button>
             </div>
           </form>

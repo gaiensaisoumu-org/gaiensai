@@ -49,6 +49,7 @@ type AdminAuthRequest = {
   teachers?: unknown;
   users?: unknown;
   studentId?: unknown;
+  clubs?: unknown;
   accountType?: unknown;
   juniorPassword?: unknown;
   secretCode?: unknown;
@@ -109,6 +110,7 @@ type AdminAuthBody =
       issueCount: number;
     }
   | { mode: 'getStudentUsers' }
+  | { mode: 'updateStudentClubs'; studentId: string; clubs: string[] }
   | {
       mode: 'resetUserPassword';
       studentId: string;
@@ -300,6 +302,35 @@ const normalizeInteger = (
   return value;
 };
 
+const normalizeClubs = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    throw new HttpError(400, 'clubs は配列で送信してください。');
+  }
+
+  if (value.length > 20) {
+    throw new HttpError(400, '部活は20件まで指定できます。');
+  }
+
+  const clubs = value.map((club) => {
+    if (typeof club !== 'string') {
+      throw new HttpError(400, '部活名は文字列で指定してください。');
+    }
+
+    const trimmedClub = club.trim();
+    if (trimmedClub.length === 0 || trimmedClub.length > 100) {
+      throw new HttpError(400, '部活名が不正です。');
+    }
+
+    return trimmedClub;
+  });
+
+  if (new Set(clubs).size !== clubs.length) {
+    throw new HttpError(400, '同じ部活を重複して指定できません。');
+  }
+
+  return clubs;
+};
+
 const isTicketIssueMode = (value: unknown): value is TicketIssueMode =>
   typeof value === 'string' &&
   (TICKET_ISSUE_MODE_VALUES as readonly string[]).includes(value);
@@ -399,6 +430,20 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'getStudentUsers') {
     return { mode: 'getStudentUsers' };
+  }
+
+  if (action === 'updateStudentClubs') {
+    const values = body as AdminAuthRequest;
+    const studentId = normalizePassword(values.studentId, 'studentId');
+    if (!/^\d{5}$/.test(studentId)) {
+      throw new HttpError(400, '生徒IDが不正です。');
+    }
+
+    return {
+      mode: 'updateStudentClubs',
+      studentId,
+      clubs: normalizeClubs(values.clubs),
+    };
   }
 
   if (action === 'getStatusDashboard') {
@@ -1511,12 +1556,41 @@ Deno.serve(async (req) => {
         throw error;
       }
 
+      const authUserIds = users.map((user) => user.id);
+      const PROFILE_FETCH_BATCH_SIZE = 50;
+      const userProfiles: { id: string; clubs: string[] | null }[] = [];
+
+      for (
+        let index = 0;
+        index < authUserIds.length;
+        index += PROFILE_FETCH_BATCH_SIZE
+      ) {
+        const { data, error: profilesError } = await adminClient
+          .from('users')
+          .select('id, clubs')
+          .in('id', authUserIds.slice(index, index + PROFILE_FETCH_BATCH_SIZE));
+
+        if (profilesError) {
+          throw profilesError;
+        }
+
+        userProfiles.push(...(data ?? []));
+      }
+
+      const clubsByUserId = new Map(
+        userProfiles.map((profile) => [
+          profile.id,
+          profile.clubs ?? [],
+        ]),
+      );
+
       // @gaiensai.local のドメインを持つユーザーのみを抽出
       const studentUsers = users
         .filter((u) => u.email?.endsWith('@gaiensai.local'))
         .map((u) => ({
           studentId: u.user_metadata?.student_id || u.email?.split('@')[0],
           email: u.email,
+          clubs: clubsByUserId.get(u.id) ?? [],
           lastSignIn: u.last_sign_in_at,
           createdAt: u.created_at,
         }))
@@ -1558,6 +1632,33 @@ Deno.serve(async (req) => {
         .eq('id', session.id);
 
       return new Response(JSON.stringify({ dashboard }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'updateStudentClubs') {
+      const session = await requireValidSession(adminClient, req);
+      const { data: updatedUser, error: updateError } = await adminClient
+        .from('users')
+        .update({ clubs: body.clubs.length > 0 ? body.clubs : null })
+        .eq('email', `${body.studentId}@gaiensai.local`)
+        .select('id')
+        .maybeSingle();
+
+      if (updateError) {
+        throw updateError;
+      }
+      if (!updatedUser) {
+        throw new HttpError(404, '対象の生徒アカウントが見つかりませんでした。');
+      }
+
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      return new Response(JSON.stringify({ updated: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
