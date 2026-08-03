@@ -2336,6 +2336,39 @@ Deno.serve(async (req) => {
       if (!performance) {
         throw new HttpError(404, '対象の公演が見つかりません。');
       }
+      if (body.kind === 'gym') {
+        const { data: targetGym, error: targetGymError } = await adminClient
+          .from('gym_performances')
+          .select('group_name')
+          .eq('id', body.performanceId)
+          .single();
+        if (targetGymError) {
+          throw targetGymError;
+        }
+        const { data: groupPerformances, error: groupError } = await adminClient
+          .from('gym_performances')
+          .select('id')
+          .eq('group_name', targetGym.group_name);
+        if (groupError) {
+          throw groupError;
+        }
+        const groupIds = (groupPerformances ?? []).map((item) => item.id);
+        const { data: existingGroupAdmin, error: existingError } =
+          await adminClient
+            .from('organization_admins')
+            .select('id')
+            .in('gym_performance_id', groupIds)
+            .limit(1);
+        if (existingError) {
+          throw existingError;
+        }
+        if (existingGroupAdmin && existingGroupAdmin.length > 0) {
+          throw new HttpError(
+            409,
+            'この部活には既に管理者アカウントが作成されています。',
+          );
+        }
+      }
       const { error: insertError } = await adminClient
         .from('organization_admins')
         .insert({
@@ -2441,17 +2474,40 @@ Deno.serve(async (req) => {
       if (existingError) {throw existingError;}
       const usedUsernames = new Set((existing ?? []).map((item) => item.username));
       const assigned = new Set((existing ?? []).map((item) => item.class_performance_id ? `class:${item.class_performance_id}` : `gym:${item.gym_performance_id}`));
+      const { data: gymPerformances, error: gymError } = await adminClient
+        .from('gym_performances')
+        .select('id, group_name');
+      if (gymError) {throw gymError;}
+      const gymGroups = new Map(
+        (gymPerformances ?? []).map((item) => [item.id, item.group_name]),
+      );
+      const assignedGymGroups = new Set(
+        (existing ?? [])
+          .map((item) =>
+            item.gym_performance_id
+              ? gymGroups.get(item.gym_performance_id)
+              : null,
+          )
+          .filter((group): group is string => Boolean(group)),
+      );
       const rows: { username: string; password_hash: string; class_performance_id: number | null; gym_performance_id: number | null }[] = [];
       const skipped: string[] = [];
       for (const item of body.admins) {
         const key = `${item.kind}:${item.performanceId}`;
-        if (usedUsernames.has(item.username) || assigned.has(key)) {
+        const gymGroup =
+          item.kind === 'gym' ? gymGroups.get(item.performanceId) : null;
+        if (
+          usedUsernames.has(item.username) ||
+          assigned.has(key) ||
+          (typeof gymGroup === 'string' && assignedGymGroups.has(gymGroup))
+        ) {
           skipped.push(item.username);
           continue;
         }
         rows.push({ username: item.username, password_hash: await hash(item.password, 10), class_performance_id: item.kind === 'class' ? item.performanceId : null, gym_performance_id: item.kind === 'gym' ? item.performanceId : null });
         usedUsernames.add(item.username);
         assigned.add(key);
+        if (typeof gymGroup === 'string') {assignedGymGroups.add(gymGroup);}
       }
       if (rows.length > 0) {
         const { error } = await adminClient.from('organization_admins').insert(rows);

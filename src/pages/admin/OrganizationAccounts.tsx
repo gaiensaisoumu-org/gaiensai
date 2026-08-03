@@ -329,7 +329,7 @@ const OrganizationAccountsContent = () => {
         : gyms.find((item) => item.id === account.gym_performance_id);
     return account.class_performance_id !== null
       ? `${performance?.class_name ?? '不明'}：${performance?.title ?? '無題の公演'}`
-      : `${performance?.group_name ?? '不明'}：${performance?.round_name ?? ''}`;
+      : performance?.group_name ?? '不明';
   };
 
   return (

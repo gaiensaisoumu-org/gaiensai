@@ -403,7 +403,7 @@ const OrganizationAdmin = () => {
   const name =
     dashboard.kind === 'class'
       ? `${dashboard.performance.class_name} ${dashboard.performance.title || ''}`
-      : `${dashboard.performance.group_name} ${dashboard.performance.round_name || ''}`;
+      : String(dashboard.performance.group_name ?? '');
   return (
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
