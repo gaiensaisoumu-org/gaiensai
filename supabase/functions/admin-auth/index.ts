@@ -62,6 +62,12 @@ type AdminAuthRequest = {
   scheduleId?: unknown;
   issueCount?: unknown;
   juniorRelationshipId?: unknown;
+  organizationAdminId?: unknown;
+  organizationUsername?: unknown;
+  organizationPassword?: unknown;
+  organizationKind?: unknown;
+  organizationPerformanceId?: unknown;
+  organizationAdmins?: unknown;
 };
 
 type TicketIssueMode =
@@ -149,7 +155,23 @@ type AdminAuthBody =
     }
   | { mode: 'getJuniorPassword' }
   | { mode: 'updateJuniorPassword'; juniorPassword: string }
-  | { mode: 'validateJuniorSecretCode'; secretCode: string };
+  | { mode: 'validateJuniorSecretCode'; secretCode: string }
+  | { mode: 'getOrganizationAdmins' }
+  | {
+      mode: 'createOrganizationAdmin';
+      username: string;
+      password: string;
+      kind: 'class' | 'gym';
+      performanceId: number;
+    }
+  | {
+      mode: 'changeOrganizationAdminPassword';
+      organizationAdminId: string;
+      password: string;
+    }
+  | { mode: 'changeOrganizationAdminUsername'; organizationAdminId: string; username: string }
+  | { mode: 'deleteOrganizationAdmin'; organizationAdminId: string }
+  | { mode: 'bulkCreateOrganizationAdmins'; admins: { username: string; password: string; kind: 'class' | 'gym'; performanceId: number }[] };
 
 type AdminConfigRow = {
   id: number;
@@ -596,6 +618,111 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'getSettings') {
     return { mode: 'getSettings' };
+  }
+
+  if (action === 'getOrganizationAdmins') {
+    return { mode: 'getOrganizationAdmins' };
+  }
+
+  if (action === 'createOrganizationAdmin') {
+    const values = body as AdminAuthRequest;
+    const username = normalizePassword(
+      values.organizationUsername,
+      'organizationUsername',
+    );
+    if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username)) {
+      throw new HttpError(
+        400,
+        'ユーザー名は英数字、ハイフン、アンダースコア、ピリオドで3〜100文字にしてください。',
+      );
+    }
+    const organizationPassword = normalizePassword(
+      values.organizationPassword,
+      'organizationPassword',
+    );
+    if (organizationPassword.length < 8) {
+      throw new HttpError(400, 'パスワードは8文字以上で設定してください。');
+    }
+    if (values.organizationKind !== 'class' && values.organizationKind !== 'gym') {
+      throw new HttpError(400, '団体種別が不正です。');
+    }
+    return {
+      mode: 'createOrganizationAdmin',
+      username,
+      password: organizationPassword,
+      kind: values.organizationKind,
+      performanceId: normalizeInteger(
+        values.organizationPerformanceId,
+        'organizationPerformanceId',
+        1,
+        1000000,
+      ),
+    };
+  }
+
+  if (action === 'changeOrganizationAdminPassword') {
+    const values = body as AdminAuthRequest;
+    if (
+      typeof values.organizationAdminId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        values.organizationAdminId,
+      )
+    ) {
+      throw new HttpError(400, '団体管理者IDが不正です。');
+    }
+    const organizationPassword = normalizePassword(
+      values.organizationPassword,
+      'organizationPassword',
+    );
+    if (organizationPassword.length < 8) {
+      throw new HttpError(400, 'パスワードは8文字以上で設定してください。');
+    }
+    return {
+      mode: 'changeOrganizationAdminPassword',
+      organizationAdminId: values.organizationAdminId,
+      password: organizationPassword,
+    };
+  }
+
+  if (action === 'changeOrganizationAdminUsername') {
+    const values = body as AdminAuthRequest;
+    const organizationAdminId = values.organizationAdminId;
+    if (typeof organizationAdminId !== 'string' || !/^[0-9a-f-]{36}$/i.test(organizationAdminId)) {
+      throw new HttpError(400, '団体管理者IDが不正です。');
+    }
+    const username = normalizePassword(values.organizationUsername, 'organizationUsername');
+    if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username)) {
+      throw new HttpError(400, 'ユーザー名は英数字、ハイフン、アンダースコア、ピリオドで3〜100文字にしてください。');
+    }
+    return { mode: 'changeOrganizationAdminUsername', organizationAdminId, username };
+  }
+
+  if (action === 'deleteOrganizationAdmin') {
+    const values = body as AdminAuthRequest;
+    const organizationAdminId = values.organizationAdminId;
+    if (typeof organizationAdminId !== 'string' || !/^[0-9a-f-]{36}$/i.test(organizationAdminId)) {
+      throw new HttpError(400, '団体管理者IDが不正です。');
+    }
+    return { mode: 'deleteOrganizationAdmin', organizationAdminId };
+  }
+
+  if (action === 'bulkCreateOrganizationAdmins') {
+    const values = body as AdminAuthRequest;
+    if (!Array.isArray(values.organizationAdmins) || values.organizationAdmins.length === 0 || values.organizationAdmins.length > 5) {
+      throw new HttpError(400, '追加するアカウントを1〜5件指定してください。');
+    }
+    const admins = values.organizationAdmins.map((raw) => {
+      if (!raw || typeof raw !== 'object') {throw new HttpError(400, 'アカウント情報が不正です。');}
+      const item = raw as Record<string, unknown>;
+      const username = normalizePassword(item.username, 'username');
+      if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username)) {throw new HttpError(400, 'ユーザー名が不正です。');}
+      const password = normalizePassword(item.password, 'password');
+      if (password.length < 8) {throw new HttpError(400, 'パスワードは8文字以上で設定してください。');}
+      if (item.kind !== 'class' && item.kind !== 'gym') {throw new HttpError(400, '団体種別が不正です。');}
+      return { username, password, kind: item.kind as 'class' | 'gym', performanceId: normalizeInteger(item.performanceId, 'performanceId', 1, 1000000) };
+    });
+    if (new Set(admins.map((admin) => admin.username)).size !== admins.length) {throw new HttpError(400, '一括作成内でユーザー名が重複しています。');}
+    return { mode: 'bulkCreateOrganizationAdmins', admins };
   }
 
   if (action === 'updateSettings') {
@@ -2159,6 +2286,179 @@ Deno.serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    if (body.mode === 'getOrganizationAdmins') {
+      const session = await requireValidSession(adminClient, req);
+      const [adminsResult, classesResult, gymsResult] = await Promise.all([
+        adminClient
+          .from('organization_admins')
+          .select('id, username, class_performance_id, gym_performance_id, created_at')
+          .order('username'),
+        adminClient.from('class_performances').select('id, class_name, title').order('id'),
+        adminClient
+          .from('gym_performances')
+          .select('id, group_name, round_name')
+          .order('start_at'),
+      ]);
+      const failed = [adminsResult, classesResult, gymsResult].find(
+        (result) => result.error,
+      );
+      if (failed?.error) {
+        throw failed.error;
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(
+        JSON.stringify({
+          admins: adminsResult.data ?? [],
+          classes: classesResult.data ?? [],
+          gyms: gymsResult.data ?? [],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (body.mode === 'createOrganizationAdmin') {
+      const session = await requireValidSession(adminClient, req);
+      const performanceTable =
+        body.kind === 'class' ? 'class_performances' : 'gym_performances';
+      const { data: performance, error: performanceError } = await adminClient
+        .from(performanceTable)
+        .select('id')
+        .eq('id', body.performanceId)
+        .maybeSingle();
+      if (performanceError) {
+        throw performanceError;
+      }
+      if (!performance) {
+        throw new HttpError(404, '対象の公演が見つかりません。');
+      }
+      const { error: insertError } = await adminClient
+        .from('organization_admins')
+        .insert({
+          username: body.username,
+          password_hash: await hash(body.password, 12),
+          class_performance_id:
+            body.kind === 'class' ? body.performanceId : null,
+          gym_performance_id: body.kind === 'gym' ? body.performanceId : null,
+        });
+      if (insertError) {
+        if (insertError.code === '23505') {
+          throw new HttpError(400, '同じユーザー名は登録できません。');
+        }
+        throw insertError;
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ created: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'changeOrganizationAdminPassword') {
+      const session = await requireValidSession(adminClient, req);
+      const { data: account, error: accountError } = await adminClient
+        .from('organization_admins')
+        .select('id')
+        .eq('id', body.organizationAdminId)
+        .maybeSingle();
+      if (accountError) {
+        throw accountError;
+      }
+      if (!account) {
+        throw new HttpError(404, '団体管理者アカウントが見つかりません。');
+      }
+      const { error: updateError } = await adminClient
+        .from('organization_admins')
+        .update({
+          password_hash: await hash(body.password, 12),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', body.organizationAdminId);
+      if (updateError) {
+        throw updateError;
+      }
+      await adminClient
+        .from('organization_admin_sessions')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('organization_admin_id', body.organizationAdminId)
+        .is('revoked_at', null);
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ changed: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'changeOrganizationAdminUsername') {
+      const session = await requireValidSession(adminClient, req);
+      const { error } = await adminClient
+        .from('organization_admins')
+        .update({ username: body.username, updated_at: new Date().toISOString() })
+        .eq('id', body.organizationAdminId);
+      if (error) {
+        if (error.code === '23505') {throw new HttpError(400, '同じユーザー名は登録できません。');}
+        throw error;
+      }
+      await adminClient.from('organization_admin_sessions').update({ revoked_at: new Date().toISOString() }).eq('organization_admin_id', body.organizationAdminId).is('revoked_at', null);
+      await adminClient.from('admin_sessions').update({ last_used_at: new Date().toISOString() }).eq('id', session.id);
+      return new Response(JSON.stringify({ changed: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (body.mode === 'deleteOrganizationAdmin') {
+      const session = await requireValidSession(adminClient, req);
+      const { error, count } = await adminClient
+        .from('organization_admins')
+        .delete({ count: 'exact' })
+        .eq('id', body.organizationAdminId);
+      if (error) {
+        throw error;
+      }
+      if (!count) {
+        throw new HttpError(404, '団体管理者アカウントが見つかりません。');
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ deleted: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'bulkCreateOrganizationAdmins') {
+      const session = await requireValidSession(adminClient, req);
+      const { data: existing, error: existingError } = await adminClient
+        .from('organization_admins')
+        .select('username, class_performance_id, gym_performance_id');
+      if (existingError) {throw existingError;}
+      const usedUsernames = new Set((existing ?? []).map((item) => item.username));
+      const assigned = new Set((existing ?? []).map((item) => item.class_performance_id ? `class:${item.class_performance_id}` : `gym:${item.gym_performance_id}`));
+      const rows: { username: string; password_hash: string; class_performance_id: number | null; gym_performance_id: number | null }[] = [];
+      const skipped: string[] = [];
+      for (const item of body.admins) {
+        const key = `${item.kind}:${item.performanceId}`;
+        if (usedUsernames.has(item.username) || assigned.has(key)) {
+          skipped.push(item.username);
+          continue;
+        }
+        rows.push({ username: item.username, password_hash: await hash(item.password, 10), class_performance_id: item.kind === 'class' ? item.performanceId : null, gym_performance_id: item.kind === 'gym' ? item.performanceId : null });
+        usedUsernames.add(item.username);
+        assigned.add(key);
+      }
+      if (rows.length > 0) {
+        const { error } = await adminClient.from('organization_admins').insert(rows);
+        if (error) {throw error;}
+      }
+      await adminClient.from('admin_sessions').update({ last_used_at: new Date().toISOString() }).eq('id', session.id);
+      return new Response(JSON.stringify({ created: rows.length, skipped }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (body.mode === 'getJuniorPassword') {

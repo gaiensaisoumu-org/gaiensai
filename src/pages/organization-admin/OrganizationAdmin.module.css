@@ -1,0 +1,255 @@
+.shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1em;
+}
+
+.heading,
+.ticketHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heading h1 {
+  margin-bottom: 4px;
+}
+
+.heading p,
+.ticketHeading p {
+  margin: 0;
+  color: var(--sub-text-color);
+}
+
+.form {
+  display: grid;
+  max-width: 640px;
+  margin: 1em auto;
+  gap: 0.5rem;
+}
+
+.form label {
+  display: grid;
+  gap: 0.2rem;
+  font-weight: 600;
+}
+
+.form input,
+.form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0.5em 0;
+  padding: 10px 12px;
+  border: 1px solid var(--login-input-border);
+  border-radius: 8px;
+  color: var(--login-input-text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.form textarea {
+  min-height: 200px;
+  resize: vertical;
+}
+
+.form button,
+.ticketHeading button,
+.secondary {
+  width: 100%;
+  margin-top: 0.5em;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--primary-color);
+  color: var(--main-text-color);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary {
+  width: auto;
+  margin-top: 0;
+  border-color: var(--login-input-border);
+  background: transparent;
+  color: var(--login-input-text);
+}
+
+.ticketHeading button {
+  width: auto;
+  margin-top: 0;
+}
+
+.form button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--settings-border-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.settingRow p {
+  margin: 0.2rem 0 0;
+  color: var(--sub-text-color);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.settingsList {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.75rem;
+}
+
+.imageSettings {
+  display: grid;
+  max-width: 640px;
+  margin: 1em auto;
+  gap: 0.75rem;
+}
+
+.performanceImagePreview {
+  width: min(100%, 420px);
+  max-height: 280px;
+  border: 1px solid var(--settings-border-color);
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.imageUploadLabel {
+  width: fit-content;
+  padding: 0.6em 1.2em;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--primary-color);
+  color: var(--main-text-color);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.imageUploadLabel input {
+  display: none;
+}
+
+.imageHint {
+  margin: 0;
+  color: var(--sub-text-color);
+  font-size: 0.85rem;
+}
+
+.inlineEditButton {
+  width: auto;
+  margin: 0 0.5rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--settings-border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--main-text-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+.inlineEditButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.modal {
+  display: grid;
+  width: 90%;
+  max-width: 500px;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--main-bg-color);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.28);
+}
+
+.modal h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.modalActions button {
+  width: auto;
+}
+
+.modalCancel {
+  border-color: var(--login-input-border) !important;
+  background: transparent !important;
+  color: var(--main-text-color) !important;
+}
+
+.filterLabel {
+  display: grid;
+  width: min(100%, 320px);
+  margin: 1rem 0;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.filterLabel select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--login-input-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--login-input-text);
+  font: inherit;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 9px;
+  border-bottom: 1px solid var(--settings-border-color);
+  text-align: left;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .heading,
+  .ticketHeading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ticketHeading button {
+    width: 100%;
+  }
+}

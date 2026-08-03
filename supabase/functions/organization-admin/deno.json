@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "bcryptjs": "https://esm.sh/bcryptjs@3.0.3",
+    "@shared/": "../_shared/",
+    "@supabase/functions-js/edge-runtime.d.ts": "https://esm.sh/@supabase/functions-js@2.95.3/denonext/functions-js.mjs"
+  }
+}

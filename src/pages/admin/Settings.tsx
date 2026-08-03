@@ -1133,6 +1133,22 @@ const SettingsContent = () => {
         </div>
       </NormalSection>
       <NormalSection>
+        <div className={styles.headerRow}>
+          <div>
+            <h2>クラス・部活管理者</h2>
+            <p className={styles.settingHint}>
+              団体管理者アカウントの一括作成・一覧・ID・パスワード変更を行います。
+            </p>
+          </div>
+          <a
+            className={styles.inlineEditButton}
+            href='/admin/organization-accounts'
+          >
+            管理者アカウントを開く
+          </a>
+        </div>
+      </NormalSection>
+      <NormalSection>
         <h2>全体</h2>
         <div className={styles.formGrid}>
           <div className={styles.field}>

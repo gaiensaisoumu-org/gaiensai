@@ -24,6 +24,8 @@ import {
   AdminTicketIssue,
   StudentAccounts,
   SecretBase,
+  OrganizationAdmin,
+  OrganizationAccounts,
 } from './routes';
 import LineCallback from './features/auth/Line';
 import NotFound from './shared/NotFound';
@@ -105,6 +107,7 @@ const userPageLayout = () => (
         <Route path='/map' component={Map} />
         <Route path='/pamphlet' component={Pamphlet} />
         <Route path='/info' component={Info} />
+        <Route path='/organization-admin' component={OrganizationAdmin} />
         <Route path='/gunawan' component={SecretBase} />
         <Route path='/gunawanrio' component={SecretBase} />
         <Route path='/rio' component={SecretBase} />
@@ -129,6 +132,7 @@ const AdminPageLayout = () => (
         <Route path='/tickets/issue' component={AdminTicketIssue} />
         <Route path='/student-accounts' component={StudentAccounts} />
         <Route path='/junior-accounts' component={JuniorAccounts} />
+        <Route path='/organization-accounts' component={OrganizationAccounts} />
         <Route default component={NotFound} />
       </Router>
     </div>

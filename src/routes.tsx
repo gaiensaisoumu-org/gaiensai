@@ -45,6 +45,12 @@ export const JuniorAccounts = lazy(
 export const Junior = lazy(() => import('./pages/user/junior/Junior'));
 export const SecretBase = lazy(() => import('./pages/easteregg/SecretBase'));
 export const MiniGame = lazy(() => import('./pages/easteregg/MiniGame'));
+export const OrganizationAdmin = lazy(
+  () => import('./pages/organization-admin/OrganizationAdmin'),
+);
+export const OrganizationAccounts = lazy(
+  () => import('./pages/admin/OrganizationAccounts'),
+);
 
 // re-export the eagerly-loaded routes so callers can treat them uniformly
 export { Ticket, TicketHistory };
