@@ -32,6 +32,8 @@ type BulkCreateResponse = {
 type ExistingAuthUser = {
   studentId: string;
   email: string;
+  juniorUsageType: number | null;
+  applicationDay: string | null;
   lastSignIn?: string;
   createdAt: string;
 };
@@ -41,6 +43,8 @@ type ExistingJuniorAccount = {
   birthday: string;
   email: string;
   createdAt: string;
+  juniorUsageType: number | null;
+  applicationDay: string | null;
   lastSignIn?: string;
 };
 
@@ -49,6 +53,34 @@ const BATCH_SIZE = 20;
 const MAX_RETRIES = 3;
 const isBirthday = (value: string) => /^\d{8}$/.test(value);
 const toCompositeId = (id: string, birthday: string) => `${id}-${birthday}`;
+
+const formatJuniorUsageType = (usageType: number | null): string => {
+  switch (usageType) {
+    case 0:
+      return '中学生と保護者（共通のチケット使用）';
+    case 1:
+      return '中学生と保護者（別々のチケット使用）';
+    case 2:
+      return '中学生のみ';
+    case 3:
+      return '保護者のみ';
+    default:
+      return '未設定';
+  }
+};
+
+const formatApplicationDay = (applicationDay: string | null): string => {
+  switch (applicationDay) {
+    case 'class_day=day1&day2':
+      return 'クラス公演';
+    case 'gym_day=day1&day2':
+      return '体育館公演';
+    case 'admission_only':
+      return '入場専用券のみ';
+    default:
+      return applicationDay ?? '未設定';
+  }
+};
 
 const normalizeBirthday = (value: string): string | null => {
   const trimmed = value.trim();
@@ -219,6 +251,8 @@ const JuniorAccountContent = () => {
             birthday: parsed.birthday,
             email: user.email,
             createdAt: user.createdAt,
+            juniorUsageType: user.juniorUsageType,
+            applicationDay: user.applicationDay,
             lastSignIn: user.lastSignIn,
           } as ExistingJuniorAccount;
         })
@@ -751,13 +785,15 @@ const JuniorAccountContent = () => {
               <tr>
                 <th>ID</th>
                 <th>誕生日</th>
+                <th>利用形態</th>
+                <th>申込内容</th>
                 <th>最終ログイン</th>
               </tr>
             </thead>
             <tbody>
               {existingJuniorAccounts.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className={styles.info}>
+                  <td colSpan={5} className={styles.info}>
                     登録済みの中学生アカウントはありません。
                   </td>
                 </tr>
@@ -766,6 +802,8 @@ const JuniorAccountContent = () => {
                   <tr key={account.email}>
                     <td>{account.id}</td>
                     <td>{account.birthday}</td>
+                    <td>{formatJuniorUsageType(account.juniorUsageType)}</td>
+                    <td>{formatApplicationDay(account.applicationDay)}</td>
                     <td className={styles.tableCellSub}>
                       {account.lastSignIn
                         ? new Date(account.lastSignIn).toLocaleString()

@@ -1558,7 +1558,12 @@ Deno.serve(async (req) => {
 
       const authUserIds = users.map((user) => user.id);
       const PROFILE_FETCH_BATCH_SIZE = 50;
-      const userProfiles: { id: string; clubs: string[] | null }[] = [];
+      const userProfiles: {
+        id: string;
+        clubs: string[] | null;
+        junior_usage_type: number | null;
+        application_day: string | null;
+      }[] = [];
 
       for (
         let index = 0;
@@ -1567,7 +1572,7 @@ Deno.serve(async (req) => {
       ) {
         const { data, error: profilesError } = await adminClient
           .from('users')
-          .select('id, clubs')
+          .select('id, clubs, junior_usage_type, application_day')
           .in('id', authUserIds.slice(index, index + PROFILE_FETCH_BATCH_SIZE));
 
         if (profilesError) {
@@ -1583,6 +1588,15 @@ Deno.serve(async (req) => {
           profile.clubs ?? [],
         ]),
       );
+      const juniorProfileByUserId = new Map(
+        userProfiles.map((profile) => [
+          profile.id,
+          {
+            juniorUsageType: profile.junior_usage_type,
+            applicationDay: profile.application_day,
+          },
+        ]),
+      );
 
       // @gaiensai.local のドメインを持つユーザーのみを抽出
       const studentUsers = users
@@ -1591,6 +1605,8 @@ Deno.serve(async (req) => {
           studentId: u.user_metadata?.student_id || u.email?.split('@')[0],
           email: u.email,
           clubs: clubsByUserId.get(u.id) ?? [],
+          juniorUsageType: juniorProfileByUserId.get(u.id)?.juniorUsageType ?? null,
+          applicationDay: juniorProfileByUserId.get(u.id)?.applicationDay ?? null,
           lastSignIn: u.last_sign_in_at,
           createdAt: u.created_at,
         }))
