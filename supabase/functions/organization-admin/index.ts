@@ -149,10 +149,14 @@ Deno.serve(async (req) => {
     if (action === 'getDashboard') {
       const own = await ownPerformance(client, admin);
       const ticketQuery = own.kind === 'class'
-        ? client.from('class_tickets').select('id, round_id, tickets!inner(id, code, created_at, ticket_type, users(affiliation))').eq('class_id', own.performance.id).eq('tickets.status', 'valid')
-        : client.from('gym_tickets').select('id, performance_id, tickets!inner(id, code, created_at, ticket_type, users(affiliation))').in('performance_id', own.performances.map((performance) => performance.id)).eq('tickets.status', 'valid');
+        ? client.from('class_tickets').select('id, round_id, tickets!inner(id, code, created_at, relationship, ticket_type, users(affiliation))').eq('class_id', own.performance.id).eq('tickets.status', 'valid')
+        : client.from('gym_tickets').select('id, performance_id, tickets!inner(id, code, created_at, relationship, ticket_type, users(affiliation))').in('performance_id', own.performances.map((performance) => performance.id)).eq('tickets.status', 'valid');
       const { data: ticketLinks, error } = await ticketQuery;
       if (error) {throw error;}
+      const { data: relationships, error: relationshipsError } = await client
+        .from('relationships')
+        .select('id, name');
+      if (relationshipsError) {throw relationshipsError;}
       const generalTickets = ((ticketLinks ?? []) as Array<{
         id: string;
         round_id?: number;
@@ -171,21 +175,36 @@ Deno.serve(async (req) => {
         return json({
           username: admin.username,
           performance: own.performance,
+          performances: own.performances,
           kind: own.kind,
-          tickets: generalTickets.map((link) => ({ ...link, round_name: roundNames.get((link as { performance_id?: number }).performance_id) ?? '未設定' })),
+          rounds: own.performances.map((performance) => ({
+            id: performance.id,
+            name: performance.round_name,
+          })),
+          relationships: relationships ?? [],
+          tickets: generalTickets.map((link) => ({
+            ...link,
+            round_id: (link as { performance_id?: number }).performance_id,
+            round_name: roundNames.get((link as { performance_id?: number }).performance_id) ?? '未設定',
+          })),
         }, corsHeaders);
       }
-      const roundIds = Array.from(new Set(generalTickets.map((link) => link.round_id)));
       const { data: schedules, error: scheduleError } = await client
         .from('performances_schedule')
         .select('id, round_name')
-        .in('id', roundIds.length > 0 ? roundIds : [-1]);
+        .order('start_at');
       if (scheduleError) {throw scheduleError;}
       const roundNames = new Map((schedules ?? []).map((schedule) => [schedule.id, schedule.round_name]));
       return json({
         username: admin.username,
         performance: own.performance,
+        performances: [own.performance],
         kind: own.kind,
+        rounds: (schedules ?? []).map((schedule) => ({
+          id: schedule.id,
+          name: schedule.round_name,
+        })),
+        relationships: relationships ?? [],
         tickets: generalTickets.map((link) => ({
           ...link,
           round_name: roundNames.get(link.round_id) ?? '未設定',

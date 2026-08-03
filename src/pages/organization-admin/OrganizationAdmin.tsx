@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import ExcelJS from 'exceljs';
 import Alert from '../../components/ui/Alert';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import NormalSection from '../../components/ui/NormalSection';
@@ -22,36 +23,168 @@ type TicketLink = {
     id: string;
     code: string;
     created_at: string;
+    relationship: number;
     users: { affiliation: number | null } | null;
   };
 };
+type PerformanceRound = { id: number; name: string };
 type Dashboard = {
   username: string;
   kind: 'class' | 'gym';
   performance: Record<string, unknown>;
+  performances: Record<string, unknown>[];
+  rounds: PerformanceRound[];
   tickets: TicketLink[];
+  relationships: { id: number; name: string }[];
 };
 type MessageScope = 'performance' | 'image' | 'ticketSettings' | 'password';
 
-const csvCell = (value: unknown) =>
-  `"${String(value ?? '').replaceAll('"', '""')}"`;
-const downloadCsv = (tickets: TicketLink[]) => {
-  const lines = [
-    ['チケットコード', '公演回', '学年・クラス・番号', '発行日時'],
-    ...tickets.map(({ tickets: ticket, round_name }) => [
-      ticket.code,
-      round_name,
-      formatAffiliation(ticket.users?.affiliation),
-      new Date(ticket.created_at).toLocaleString('ja-JP'),
-    ]),
-  ].map((row) => row.map(csvCell).join(','));
-  const blob = new Blob(['\uFEFF', lines.join('\r\n')], {
-    type: 'text/csv;charset=utf-8',
+const downloadRosterXlsx = async (
+  organizationName: string,
+  tickets: TicketLink[],
+  rounds: PerformanceRound[],
+  relationships: { id: number; name: string }[],
+  generalCapacity: number,
+) => {
+  const workbook = new ExcelJS.Workbook();
+  const relationshipNames = new Map(
+    relationships.map((relationship) => [relationship.id, relationship.name]),
+  );
+  const performances = [
+    ...rounds,
+    ...tickets
+      .filter(
+        (ticket) =>
+          !rounds.some((round) => round.id === ticket.round_id),
+      )
+      .map((ticket) => ({
+        id: ticket.round_id ?? -1,
+        name: ticket.round_name,
+      })),
+  ];
+  const headers = [
+    '連番',
+    '学年・クラス・番号',
+    '氏名',
+    '間柄',
+    'コード番号',
+    '発行日',
+  ];
+  const lists = performances.map((performance) =>
+    tickets
+      .filter(
+        (ticket) =>
+          ticket.round_id === performance.id ||
+          (ticket.round_id === undefined &&
+            ticket.round_name === performance.name),
+      )
+      .sort(
+        (a, b) =>
+          (a.tickets.users?.affiliation ?? 0) -
+            (b.tickets.users?.affiliation ?? 0) ||
+          a.tickets.code.localeCompare(b.tickets.code, 'ja'),
+      )
+      .map((ticket) => [
+        formatAffiliation(ticket.tickets.users?.affiliation),
+        '',
+        relationshipNames.get(ticket.tickets.relationship) ?? '—',
+        ticket.tickets.code,
+        new Date(ticket.tickets.created_at).toLocaleString('ja-JP'),
+      ]),
+  );
+  const outputDate = new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).format(new Date());
+  const rows: string[][] = [
+    ['クラス・部活名', organizationName],
+    ['出力日', outputDate],
+    performances.flatMap((performance) => [performance.name, '', '', '', '', '']),
+    performances.flatMap(() => headers),
+  ];
+  const maxLength = Math.max(generalCapacity, ...lists.map((list) => list.length));
+  for (let rowIndex = 0; rowIndex < maxLength; rowIndex += 1) {
+    rows.push(
+      lists.flatMap((list) => [
+        String(rowIndex + 1),
+        ...(list[rowIndex] ?? ['', '', '', '', '']),
+      ]),
+    );
+  }
+  const worksheet = workbook.addWorksheet('名簿');
+  worksheet.addRows(rows);
+  const lastColumn = Math.max(2, performances.length * 6);
+  worksheet.mergeCells(1, 2, 1, lastColumn);
+  performances.forEach((_, index) => {
+    worksheet.mergeCells(3, index * 6 + 1, 3, index * 6 + 6);
+  });
+  const border: Partial<ExcelJS.Borders> = {
+    top: { style: 'thin', color: { argb: 'FFA6A6A6' } },
+    bottom: { style: 'thin', color: { argb: 'FFA6A6A6' } },
+    left: { style: 'thin', color: { argb: 'FFA6A6A6' } },
+    right: { style: 'thin', color: { argb: 'FFA6A6A6' } },
+  };
+  for (let row = 3; row <= rows.length; row += 1) {
+    for (let column = 1; column <= lastColumn; column += 1) {
+      const cell = worksheet.getCell(row, column);
+      cell.font = { name: 'Yu Gothic' };
+      cell.border = border;
+      cell.alignment = { vertical: 'middle' };
+    }
+  }
+  for (let column = 1; column <= lastColumn; column += 1) {
+    const performanceCell = worksheet.getCell(3, column);
+    const headerCell = worksheet.getCell(4, column);
+    performanceCell.font = {
+      name: 'Yu Gothic',
+      bold: true,
+      color: { argb: 'FFFFFFFF' },
+    };
+    performanceCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F4E78' },
+    };
+    performanceCell.border = border;
+    performanceCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    headerCell.font = { name: 'Yu Gothic', bold: true };
+    headerCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9EAF7' },
+    };
+    headerCell.border = border;
+    headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+  }
+  for (const cell of ['A1', 'B1', 'A2', 'B2']) {
+    worksheet.getCell(cell).font = {
+      name: 'Yu Gothic',
+      bold: cell === 'B1',
+    };
+  }
+  worksheet.columns = performances.flatMap(() => [
+    { width: 8 },
+    { width: 20 },
+    { width: 18 },
+    { width: 14 },
+    { width: 16 },
+    { width: 22 },
+  ]);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `ticket-roster-${new Date().toISOString().slice(0, 10)}.csv`;
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+
+  const localDate = `${yyyy}-${mm}-${dd}`;
+  link.download = `招待者名簿_${organizationName}_${localDate}.xlsx`;
   link.click();
   URL.revokeObjectURL(url);
 };
@@ -350,10 +483,29 @@ const OrganizationAdmin = () => {
   );
   const displayedTickets = useMemo(
     () =>
-      dashboard?.tickets.filter(
-        (ticket) => roundFilter === 'all' || ticket.round_name === roundFilter,
-      ) ?? [],
+      (dashboard?.tickets
+        .filter(
+          (ticket) =>
+            roundFilter === 'all' || ticket.round_name === roundFilter,
+        )
+        .slice()
+        .sort(
+          (a, b) =>
+            (a.tickets.users?.affiliation ?? Number.MAX_SAFE_INTEGER) -
+              (b.tickets.users?.affiliation ?? Number.MAX_SAFE_INTEGER) ||
+            a.tickets.code.localeCompare(b.tickets.code, 'ja'),
+        ) ?? []),
     [dashboard, roundFilter],
+  );
+  const relationshipNames = useMemo(
+    () =>
+      new Map(
+        dashboard?.relationships.map((relationship) => [
+          relationship.id,
+          relationship.name,
+        ]) ?? [],
+      ),
+    [dashboard],
   );
   if (checking) {
     return <LoadingSpinner message='認証状態を確認しています...' />;
@@ -404,6 +556,25 @@ const OrganizationAdmin = () => {
     dashboard.kind === 'class'
       ? `${dashboard.performance.class_name} ${dashboard.performance.title || ''}`
       : String(dashboard.performance.group_name ?? '');
+  const organizationName = String(
+    dashboard.kind === 'class'
+      ? dashboard.performance.class_name ?? ''
+      : dashboard.performance.group_name ?? '',
+  );
+  const generalCapacity = Math.max(
+    0,
+    ...(dashboard.performances ?? [dashboard.performance]).map((performance) => {
+      const total = Number(
+        dashboard.kind === 'class'
+          ? performance.total_capacity
+          : performance.capacity,
+      );
+      const junior = Number(performance.junior_capacity ?? 0);
+      return Number.isFinite(total) && Number.isFinite(junior)
+        ? total - junior
+        : 0;
+    }),
+  );
   return (
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
@@ -526,8 +697,19 @@ const OrganizationAdmin = () => {
               <h2>チケット一覧</h2>
               <p>有効 {displayedTickets.length} 枚</p>
             </div>
-            <button type='button' onClick={() => downloadCsv(displayedTickets)}>
-              名簿をCSV出力
+            <button
+              type='button'
+              onClick={() => {
+                void downloadRosterXlsx(
+                  organizationName,
+                  dashboard.tickets,
+                  dashboard.rounds,
+                  dashboard.relationships,
+                  generalCapacity,
+                );
+              }}
+            >
+              名簿をExcel出力
             </button>
           </div>
           <label className={styles.filterLabel}>
@@ -553,6 +735,7 @@ const OrganizationAdmin = () => {
                   <th>コード</th>
                   <th>公演回</th>
                   <th>学年・クラス・番号</th>
+                  <th>間柄</th>
                   <th>発行日時</th>
                 </tr>
               </thead>
@@ -562,6 +745,7 @@ const OrganizationAdmin = () => {
                     <td>{tickets.code}</td>
                     <td>{round_name}</td>
                     <td>{formatAffiliation(tickets.users?.affiliation)}</td>
+                    <td>{relationshipNames.get(tickets.relationship) ?? '—'}</td>
                     <td>
                       {new Date(tickets.created_at).toLocaleString('ja-JP')}
                     </td>
