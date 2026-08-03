@@ -163,6 +163,32 @@
   margin: 1em auto;
 }
 
+.juniorPasswordStatusContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.juniorPasswordStatus {
+  display: inline-block;
+  margin: 0.25rem 0 1rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-weight: 700;
+}
+
+.juniorPasswordStatusSet {
+  background: var(--success-bg-color);
+  color: var(--success-text-color);
+}
+
+.juniorPasswordStatusUnset {
+  background: var(--error-bg-color);
+  color: var(--error-text-color);
+}
+
 .settingModalOverlay {
   position: fixed;
   inset: 0;

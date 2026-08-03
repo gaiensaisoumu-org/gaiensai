@@ -1232,43 +1232,52 @@ const SettingsContent = () => {
         <p className={styles.noteText}>
           中学生アカウント登録時に必要な合言葉を設定します。
         </p>
-        <div className={styles.formGroup}>
-          <label className={styles.settingLabel}>現在の合言葉設定</label>
-          <p className={styles.fieldValue}>
-            {hasJuniorPassword ? '設定済み' : '未設定'}
-          </p>
-        </div>
-        <form onSubmit={handleJuniorPasswordUpdate}>
-          <div className={styles.formGroup}>
-            <label htmlFor='junior-password' className={styles.label}>
-              新しい合言葉
-            </label>
-            <input
-              id='junior-password'
-              type='text'
-              className={styles.input}
-              value={juniorPassword}
-              onChange={(e) => setJuniorPassword(e.currentTarget.value)}
-              placeholder='4文字以上の合言葉'
-              minLength={4}
-              required
-            />
+        <form
+          className={styles.passwordForm}
+          onSubmit={handleJuniorPasswordUpdate}
+        >
+          <div className={styles.juniorPasswordStatusContainer}>
+            <label className={styles.authLabel}>現在の合言葉設定</label>
+            <p
+              className={`${styles.juniorPasswordStatus} ${
+                hasJuniorPassword
+                  ? styles.juniorPasswordStatusSet
+                  : styles.juniorPasswordStatusUnset
+              }`}
+            >
+              {hasJuniorPassword ? '設定済み' : '未設定'}
+            </p>
           </div>
-          <div className={styles.formGroup}>
-            <label htmlFor='junior-password-confirm' className={styles.label}>
-              合言葉（確認）
-            </label>
-            <input
-              id='junior-password-confirm'
-              type='text'
-              className={styles.input}
-              value={juniorPasswordConfirm}
-              onChange={(e) => setJuniorPasswordConfirm(e.currentTarget.value)}
-              placeholder='同じ合言葉を再度入力'
-              minLength={4}
-              required
-            />
-          </div>
+          <label className={styles.authLabel} htmlFor='junior-password'>
+            新しい合言葉
+          </label>
+          <input
+            id='junior-password'
+            type='text'
+            className={styles.authInput}
+            value={juniorPassword}
+            onInput={(event) =>
+              setJuniorPassword((event.target as HTMLInputElement).value)
+            }
+            placeholder='4文字以上の合言葉'
+            minLength={4}
+            required
+          />
+          <label className={styles.authLabel} htmlFor='junior-password-confirm'>
+            新しい合言葉（確認）
+          </label>
+          <input
+            id='junior-password-confirm'
+            type='text'
+            className={styles.authInput}
+            value={juniorPasswordConfirm}
+            onInput={(event) =>
+              setJuniorPasswordConfirm((event.target as HTMLInputElement).value)
+            }
+            placeholder='同じ合言葉を再度入力'
+            minLength={4}
+            required
+          />
           {juniorPasswordError && (
             <p className={styles.authError}>{juniorPasswordError}</p>
           )}
@@ -1277,10 +1286,10 @@ const SettingsContent = () => {
           )}
           <button
             type='submit'
-            className={styles.submitButton}
+            className={styles.authButton}
             disabled={isUpdatingJuniorPassword}
           >
-            {isUpdatingJuniorPassword ? '更新中...' : '合言葉を更新'}
+            {isUpdatingJuniorPassword ? '変更中...' : '合言葉を変更'}
           </button>
         </form>
       </NormalSection>
