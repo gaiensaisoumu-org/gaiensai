@@ -11,6 +11,8 @@ import styles from './OrganizationAdmin.module.css';
 import subPageStyles from '../../styles/sub-pages.module.css';
 
 const TOKEN_KEY = 'organization_admin_session_v1';
+const NAME_DIRECTORY_STORAGE_PREFIX = 'organization_admin_name_directory_v1';
+const NAME_DIRECTORY_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const sessionHeaders = () => ({
   'x-organization-admin-session-token': localStorage.getItem(TOKEN_KEY) ?? '',
 });
@@ -44,6 +46,11 @@ type Dashboard = {
   relationships: { id: number; name: string }[];
 };
 type MessageScope = 'performance' | 'image' | 'ticketSettings' | 'password';
+type NameDirectory = Record<string, string>;
+type StoredNameDirectory = {
+  expiresAt: number;
+  names: NameDirectory;
+};
 
 const downloadRosterXlsx = async (
   organizationName: string,
@@ -51,6 +58,7 @@ const downloadRosterXlsx = async (
   rounds: PerformanceRound[],
   relationships: { id: number; name: string }[],
   generalCapacity: number,
+  namesByAffiliation: NameDirectory,
 ) => {
   const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
@@ -92,8 +100,10 @@ const downloadRosterXlsx = async (
           a.tickets.code.localeCompare(b.tickets.code, 'ja'),
       )
       .map((ticket) => [
-        formatAffiliation(ticket.tickets.users?.affiliation),
-        '',
+        isStudentAffiliation(ticket.tickets.users?.affiliation)
+          ? formatAffiliation(ticket.tickets.users.affiliation)
+          : '',
+        namesByAffiliation[String(ticket.tickets.users?.affiliation ?? '')] ?? '',
         relationshipNames.get(ticket.tickets.relationship) ?? '—',
         ticket.tickets.code,
         new Date(ticket.tickets.created_at).toLocaleString('ja-JP'),
@@ -205,6 +215,50 @@ const formatAffiliation = (affiliation: number | null | undefined) => {
   )}組${affiliation % 100}番`;
 };
 
+const isStudentAffiliation = (
+  affiliation: number | null | undefined,
+): affiliation is number =>
+  typeof affiliation === 'number' &&
+  Number.isInteger(affiliation) &&
+  affiliation >= 10000 &&
+  affiliation <= 39999;
+
+const affiliationClassKey = (affiliation: number) =>
+  `${Math.floor(affiliation / 10000)}-${Math.floor((affiliation % 10000) / 100)}`;
+
+const classNameKey = (className: unknown) => {
+  const digits = String(className ?? '').match(/(\d+)\D+(\d+)/);
+  return digits ? `${Number(digits[1])}-${Number(digits[2])}` : null;
+};
+
+const nameDirectoryStorageKey = (kind: Dashboard['kind'], organizationName: string) =>
+  `${NAME_DIRECTORY_STORAGE_PREFIX}:${kind}:${organizationName}`;
+
+const readNameDirectory = (storageKey: string): NameDirectory => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as StoredNameDirectory;
+    if (!parsed || typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= Date.now()) {
+      localStorage.removeItem(storageKey);
+      return {};
+    }
+    if (!parsed.names || typeof parsed.names !== 'object' || Array.isArray(parsed.names)) {
+      return {};
+    }
+    return Object.fromEntries(
+      Object.entries(parsed.names).filter(
+        ([affiliation, name]) => /^\d+$/.test(affiliation) && typeof name === 'string',
+      ),
+    );
+  } catch {
+    localStorage.removeItem(storageKey);
+    return {};
+  }
+};
+
 const toDateTimeLocal = (value: unknown) => {
   const date = new Date(String(value ?? ''));
   if (Number.isNaN(date.getTime())) {
@@ -240,6 +294,47 @@ const OrganizationAdmin = () => {
   const [draftCapacity, setDraftCapacity] = useState('');
   const [draftJuniorCapacity, setDraftJuniorCapacity] = useState('');
   const [gymScheduleDrafts, setGymScheduleDrafts] = useState<GymScheduleDraft[]>([]);
+  const [namesByAffiliation, setNamesByAffiliation] = useState<NameDirectory>({});
+  const [loadedNameDirectoryKey, setLoadedNameDirectoryKey] = useState<string | null>(null);
+  const [editingAffiliation, setEditingAffiliation] = useState<number | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
+  const [transferText, setTransferText] = useState('');
+  const [nameNotice, setNameNotice] = useState<string | null>(null);
+  const [showMissingAffiliationModal, setShowMissingAffiliationModal] = useState(false);
+
+  const nameDirectoryKey = useMemo(() => {
+    if (!dashboard || dashboard.kind === 'exhibition') {
+      return null;
+    }
+    const organizationName = String(
+      dashboard.kind === 'class'
+        ? dashboard.performance.class_name ?? ''
+        : dashboard.performance.group_name ?? '',
+    );
+    return nameDirectoryStorageKey(dashboard.kind, organizationName);
+  }, [dashboard]);
+
+  useEffect(() => {
+    if (!nameDirectoryKey) {
+      setNamesByAffiliation({});
+      setLoadedNameDirectoryKey(null);
+      return;
+    }
+    setNamesByAffiliation(readNameDirectory(nameDirectoryKey));
+    setLoadedNameDirectoryKey(nameDirectoryKey);
+    setEditingAffiliation(null);
+    setNameNotice(null);
+  }, [nameDirectoryKey]);
+
+  useEffect(() => {
+    if (!nameDirectoryKey || loadedNameDirectoryKey !== nameDirectoryKey) {
+      return;
+    }
+    localStorage.setItem(
+      nameDirectoryKey,
+      JSON.stringify({ expiresAt: Date.now() + NAME_DIRECTORY_TTL_MS, names: namesByAffiliation }),
+    );
+  }, [loadedNameDirectoryKey, nameDirectoryKey, namesByAffiliation]);
 
   const load = async () => {
     const { data, error: invokeError } = await supabase.functions.invoke(
@@ -523,11 +618,8 @@ const OrganizationAdmin = () => {
     }
   };
 
-  const roundNames = useMemo(
-    () =>
-      Array.from(
-        new Set(dashboard?.tickets.map((ticket) => ticket.round_name) ?? []),
-      ),
+  const roundsForFilter = useMemo(
+    () => [...(dashboard?.rounds ?? [])].sort((a, b) => a.id - b.id),
     [dashboard],
   );
   const displayedTickets = useMemo(
@@ -535,7 +627,13 @@ const OrganizationAdmin = () => {
       (dashboard?.tickets
         .filter(
           (ticket) =>
-            roundFilter === 'all' || ticket.round_name === roundFilter,
+            roundFilter === 'all' ||
+            ticket.round_id === Number(roundFilter) ||
+            (ticket.round_id === undefined &&
+              ticket.round_name ===
+                roundsForFilter.find(
+                  (round) => round.id === Number(roundFilter),
+                )?.name),
         )
         .slice()
         .sort(
@@ -544,7 +642,7 @@ const OrganizationAdmin = () => {
               (b.tickets.users?.affiliation ?? Number.MAX_SAFE_INTEGER) ||
             a.tickets.code.localeCompare(b.tickets.code, 'ja'),
         ) ?? []),
-    [dashboard, roundFilter],
+    [dashboard, roundFilter, roundsForFilter],
   );
   const relationshipNames = useMemo(
     () =>
@@ -556,6 +654,117 @@ const OrganizationAdmin = () => {
       ),
     [dashboard],
   );
+  const nameAffiliations = useMemo(() => {
+    const classKey =
+      dashboard?.kind === 'class'
+        ? classNameKey(dashboard.performance.class_name)
+        : null;
+    return Array.from(
+      new Set(
+        (dashboard?.tickets ?? [])
+          .map((ticket) => ticket.tickets.users?.affiliation)
+          .filter(isStudentAffiliation)
+          .filter(
+            (affiliation) =>
+              !classKey || affiliationClassKey(affiliation) === classKey,
+          ),
+      ),
+    ).sort((a, b) => a - b);
+  }, [dashboard]);
+  const hasMissingName = nameAffiliations.some(
+    (affiliation) => !namesByAffiliation[String(affiliation)]?.trim(),
+  );
+  const hasMissingAffiliation = Boolean(
+    dashboard?.tickets.some(
+      (ticket) => !isStudentAffiliation(ticket.tickets.users?.affiliation),
+    ),
+  );
+
+  const saveName = (affiliation: number) => {
+    const name = nameDraft.trim();
+    setNamesByAffiliation((current) => {
+      const next = { ...current };
+      if (name) {
+        next[String(affiliation)] = name;
+      } else {
+        delete next[String(affiliation)];
+      }
+      return next;
+    });
+    setEditingAffiliation(null);
+  };
+
+  const copyNameDirectory = async () => {
+    const text = JSON.stringify({ names: namesByAffiliation });
+    setTransferText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+      setNameNotice('コピーしました。他の端末で貼り付けて取り込めます。');
+    } catch {
+      setNameNotice('下のテキストをコピーして、他の端末に貼り付けてください。');
+    }
+  };
+
+  const importNameDirectory = () => {
+    try {
+      const parsed = JSON.parse(transferText) as { names?: unknown };
+      if (!parsed.names || typeof parsed.names !== 'object' || Array.isArray(parsed.names)) {
+        throw new Error();
+      }
+      const next = Object.fromEntries(
+        Object.entries(parsed.names as Record<string, unknown>).flatMap(([affiliation, name]) =>
+          /^\d+$/.test(affiliation) && typeof name === 'string'
+            ? [[affiliation, name.trim()]]
+            : [],
+        ),
+      ) as NameDirectory;
+      setNamesByAffiliation(next);
+      setNameNotice('氏名データを取り込みました。');
+    } catch {
+      setNameNotice('取り込み用データの形式が正しくありません。');
+    }
+  };
+
+  const exportRoster = () => {
+    if (!dashboard) {
+      return;
+    }
+    const organizationName = String(
+      dashboard.kind === 'class'
+        ? dashboard.performance.class_name ?? ''
+        : dashboard.performance.group_name ?? '',
+    );
+    const generalCapacity = Math.max(
+      0,
+      ...(dashboard.performances ?? [dashboard.performance]).map((performance) => {
+        const total = Number(
+          dashboard.kind === 'class'
+            ? performance.total_capacity
+            : performance.capacity,
+        );
+        const junior = Number(performance.junior_capacity ?? 0);
+        return Number.isFinite(total) && Number.isFinite(junior)
+          ? total - junior
+          : 0;
+      }),
+    );
+    void downloadRosterXlsx(
+      organizationName,
+      dashboard.tickets,
+      dashboard.rounds,
+      dashboard.relationships,
+      generalCapacity,
+      namesByAffiliation,
+    );
+  };
+
+  const requestRosterExport = () => {
+    if (hasMissingAffiliation || hasMissingName) {
+      setShowMissingAffiliationModal(true);
+      return;
+    }
+    exportRoster();
+  };
   if (checking) {
     return <LoadingSpinner message='認証状態を確認しています...' />;
   }
@@ -605,25 +814,6 @@ const OrganizationAdmin = () => {
     dashboard.kind === 'class'
       ? `${dashboard.performance.class_name} ${dashboard.performance.title || ''}`
       : String(dashboard.performance.group_name ?? '');
-  const organizationName = String(
-    dashboard.kind === 'class'
-      ? dashboard.performance.class_name ?? ''
-      : dashboard.performance.group_name ?? '',
-  );
-  const generalCapacity = Math.max(
-    0,
-    ...(dashboard.performances ?? [dashboard.performance]).map((performance) => {
-      const total = Number(
-        dashboard.kind === 'class'
-          ? performance.total_capacity
-          : performance.capacity,
-      );
-      const junior = Number(performance.junior_capacity ?? 0);
-      return Number.isFinite(total) && Number.isFinite(junior)
-        ? total - junior
-        : 0;
-    }),
-  );
   return (
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
@@ -723,8 +913,12 @@ const OrganizationAdmin = () => {
             )}
             <button disabled={busy}>{busy ? '保存中...' : '変更を保存'}</button>
           </form>
-          {messageScope === 'performance' && error && <Alert type='error'>{error}</Alert>}
-          {messageScope === 'performance' && notice && <Alert type='info'>{notice}</Alert>}
+          {messageScope === 'performance' && error && (
+            <Alert type='error'>{error}</Alert>
+          )}
+          {messageScope === 'performance' && notice && (
+            <Alert type='info'>{notice}</Alert>
+          )}
         </NormalSection>
         <NormalSection>
           <h2>{dashboard.kind === 'exhibition' ? '展示画像' : '公演画像'}</h2>
@@ -753,122 +947,223 @@ const OrganizationAdmin = () => {
               JPEG・PNG・WebP形式、5MB以下の画像を選択してください。
             </p>
           </div>
-          {messageScope === 'image' && error && <Alert type='error'>{error}</Alert>}
-          {messageScope === 'image' && notice && <Alert type='info'>{notice}</Alert>}
+          {messageScope === 'image' && error && (
+            <Alert type='error'>{error}</Alert>
+          )}
+          {messageScope === 'image' && notice && (
+            <Alert type='info'>{notice}</Alert>
+          )}
         </NormalSection>
-        {dashboard.kind !== 'exhibition' && <>
-        <NormalSection>
-          <h2>受付・定員設定</h2>
-          <div className={styles.settingsList}>
-            <Alert type='warning'>
-              定員はむやみに変更しないでください。変更があった場合は総務から理由の確認が入ることがあります。
-            </Alert>
-            <div className={styles.settingRow}>
-              <span>チケット受付を有効にする</span>
-              <label>
-                <Switch
-                  id='organization-is-accepting'
-                  checked={isAccepting}
-                  onChange={handleAcceptingChange}
+        {dashboard.kind !== 'exhibition' && (
+          <>
+            <NormalSection>
+              <h2>受付・定員設定</h2>
+              <div className={styles.settingsList}>
+                <Alert type='warning'>
+                  定員はむやみに変更しないでください。変更があった場合は総務から理由の確認が入ることがあります。
+                </Alert>
+                <div className={styles.settingRow}>
+                  <span>チケット受付を有効にする</span>
+                  <label>
+                    <Switch
+                      id='organization-is-accepting'
+                      checked={isAccepting}
+                      onChange={handleAcceptingChange}
+                    />
+                  </label>
+                </div>
+                <div className={styles.settingRow}>
+                  <div>
+                    <span>定員</span>
+                    <p>
+                      {capacity}人（中学生枠 {juniorCapacity}人）
+                    </p>
+                  </div>
+                  <button
+                    type='button'
+                    className={styles.inlineEditButton}
+                    onClick={openCapacityModal}
+                    disabled={busy}
+                  >
+                    変更する
+                  </button>
+                </div>
+              </div>
+              {messageScope === 'ticketSettings' && error && (
+                <Alert type='error'>{error}</Alert>
+              )}
+              {messageScope === 'ticketSettings' && notice && (
+                <Alert type='info'>{notice}</Alert>
+              )}
+            </NormalSection>
+            <NormalSection>
+              <div className={styles.ticketHeading}>
+                <div>
+                  <h2>氏名管理</h2>
+                  <p>チケットを発行した生徒の氏名を登録できます</p>
+                </div>
+                <button
+                  type='button'
+                  className={styles.secondary}
+                  onClick={() => void copyNameDirectory()}
+                >
+                  別端末移行用データをコピー
+                </button>
+              </div>
+              <p className={styles.nameHint}>
+                この端末に90日間保存されます。別の端末へ移す場合は、コピーしたデータを下欄に貼り付けて取り込んでください。
+              </p>
+              <div className={styles.tableWrap}>
+                <table className={styles.nameTable}>
+                  <thead>
+                    <tr>
+                      <th>学年・クラス・番号</th>
+                      <th>氏名</th>
+                      <th aria-label='操作' />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nameAffiliations.map((affiliation) => (
+                      <tr key={affiliation}>
+                        <td>{formatAffiliation(affiliation)}</td>
+                        <td>
+                          {editingAffiliation === affiliation ? (
+                            <input
+                              className={styles.nameInput}
+                              value={nameDraft}
+                              maxLength={100}
+                              onInput={(event) =>
+                                setNameDraft(
+                                  (event.target as HTMLInputElement).value,
+                                )
+                              }
+                              aria-label={`${formatAffiliation(affiliation)}の氏名`}
+                            />
+                          ) : (
+                            namesByAffiliation[String(affiliation)] || '—'
+                          )}
+                        </td>
+                        <td>
+                          {editingAffiliation === affiliation ? (
+                            <button
+                              type='button'
+                              className={styles.inlineEditButton}
+                              onClick={() => saveName(affiliation)}
+                            >
+                              保存
+                            </button>
+                          ) : (
+                            <button
+                              type='button'
+                              className={styles.inlineEditButton}
+                              onClick={() => {
+                                setEditingAffiliation(affiliation);
+                                setNameDraft(
+                                  namesByAffiliation[String(affiliation)] ?? '',
+                                );
+                              }}
+                            >
+                              編集
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {nameAffiliations.length === 0 && (
+                      <tr>
+                        <td colSpan={3}>登録対象のチケットはありません。</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <label className={styles.transferLabel}>
+                他の端末から取り込むデータ
+                <textarea
+                  value={transferText}
+                  onInput={(event) =>
+                    setTransferText((event.target as HTMLTextAreaElement).value)
+                  }
+                  placeholder='「別端末移行用データをコピー」でコピーした内容を貼り付け'
                 />
               </label>
-            </div>
-            <div className={styles.settingRow}>
-              <div>
-                <span>定員</span>
-                <p>
-                  {capacity}人（中学生枠 {juniorCapacity}人）
-                </p>
-              </div>
               <button
                 type='button'
                 className={styles.inlineEditButton}
-                onClick={openCapacityModal}
-                disabled={busy}
+                onClick={importNameDirectory}
               >
-                変更する
+                貼り付けたデータを取り込む
               </button>
-            </div>
-          </div>
-          {messageScope === 'ticketSettings' && error && <Alert type='error'>{error}</Alert>}
-          {messageScope === 'ticketSettings' && notice && <Alert type='info'>{notice}</Alert>}
-        </NormalSection>
-        <NormalSection>
-          <div className={styles.ticketHeading}>
-            <div>
-              <h2>チケット一覧</h2>
-              <p>有効 {displayedTickets.length} 枚</p>
-            </div>
-            <button
-              type='button'
-              onClick={() => {
-                void downloadRosterXlsx(
-                  organizationName,
-                  dashboard.tickets,
-                  dashboard.rounds,
-                  dashboard.relationships,
-                  generalCapacity,
-                );
-              }}
-            >
-              名簿をExcel出力
-            </button>
-          </div>
-          <label className={styles.filterLabel}>
-            公演回
-            <select
-              value={roundFilter}
-              onChange={(event) =>
-                setRoundFilter((event.target as HTMLSelectElement).value)
-              }
-            >
-              <option value='all'>すべて</option>
-              {roundNames.map((roundName) => (
-                <option key={roundName} value={roundName}>
-                  {roundName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className={styles.tableWrap}>
-            <table>
-              <thead>
-                <tr>
-                  <th>コード</th>
-                  <th>公演回</th>
-                  <th>学年・クラス・番号</th>
-                  <th>間柄</th>
-                  <th>発行日時</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayedTickets.map(({ id, tickets, round_name }) => (
-                  <tr key={id}>
-                    <td>{tickets.code}</td>
-                    <td>{round_name}</td>
-                    <td>{formatAffiliation(tickets.users?.affiliation)}</td>
-                    <td>{relationshipNames.get(tickets.relationship) ?? '—'}</td>
-                    <td>
-                      {new Date(tickets.created_at).toLocaleString('ja-JP')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </NormalSection>
-        </>}
+              {nameNotice && <Alert type='info'>{nameNotice}</Alert>}
+            </NormalSection>
+            <NormalSection>
+              <div className={styles.ticketHeading}>
+                <div>
+                  <h2>チケット一覧</h2>
+                  <p>有効 {displayedTickets.length} 枚</p>
+                </div>
+                <button type='button' onClick={requestRosterExport}>
+                  名簿をExcel出力
+                </button>
+              </div>
+              <label className={styles.filterLabel}>
+                公演回
+                <select
+                  value={roundFilter}
+                  onChange={(event) =>
+                    setRoundFilter((event.target as HTMLSelectElement).value)
+                  }
+                >
+                  <option value='all'>すべて</option>
+                  {roundsForFilter.map((round) => (
+                    <option key={round.id} value={round.id}>
+                      {round.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className={styles.tableWrap}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>コード</th>
+                      <th>公演回</th>
+                      <th>学年・クラス・番号</th>
+                      <th>間柄</th>
+                      <th>発行日時</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedTickets.map(({ id, tickets, round_name }) => (
+                      <tr key={id}>
+                        <td>{tickets.code}</td>
+                        <td>{round_name}</td>
+                        <td>{formatAffiliation(tickets.users?.affiliation)}</td>
+                        <td>
+                          {relationshipNames.get(tickets.relationship) ?? '—'}
+                        </td>
+                        <td>
+                          {new Date(tickets.created_at).toLocaleString('ja-JP')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </NormalSection>
+          </>
+        )}
         <NormalSection>
           <h2>パスワード変更</h2>
           <form onSubmit={changePassword} className={styles.form}>
             <input
-            type='text'
-            name='username'
-            value={dashboard.username}
-            autocomplete='username'
-            style='display: none;'
-            aria-hidden='true'
-          />
+              type='text'
+              name='username'
+              value={dashboard.username}
+              autocomplete='username'
+              style='display: none;'
+              aria-hidden='true'
+            />
             <label>
               現在のパスワード
               <input
@@ -909,10 +1204,14 @@ const OrganizationAdmin = () => {
             </label>
             <button disabled={busy}>パスワードを変更</button>
           </form>
-          {messageScope === 'password' && error && <Alert type='error'>{error}</Alert>}
-          {messageScope === 'password' && notice && <Alert type='info'>{notice}</Alert>}
+          {messageScope === 'password' && error && (
+            <Alert type='error'>{error}</Alert>
+          )}
+          {messageScope === 'password' && notice && (
+            <Alert type='info'>{notice}</Alert>
+          )}
         </NormalSection>
-      {showCapacityModal && (
+        {showCapacityModal && (
           <div
             className={styles.modalOverlay}
             role='presentation'
@@ -978,37 +1277,88 @@ const OrganizationAdmin = () => {
               </form>
             </div>
           </div>
-      )}
-      {showDeploymentNotice && (
-        <div
-          className={styles.modalOverlay}
-          role='presentation'
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setShowDeploymentNotice(false);
-            }
-          }}
-        >
+        )}
+        {showDeploymentNotice && (
           <div
-            className={styles.modal}
-            role='dialog'
-            aria-modal='true'
-            aria-labelledby='deployment-notice-title'
-            onClick={(event) => event.stopPropagation()}
+            className={styles.modalOverlay}
+            role='presentation'
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setShowDeploymentNotice(false);
+              }
+            }}
           >
-            <h3 id='deployment-notice-title'>公演情報を変更しました</h3>
-            <Alert>
-              変更は完了しましたが、ここで変更しただけでは反映されません。<strong>お問い合わせフォームから「公演情報を変更したので再デプロイをしてほしい」</strong>と連絡をお願いします。
-            </Alert>
-            <div className={styles.modalActions}>
-              <button type='button' onClick={() => setShowDeploymentNotice(false)}>
-                閉じる
-              </button>
+            <div
+              className={styles.modal}
+              role='dialog'
+              aria-modal='true'
+              aria-labelledby='deployment-notice-title'
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h3 id='deployment-notice-title'>公演情報を変更しました</h3>
+              <Alert>
+                変更は完了しましたが、ここで変更しただけでは反映されません。
+                <strong>
+                  お問い合わせフォームから「公演情報を変更したので再デプロイをしてほしい」
+                </strong>
+                と連絡をお願いします。
+              </Alert>
+              <div className={styles.modalActions}>
+                <button
+                  type='button'
+                  onClick={() => setShowDeploymentNotice(false)}
+                >
+                  閉じる
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+        {showMissingAffiliationModal && (
+          <div
+            className={styles.modalOverlay}
+            role='presentation'
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setShowMissingAffiliationModal(false);
+              }
+            }}
+          >
+            <div
+              className={styles.modal}
+              role='dialog'
+              aria-modal='true'
+              aria-labelledby='missing-affiliation-modal-title'
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h3 id='missing-affiliation-modal-title'>名簿に未入力の項目があります</h3>
+              {hasMissingAffiliation && (
+                <p>学年・クラス・番号が未入力のチケットがあります。</p>
+              )}
+              {hasMissingName && <p>氏名管理に未登録の氏名があります。</p>}
+              <p>該当する欄は空欄のままExcelを出力します。続行する場合は忘れずにExcelファイルを直接編集して氏名を入力してください。</p>
+              <div className={styles.modalActions}>
+                <button
+                  type='button'
+                  className={styles.modalCancel}
+                  onClick={() => setShowMissingAffiliationModal(false)}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setShowMissingAffiliationModal(false);
+                    exportRoster();
+                  }}
+                >
+                  続行して出力
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 };
