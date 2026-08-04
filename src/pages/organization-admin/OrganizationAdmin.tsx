@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import ExcelJS from 'exceljs';
+import type { Borders } from 'exceljs';
 import Alert from '../../components/ui/Alert';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import NormalSection from '../../components/ui/NormalSection';
@@ -30,7 +30,7 @@ type TicketLink = {
 type PerformanceRound = { id: number; name: string };
 type Dashboard = {
   username: string;
-  kind: 'class' | 'gym';
+  kind: 'class' | 'gym' | 'exhibition';
   performance: Record<string, unknown>;
   performances: Record<string, unknown>[];
   rounds: PerformanceRound[];
@@ -46,6 +46,7 @@ const downloadRosterXlsx = async (
   relationships: { id: number; name: string }[],
   generalCapacity: number,
 ) => {
+  const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
   const relationshipNames = new Map(
     relationships.map((relationship) => [relationship.id, relationship.name]),
@@ -119,7 +120,7 @@ const downloadRosterXlsx = async (
   performances.forEach((_, index) => {
     worksheet.mergeCells(3, index * 6 + 1, 3, index * 6 + 6);
   });
-  const border: Partial<ExcelJS.Borders> = {
+  const border: Partial<Borders> = {
     top: { style: 'thin', color: { argb: 'FFA6A6A6' } },
     bottom: { style: 'thin', color: { argb: 'FFA6A6A6' } },
     left: { style: 'thin', color: { argb: 'FFA6A6A6' } },
@@ -300,7 +301,7 @@ const OrganizationAdmin = () => {
             action: 'updatePerformance',
             title,
             description,
-            isAccepting,
+            ...(dashboard?.kind === 'exhibition' ? {} : { isAccepting }),
           },
           headers: sessionHeaders(),
         },
@@ -595,7 +596,7 @@ const OrganizationAdmin = () => {
           </button>
         </div>
         <NormalSection>
-          <h2>公演情報</h2>
+          <h2>{dashboard.kind === 'exhibition' ? '展示情報' : '公演情報'}</h2>
           <form onSubmit={save} className={styles.form}>
             {dashboard.kind === 'class' && (
               <label>
@@ -611,7 +612,7 @@ const OrganizationAdmin = () => {
               </label>
             )}
             <label>
-              公演説明
+              {dashboard.kind === 'exhibition' ? '展示説明' : '公演説明'}
               <textarea
                 value={description}
                 maxLength={2000}
@@ -626,7 +627,7 @@ const OrganizationAdmin = () => {
           {messageScope === 'performance' && notice && <Alert type='info'>{notice}</Alert>}
         </NormalSection>
         <NormalSection>
-          <h2>公演画像</h2>
+          <h2>{dashboard.kind === 'exhibition' ? '展示画像' : '公演画像'}</h2>
           <div className={styles.imageSettings}>
             {typeof dashboard.performance.image_path === 'string' &&
               dashboard.performance.image_path && (
@@ -655,6 +656,7 @@ const OrganizationAdmin = () => {
           {messageScope === 'image' && error && <Alert type='error'>{error}</Alert>}
           {messageScope === 'image' && notice && <Alert type='info'>{notice}</Alert>}
         </NormalSection>
+        {dashboard.kind !== 'exhibition' && <>
         <NormalSection>
           <h2>受付・定員設定</h2>
           <div className={styles.settingsList}>
@@ -755,6 +757,7 @@ const OrganizationAdmin = () => {
             </table>
           </div>
         </NormalSection>
+        </>}
         <NormalSection>
           <h2>パスワード変更</h2>
           <form onSubmit={changePassword} className={styles.form}>

@@ -77,6 +77,7 @@ const buildSnapshot = async () => {
     { data: ticketTypeData, error: ticketTypeError },
     { data: relationshipData, error: relationshipError },
     { data: configData, error: configError },
+    { data: exhibitionClubData, error: exhibitionClubError },
   ] = await Promise.all([
     supabase
       .from('class_performances')
@@ -106,6 +107,10 @@ const buildSnapshot = async () => {
       .order('id', { ascending: true })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('exhibition_clubs')
+      .select('id, year, group_name, description, image_path, created_at')
+      .order('id', { ascending: true }),
   ]);
 
   if (
@@ -115,6 +120,7 @@ const buildSnapshot = async () => {
     ticketTypeError ||
     relationshipError ||
     configError
+    || exhibitionClubError
   ) {
     throw new Error('Failed to fetch snapshot data from Supabase.');
   }
@@ -125,11 +131,13 @@ const buildSnapshot = async () => {
   const ticketTypes = ticketTypeData ?? [];
   const relationships = relationshipData ?? [];
   const showLengthMinutes = Number(configData?.show_length ?? 0);
+  const exhibitionClubs = exhibitionClubData ?? [];
 
   return {
     generatedAt: new Date().toISOString(),
     performances,
     gymPerformances,
+    exhibitionClubs,
     schedules,
     ticketTypes,
     relationships,

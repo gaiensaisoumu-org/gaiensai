@@ -15,6 +15,7 @@ type Admin = {
   password_hash: string;
   class_performance_id: number | null;
   gym_performance_id: number | null;
+  exhibition_club_id: number | null;
 };
 
 const json = (body: unknown, corsHeaders: HeadersInit, status = 200) =>
@@ -36,6 +37,20 @@ const text = (value: unknown, name: string, max = 2000) => {
   const normalized = value.trim();
   if (normalized.length > max) {throw new HttpError(400, `${name} が長すぎます。`);}
   return normalized;
+};
+
+const eventYear = async (client: SupabaseClient) => {
+  const { data, error } = await client
+    .from('configs')
+    .select('event_year')
+    .eq('id', 1)
+    .maybeSingle();
+  if (error) {throw error;}
+  const year = data?.event_year;
+  if (typeof year !== 'number' || !Number.isInteger(year)) {
+    throw new HttpError(500, '開催年度の設定を取得できませんでした。');
+  }
+  return year;
 };
 
 const tokenHash = async (token: string) => {
@@ -64,7 +79,7 @@ const requireAdmin = async (client: SupabaseClient, req: Request) => {
   const hashed = await tokenHash(sessionToken(req));
   const { data, error } = await client
     .from('organization_admin_sessions')
-    .select('id, organization_admin_id, expires_at, organization_admins(id, username, password_hash, class_performance_id, gym_performance_id)')
+    .select('id, organization_admin_id, expires_at, organization_admins(id, username, password_hash, class_performance_id, gym_performance_id, exhibition_club_id)')
     .eq('token_hash', hashed)
     .is('revoked_at', null)
     .gt('expires_at', new Date().toISOString())
@@ -84,6 +99,14 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
     if (error) {throw error;}
     if (!data) {throw new HttpError(404, '担当公演が見つかりません。');}
     return { kind: 'class' as const, performance: data };
+  }
+  if (admin.exhibition_club_id) {
+    const { data, error } = await client.from('exhibition_clubs')
+      .select('id, group_name, description, image_path')
+      .eq('id', admin.exhibition_club_id).maybeSingle();
+    if (error) {throw error;}
+    if (!data) {throw new HttpError(404, '担当展示部活が見つかりません。');}
+    return { kind: 'exhibition' as const, performance: data };
   }
   const { data, error } = await client.from('gym_performances')
     .select('id, group_name, round_name, description, image_path, start_at, end_at, is_accepting, capacity, junior_capacity')
@@ -118,7 +141,7 @@ Deno.serve(async (req) => {
       const username = text(body.username, 'ユーザー名', 100);
       const submittedPassword = password(body.password, 'パスワード');
       const { data, error } = await client.from('organization_admins')
-        .select('id, username, password_hash, class_performance_id, gym_performance_id')
+        .select('id, username, password_hash, class_performance_id, gym_performance_id, exhibition_club_id')
         .eq('username', username).maybeSingle();
       if (error) {throw error;}
       const admin = data as Admin | null;
@@ -148,6 +171,17 @@ Deno.serve(async (req) => {
     const admin = await requireAdmin(client, req);
     if (action === 'getDashboard') {
       const own = await ownPerformance(client, admin);
+      if (own.kind === 'exhibition') {
+        return json({
+          username: admin.username,
+          performance: own.performance,
+          performances: [own.performance],
+          kind: own.kind,
+          rounds: [],
+          relationships: [],
+          tickets: [],
+        }, corsHeaders);
+      }
       const ticketQuery = own.kind === 'class'
         ? client.from('class_tickets').select('id, round_id, tickets!inner(id, code, created_at, relationship, ticket_type, users(affiliation))').eq('class_id', own.performance.id).eq('tickets.status', 'valid')
         : client.from('gym_tickets').select('id, performance_id, tickets!inner(id, code, created_at, relationship, ticket_type, users(affiliation))').in('performance_id', own.performances.map((performance) => performance.id)).eq('tickets.status', 'valid');
@@ -215,14 +249,22 @@ Deno.serve(async (req) => {
     if (action === 'updatePerformance') {
       const own = await ownPerformance(client, admin);
       const description = text(body.description, '公演説明');
+      const year = await eventYear(client);
+      if (own.kind === 'exhibition') {
+        const { error } = await client.from('exhibition_clubs')
+          .update({ description, year, updated_at: new Date().toISOString() })
+          .eq('id', own.performance.id);
+        if (error) {throw error;}
+        return json({ updated: true }, corsHeaders);
+      }
       const isAccepting = body.isAccepting;
       if (typeof isAccepting !== 'boolean') {throw new HttpError(400, '受付状態が不正です。');}
       if (own.kind === 'class') {
         const title = text(body.title, '公演タイトル', 200);
-        const { error } = await client.from('class_performances').update({ title, description, is_accepting: isAccepting }).eq('id', own.performance.id);
+        const { error } = await client.from('class_performances').update({ title, description, is_accepting: isAccepting, year }).eq('id', own.performance.id);
         if (error) {throw error;}
       } else {
-        const { error } = await client.from('gym_performances').update({ description, is_accepting: isAccepting }).in('id', own.performances.map((performance) => performance.id));
+        const { error } = await client.from('gym_performances').update({ description, is_accepting: isAccepting, year }).in('id', own.performances.map((performance) => performance.id));
         if (error) {throw error;}
       }
       return json({ updated: true }, corsHeaders);
@@ -230,6 +272,9 @@ Deno.serve(async (req) => {
 
     if (action === 'updateTicketSettings') {
       const own = await ownPerformance(client, admin);
+      if (own.kind === 'exhibition') {
+        throw new HttpError(400, '展示部活ではチケット設定を変更できません。');
+      }
       const isAccepting = body.isAccepting;
       const capacity = body.capacity;
       const juniorCapacity = body.juniorCapacity;
@@ -252,9 +297,10 @@ Deno.serve(async (req) => {
       if (capacity < issuedCount) {
         throw new HttpError(400, `現在${issuedCount}人分の有効チケットがあるため、それ未満には変更できません。`);
       }
+      const year = await eventYear(client);
       const update = own.kind === 'class'
-        ? { total_capacity: capacity, junior_capacity: juniorCapacity, is_accepting: isAccepting }
-        : { capacity, junior_capacity: juniorCapacity, is_accepting: isAccepting };
+        ? { total_capacity: capacity, junior_capacity: juniorCapacity, is_accepting: isAccepting, year }
+        : { capacity, junior_capacity: juniorCapacity, is_accepting: isAccepting, year };
       const updateQuery = client
         .from(own.kind === 'class' ? 'class_performances' : 'gym_performances')
         .update(update);
@@ -295,12 +341,15 @@ Deno.serve(async (req) => {
       if (uploadError) {
         throw uploadError;
       }
+      const year = await eventYear(client);
       const imageUpdateQuery = client
-        .from(own.kind === 'class' ? 'class_performances' : 'gym_performances')
-        .update({ image_path: path });
+        .from(own.kind === 'class' ? 'class_performances' : own.kind === 'gym' ? 'gym_performances' : 'exhibition_clubs')
+        .update({ image_path: path, year });
       const { error: updateError } = own.kind === 'class'
         ? await imageUpdateQuery.eq('id', own.performance.id)
-        : await imageUpdateQuery.in('id', own.performances.map((performance) => performance.id));
+        : own.kind === 'gym'
+          ? await imageUpdateQuery.in('id', own.performances.map((performance) => performance.id))
+          : await imageUpdateQuery.eq('id', own.performance.id);
       if (updateError) {
         throw updateError;
       }

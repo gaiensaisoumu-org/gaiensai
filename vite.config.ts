@@ -192,5 +192,8 @@ export default defineConfig({
   build: {
     // CSSの圧縮を以前の esbuild に戻す
     cssMinify: 'esbuild',
+    // ExcelJSは名簿出力時だけ読み込む分割チャンク（約930KB）のため、
+    // 初期表示チャンクの警告対象にはしない。
+    chunkSizeWarningLimit: 1000,
   },
 });

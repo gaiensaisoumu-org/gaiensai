@@ -34,10 +34,20 @@ interface GymPerformance {
   image_path: string | null;
 }
 
+interface ExhibitionClub {
+  id: number;
+  year: number | null;
+  group_name: string;
+  description: string | null;
+  image_path: string | null;
+  created_at: string;
+}
+
 type PerformanceSnapshot = {
   generatedAt?: string;
   performances?: ClassPerformance[];
   gymPerformances?: GymPerformance[];
+  exhibitionClubs?: ExhibitionClub[];
 };
 
 const snapshot = performancesSnapshot as unknown as PerformanceSnapshot;
@@ -62,6 +72,7 @@ const Performances = () => {
     );
     return uniqueGroupPerformances;
   }, []);
+  const exhibitionData = useMemo(() => snapshot.exhibitionClubs ?? [], []);
 
   return (
     <>
@@ -224,6 +235,52 @@ const Performances = () => {
                       </span>
                     </div>
                   </div>
+                </div>
+              </NormalSection>
+            ))
+          )}
+        </div>
+      </section>
+      <section>
+        <h2 className={baseStyles.linedH2}>展示部活</h2>
+        <div className={styles.grid}>
+          {exhibitionData.length === 0 ? (
+            <div className={styles.stateMessage}>
+              公開中の展示部活はありません。
+            </div>
+          ) : (
+            exhibitionData.map((club) => (
+              <NormalSection key={club.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  {club.image_path && (
+                    <>
+                      <img
+                        src={getPerformanceImageUrl(
+                          club.image_path,
+                          snapshot.generatedAt,
+                        )}
+                        alt={club.group_name}
+                        className={styles.cardBgImage}
+                        loading='lazy'
+                      />
+                      <div className={styles.overlay} />
+                    </>
+                  )}
+                  <div
+                    className={`${styles.headerContent} ${!club.image_path ? styles.noImage : ''}`}
+                  >
+                    <div className={styles.meta}>
+                      {club.year !== null && (
+                        <span className={styles.yearBadge}>{club.year}年度</span>
+                      )}
+                    </div>
+                    <h3 className={styles.cardTitle}>{club.group_name}</h3>
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <p className={styles.description}>
+                    {club.description || '展示説明はありません。'}
+                  </p>
                 </div>
               </NormalSection>
             ))

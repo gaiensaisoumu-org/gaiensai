@@ -10,12 +10,13 @@ import {
 } from '../../layout/AdminAuthLayout';
 import styles from './Settings.module.css';
 
-type Kind = 'class' | 'gym';
+type Kind = 'class' | 'gym' | 'exhibition';
 type Account = {
   id: string;
   username: string;
   class_performance_id: number | null;
   gym_performance_id: number | null;
+  exhibition_club_id: number | null;
 };
 type Performance = {
   id: number;
@@ -61,6 +62,9 @@ const defaultUsername = (kind: Kind, performance: Performance) => {
   if (kind === 'class') {
     return performance.class_name ?? `class-${performance.id}`;
   }
+  if (kind === 'exhibition') {
+    return `exhibition-${performance.id}`;
+  }
   const known: Record<string, string> = {
     ダンス部: 'dance',
     '軽音楽部 1,2年': 'keion-12',
@@ -75,6 +79,7 @@ const OrganizationAccountsContent = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [classes, setClasses] = useState<Performance[]>([]);
   const [gyms, setGyms] = useState<Performance[]>([]);
+  const [exhibitions, setExhibitions] = useState<Performance[]>([]);
   const [editTarget, setEditTarget] = useState<Account | null>(null);
   const [editMode, setEditMode] = useState<'id' | 'password' | 'delete' | null>(
     null,
@@ -98,6 +103,7 @@ const OrganizationAccountsContent = () => {
     setAccounts(data?.admins ?? []);
     setClasses(data?.classes ?? []);
     setGyms(data?.gyms ?? []);
+    setExhibitions(data?.exhibitions ?? []);
   };
 
   useEffect(() => {
@@ -121,6 +127,11 @@ const OrganizationAccountsContent = () => {
     const gymIds = new Set(
       accounts
         .map((account) => account.gym_performance_id)
+        .filter((id): id is number => id !== null),
+    );
+    const exhibitionIds = new Set(
+      accounts
+        .map((account) => account.exhibition_club_id)
         .filter((id): id is number => id !== null),
     );
     const assignedGymGroups = new Set(
@@ -159,6 +170,15 @@ const OrganizationAccountsContent = () => {
           username: defaultUsername('gym', item),
           password: createPassword(),
           group: `${item.group_name ?? '不明'}：${item.round_name ?? ''}`,
+        })),
+      ...exhibitions
+        .filter((item) => !exhibitionIds.has(item.id))
+        .map((item) => ({
+          kind: 'exhibition' as const,
+          performanceId: item.id,
+          username: defaultUsername('exhibition', item),
+          password: createPassword(),
+          group: item.group_name ?? '不明',
         })),
     ];
     if (!admins.length) {
@@ -326,7 +346,9 @@ const OrganizationAccountsContent = () => {
     const performance =
       account.class_performance_id !== null
         ? classes.find((item) => item.id === account.class_performance_id)
-        : gyms.find((item) => item.id === account.gym_performance_id);
+        : account.gym_performance_id !== null
+          ? gyms.find((item) => item.id === account.gym_performance_id)
+          : exhibitions.find((item) => item.id === account.exhibition_club_id);
     return account.class_performance_id !== null
       ? `${performance?.class_name ?? '不明'}：${performance?.title ?? '無題の公演'}`
       : performance?.group_name ?? '不明';
@@ -368,7 +390,9 @@ const OrganizationAccountsContent = () => {
                   <td>{account.username}</td>
                   <td>{label(account)}</td>
                   <td>
-                    {account.class_performance_id !== null ? 'クラス' : '部活'}
+                    {account.class_performance_id !== null
+                      ? 'クラス'
+                      : account.exhibition_club_id !== null ? '展示部活' : '部活'}
                   </td>
                   <td>
                     <div className={styles.organizationActions}>

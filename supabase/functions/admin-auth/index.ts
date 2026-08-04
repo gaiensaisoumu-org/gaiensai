@@ -161,7 +161,7 @@ type AdminAuthBody =
       mode: 'createOrganizationAdmin';
       username: string;
       password: string;
-      kind: 'class' | 'gym';
+      kind: 'class' | 'gym' | 'exhibition';
       performanceId: number;
     }
   | {
@@ -171,7 +171,7 @@ type AdminAuthBody =
     }
   | { mode: 'changeOrganizationAdminUsername'; organizationAdminId: string; username: string }
   | { mode: 'deleteOrganizationAdmin'; organizationAdminId: string }
-  | { mode: 'bulkCreateOrganizationAdmins'; admins: { username: string; password: string; kind: 'class' | 'gym'; performanceId: number }[] };
+  | { mode: 'bulkCreateOrganizationAdmins'; admins: { username: string; password: string; kind: 'class' | 'gym' | 'exhibition'; performanceId: number }[] };
 
 type AdminConfigRow = {
   id: number;
@@ -643,7 +643,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
     if (organizationPassword.length < 8) {
       throw new HttpError(400, 'パスワードは8文字以上で設定してください。');
     }
-    if (values.organizationKind !== 'class' && values.organizationKind !== 'gym') {
+    if (values.organizationKind !== 'class' && values.organizationKind !== 'gym' && values.organizationKind !== 'exhibition') {
       throw new HttpError(400, '団体種別が不正です。');
     }
     return {
@@ -718,8 +718,8 @@ const parseBody = (body: unknown): AdminAuthBody => {
       if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username)) {throw new HttpError(400, 'ユーザー名が不正です。');}
       const password = normalizePassword(item.password, 'password');
       if (password.length < 8) {throw new HttpError(400, 'パスワードは8文字以上で設定してください。');}
-      if (item.kind !== 'class' && item.kind !== 'gym') {throw new HttpError(400, '団体種別が不正です。');}
-      return { username, password, kind: item.kind as 'class' | 'gym', performanceId: normalizeInteger(item.performanceId, 'performanceId', 1, 1000000) };
+      if (item.kind !== 'class' && item.kind !== 'gym' && item.kind !== 'exhibition') {throw new HttpError(400, '団体種別が不正です。');}
+      return { username, password, kind: item.kind as 'class' | 'gym' | 'exhibition', performanceId: normalizeInteger(item.performanceId, 'performanceId', 1, 1000000) };
     });
     if (new Set(admins.map((admin) => admin.username)).size !== admins.length) {throw new HttpError(400, '一括作成内でユーザー名が重複しています。');}
     return { mode: 'bulkCreateOrganizationAdmins', admins };
@@ -2290,18 +2290,19 @@ Deno.serve(async (req) => {
 
     if (body.mode === 'getOrganizationAdmins') {
       const session = await requireValidSession(adminClient, req);
-      const [adminsResult, classesResult, gymsResult] = await Promise.all([
+      const [adminsResult, classesResult, gymsResult, exhibitionsResult] = await Promise.all([
         adminClient
           .from('organization_admins')
-          .select('id, username, class_performance_id, gym_performance_id, created_at')
+          .select('id, username, class_performance_id, gym_performance_id, exhibition_club_id, created_at')
           .order('username'),
         adminClient.from('class_performances').select('id, class_name, title').order('id'),
         adminClient
           .from('gym_performances')
           .select('id, group_name, round_name')
           .order('start_at'),
+        adminClient.from('exhibition_clubs').select('id, group_name').order('id'),
       ]);
-      const failed = [adminsResult, classesResult, gymsResult].find(
+      const failed = [adminsResult, classesResult, gymsResult, exhibitionsResult].find(
         (result) => result.error,
       );
       if (failed?.error) {
@@ -2316,6 +2317,7 @@ Deno.serve(async (req) => {
           admins: adminsResult.data ?? [],
           classes: classesResult.data ?? [],
           gyms: gymsResult.data ?? [],
+          exhibitions: exhibitionsResult.data ?? [],
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
@@ -2323,8 +2325,9 @@ Deno.serve(async (req) => {
 
     if (body.mode === 'createOrganizationAdmin') {
       const session = await requireValidSession(adminClient, req);
-      const performanceTable =
-        body.kind === 'class' ? 'class_performances' : 'gym_performances';
+      const performanceTable = body.kind === 'class'
+        ? 'class_performances'
+        : body.kind === 'gym' ? 'gym_performances' : 'exhibition_clubs';
       const { data: performance, error: performanceError } = await adminClient
         .from(performanceTable)
         .select('id')
@@ -2369,6 +2372,23 @@ Deno.serve(async (req) => {
           );
         }
       }
+      if (body.kind === 'exhibition') {
+        const { data: existingExhibitionAdmin, error: existingError } =
+          await adminClient
+            .from('organization_admins')
+            .select('id')
+            .eq('exhibition_club_id', body.performanceId)
+            .limit(1);
+        if (existingError) {
+          throw existingError;
+        }
+        if (existingExhibitionAdmin && existingExhibitionAdmin.length > 0) {
+          throw new HttpError(
+            409,
+            'この展示部活には既に管理者アカウントが作成されています。',
+          );
+        }
+      }
       const { error: insertError } = await adminClient
         .from('organization_admins')
         .insert({
@@ -2377,6 +2397,7 @@ Deno.serve(async (req) => {
           class_performance_id:
             body.kind === 'class' ? body.performanceId : null,
           gym_performance_id: body.kind === 'gym' ? body.performanceId : null,
+          exhibition_club_id: body.kind === 'exhibition' ? body.performanceId : null,
         });
       if (insertError) {
         if (insertError.code === '23505') {
@@ -2470,10 +2491,10 @@ Deno.serve(async (req) => {
       const session = await requireValidSession(adminClient, req);
       const { data: existing, error: existingError } = await adminClient
         .from('organization_admins')
-        .select('username, class_performance_id, gym_performance_id');
+        .select('username, class_performance_id, gym_performance_id, exhibition_club_id');
       if (existingError) {throw existingError;}
       const usedUsernames = new Set((existing ?? []).map((item) => item.username));
-      const assigned = new Set((existing ?? []).map((item) => item.class_performance_id ? `class:${item.class_performance_id}` : `gym:${item.gym_performance_id}`));
+      const assigned = new Set((existing ?? []).map((item) => item.class_performance_id ? `class:${item.class_performance_id}` : item.gym_performance_id ? `gym:${item.gym_performance_id}` : `exhibition:${item.exhibition_club_id}`));
       const { data: gymPerformances, error: gymError } = await adminClient
         .from('gym_performances')
         .select('id, group_name');
@@ -2490,7 +2511,7 @@ Deno.serve(async (req) => {
           )
           .filter((group): group is string => Boolean(group)),
       );
-      const rows: { username: string; password_hash: string; class_performance_id: number | null; gym_performance_id: number | null }[] = [];
+      const rows: { username: string; password_hash: string; class_performance_id: number | null; gym_performance_id: number | null; exhibition_club_id: number | null }[] = [];
       const skipped: string[] = [];
       for (const item of body.admins) {
         const key = `${item.kind}:${item.performanceId}`;
@@ -2504,7 +2525,7 @@ Deno.serve(async (req) => {
           skipped.push(item.username);
           continue;
         }
-        rows.push({ username: item.username, password_hash: await hash(item.password, 10), class_performance_id: item.kind === 'class' ? item.performanceId : null, gym_performance_id: item.kind === 'gym' ? item.performanceId : null });
+        rows.push({ username: item.username, password_hash: await hash(item.password, 10), class_performance_id: item.kind === 'class' ? item.performanceId : null, gym_performance_id: item.kind === 'gym' ? item.performanceId : null, exhibition_club_id: item.kind === 'exhibition' ? item.performanceId : null });
         usedUsernames.add(item.username);
         assigned.add(key);
         if (typeof gymGroup === 'string') {assignedGymGroups.add(gymGroup);}
