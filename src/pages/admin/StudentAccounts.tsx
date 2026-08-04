@@ -59,6 +59,16 @@ const StudentAccountsContent = () => {
     config.max_attendance_number,
   );
   const [useTestPassword, setUseTestPassword] = useState(false);
+  const [singleGrade, setSingleGrade] = useState('');
+  const [singleClass, setSingleClass] = useState('');
+  const [singleAttendance, setSingleAttendance] = useState('');
+  const [isCreatingSingle, setIsCreatingSingle] = useState(false);
+  const [singleCreateResult, setSingleCreateResult] = useState<{
+    type: 'success' | 'error';
+    text: string;
+    id?: string;
+    password?: string;
+  } | null>(null);
 
   const [filterGrade, setFilterGrade] = useState('');
   const [filterClass, setFilterClass] = useState('');
@@ -110,6 +120,9 @@ const StudentAccountsContent = () => {
     password: string;
   } | null>(null);
   const [passwordCopyMessage, setPasswordCopyMessage] = useState<string | null>(
+    null,
+  );
+  const [accountActionEmail, setAccountActionEmail] = useState<string | null>(
     null,
   );
 
@@ -209,6 +222,74 @@ const StudentAccountsContent = () => {
     existingFilterClass,
     existingFilterAttendance,
   ]);
+
+  const handleSingleCreate = async (event: Event) => {
+    event.preventDefault();
+    const grade = Number(singleGrade);
+    const classNumber = Number(singleClass);
+    const attendance = Number(singleAttendance);
+    if (
+      !Number.isInteger(grade) ||
+      !Number.isInteger(classNumber) ||
+      !Number.isInteger(attendance) ||
+      grade < 1 ||
+      grade > config.grade_number ||
+      classNumber < 1 ||
+      classNumber > config.class_number ||
+      attendance < 1 ||
+      attendance > config.max_attendance_number
+    ) {
+      setSingleCreateResult({
+        type: 'error',
+        text: `学年は1〜${config.grade_number}、クラスは1〜${config.class_number}、出席番号は1〜${config.max_attendance_number}で入力してください。`,
+      });
+      return;
+    }
+    const id = `${grade}${String(classNumber).padStart(2, '0')}${String(attendance).padStart(2, '0')}`;
+    const password = generateBase58Password();
+    setIsCreatingSingle(true);
+    setSingleCreateResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke<BulkCreateResponse>(
+        'admin-auth',
+        {
+          body: { action: 'bulkCreateUsers', users: [{ id, password }] },
+          headers: { 'x-admin-session-token': getSessionToken() ?? '' },
+        },
+      );
+      if (error) {
+        throw error;
+      }
+      if ((data?.created ?? 0) > 0) {
+        setSingleCreateResult({
+          type: 'success',
+          text: '生徒アカウントを登録しました。パスワードはこの画面を閉じる前に控えてください。',
+          id,
+          password,
+        });
+        setSingleGrade('');
+        setSingleClass('');
+        setSingleAttendance('');
+        await fetchExistingUsers();
+        return;
+      }
+      if ((data?.skipped ?? 0) > 0) {
+        setSingleCreateResult({
+          type: 'error',
+          text: 'このIDは既に登録されています。',
+        });
+        return;
+      }
+      throw new Error(data?.errors?.[0] ?? 'アカウントの登録に失敗しました。');
+    } catch (err) {
+      setSingleCreateResult({
+        type: 'error',
+        text: `登録に失敗しました: ${await readErrorMessage(err)}`,
+      });
+    } finally {
+      setIsCreatingSingle(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!window.confirm('一括生成を開始しますか？')) {
@@ -476,6 +557,48 @@ const StudentAccountsContent = () => {
     }
   };
 
+  const handleAccountAction = async (
+    user: StudentUser,
+    action: 'resetUserData' | 'deleteUserAccount',
+  ) => {
+    const isDeletingAccount = action === 'deleteUserAccount';
+    const confirmed = window.confirm(
+      isDeletingAccount
+        ? `ID: ${user.studentId} のチケット・ユーザーデータ・ログイン情報をすべて削除します。元に戻せません。続行しますか？`
+        : `ID: ${user.studentId} の発券済みチケットとユーザーデータを削除します。ログイン情報は残ります。続行しますか？`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    setAccountActionEmail(user.email);
+    setMessage(null);
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        deletedTickets: number;
+      }>('admin-auth', {
+        body: { action, accountType: 'student', userEmail: user.email },
+        headers: { 'x-admin-session-token': getSessionToken() ?? '' },
+      });
+      if (error) {
+        throw error;
+      }
+      await fetchExistingUsers();
+      setMessage({
+        type: 'success',
+        text: isDeletingAccount
+          ? `ID: ${user.studentId} のユーザーを削除しました。`
+          : `ID: ${user.studentId} のユーザーデータを消去しました（チケット ${data?.deletedTickets ?? 0} 件）。`,
+      });
+    } catch (err) {
+      setMessage({
+        type: 'error',
+        text: `操作に失敗しました: ${await readErrorMessage(err)}`,
+      });
+    } finally {
+      setAccountActionEmail(null);
+    }
+  };
+
   const handleExportCSV = (onlyFiltered = false) => {
     const targets = onlyFiltered ? filteredAccounts : generatedAccounts;
     if (targets.length === 0) {
@@ -495,6 +618,94 @@ const StudentAccountsContent = () => {
 
   return (
     <div className={styles.container}>
+      <NormalSection>
+        <h2>生徒アカウントを1件登録</h2>
+        <p className={styles.noteText}>
+          学年・クラス・出席番号を指定して、生徒アカウントを1件だけ登録します。
+        </p>
+        <form onSubmit={handleSingleCreate}>
+          <div className={styles.formGrid}>
+            <div className={styles.field}>
+              <label className={styles.settingLabel} htmlFor='single-student-grade'>
+                学年
+              </label>
+              <input
+                id='single-student-grade'
+                type='number'
+                min='1'
+                max={config.grade_number}
+                className={styles.fieldControl}
+                value={singleGrade}
+                onInput={(event) =>
+                  setSingleGrade((event.target as HTMLInputElement).value)
+                }
+                required
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.settingLabel} htmlFor='single-student-class'>
+                クラス
+              </label>
+              <input
+                id='single-student-class'
+                type='number'
+                min='1'
+                max={config.class_number}
+                className={styles.fieldControl}
+                value={singleClass}
+                onInput={(event) =>
+                  setSingleClass((event.target as HTMLInputElement).value)
+                }
+                required
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.settingLabel} htmlFor='single-student-attendance'>
+                出席番号
+              </label>
+              <input
+                id='single-student-attendance'
+                type='number'
+                min='1'
+                max={config.max_attendance_number}
+                className={styles.fieldControl}
+                value={singleAttendance}
+                onInput={(event) =>
+                  setSingleAttendance((event.target as HTMLInputElement).value)
+                }
+                required
+              />
+            </div>
+          </div>
+          <div className={styles.saveButtonContainer}>
+            <button
+              type='submit'
+              className={`${styles.authButton} ${styles.saveButtonPrimary}`}
+              disabled={isCreatingSingle}
+            >
+              {isCreatingSingle ? '登録中...' : '1件登録'}
+            </button>
+          </div>
+        </form>
+        {singleCreateResult && (
+          <div
+            className={
+              singleCreateResult.type === 'success'
+                ? styles.authSuccess
+                : styles.authError
+            }
+          >
+            <p>{singleCreateResult.text}</p>
+            {singleCreateResult.id && singleCreateResult.password && (
+              <p>
+                ID: <code className={styles.codePassword}>{singleCreateResult.id}</code>
+                {' / '}パスワード:{' '}
+                <code className={styles.codePassword}>{singleCreateResult.password}</code>
+              </p>
+            )}
+          </div>
+        )}
+      </NormalSection>
       {(existingUsers.length === 0 || generatedAccounts.length > 0) && (
         <NormalSection>
           <h2>生徒アカウント生成</h2>
@@ -865,6 +1076,30 @@ const StudentAccountsContent = () => {
                           disabled={isGenerating || isResettingPassword}
                         >
                           パスワードリセット
+                        </button>
+                        <button
+                          type='button'
+                          className={styles.inlineEditButton}
+                          onClick={() =>
+                            void handleAccountAction(user, 'resetUserData')
+                          }
+                          disabled={
+                            isGenerating || accountActionEmail !== null
+                          }
+                        >
+                          ユーザーデータを消去
+                        </button>
+                        <button
+                          type='button'
+                          className={styles.inlineEditButton}
+                          onClick={() =>
+                            void handleAccountAction(user, 'deleteUserAccount')
+                          }
+                          disabled={
+                            isGenerating || accountActionEmail !== null
+                          }
+                        >
+                          ユーザーを削除
                         </button>
                       </td>
                     </tr>
