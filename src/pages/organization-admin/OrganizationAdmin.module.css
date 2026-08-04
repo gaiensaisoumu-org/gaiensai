@@ -52,6 +52,31 @@
   resize: vertical;
 }
 
+.scheduleTimes {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--settings-border-color);
+  border-radius: 8px;
+}
+
+.scheduleTimes legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+}
+
+.scheduleTimeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(150px, 1fr));
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.scheduleTimeRow strong {
+  padding-bottom: 0.8rem;
+}
+
 .form button,
 .ticketHeading button,
 .secondary {
@@ -251,5 +276,13 @@ td {
 
   .ticketHeading button {
     width: 100%;
+  }
+
+  .scheduleTimeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .scheduleTimeRow strong {
+    padding-bottom: 0;
   }
 }

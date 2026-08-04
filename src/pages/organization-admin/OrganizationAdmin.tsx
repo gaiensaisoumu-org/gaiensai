@@ -28,6 +28,12 @@ type TicketLink = {
   };
 };
 type PerformanceRound = { id: number; name: string };
+type GymScheduleDraft = {
+  id: number;
+  roundName: string;
+  startAt: string;
+  endAt: string;
+};
 type Dashboard = {
   username: string;
   kind: 'class' | 'gym' | 'exhibition';
@@ -199,6 +205,15 @@ const formatAffiliation = (affiliation: number | null | undefined) => {
   )}組${affiliation % 100}番`;
 };
 
+const toDateTimeLocal = (value: unknown) => {
+  const date = new Date(String(value ?? ''));
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const timezoneOffset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+};
+
 const OrganizationAdmin = () => {
   useTitle('クラス・部活管理');
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -224,6 +239,7 @@ const OrganizationAdmin = () => {
   const [imageVersion, setImageVersion] = useState(0);
   const [draftCapacity, setDraftCapacity] = useState('');
   const [draftJuniorCapacity, setDraftJuniorCapacity] = useState('');
+  const [gymScheduleDrafts, setGymScheduleDrafts] = useState<GymScheduleDraft[]>([]);
 
   const load = async () => {
     const { data, error: invokeError } = await supabase.functions.invoke(
@@ -249,6 +265,16 @@ const OrganizationAdmin = () => {
       ),
     );
     setJuniorCapacity(String(next.performance.junior_capacity ?? ''));
+    setGymScheduleDrafts(
+      next.kind === 'gym'
+        ? (next.performances ?? []).map((performance) => ({
+            id: Number(performance.id),
+            roundName: String(performance.round_name ?? '公演回'),
+            startAt: toDateTimeLocal(performance.start_at),
+            endAt: toDateTimeLocal(performance.end_at),
+          }))
+        : [],
+    );
   };
 
   useEffect(() => {
@@ -289,6 +315,19 @@ const OrganizationAdmin = () => {
 
   const save = async (event: Event) => {
     event.preventDefault();
+    if (
+      dashboard?.kind === 'gym' &&
+      gymScheduleDrafts.some(
+        (schedule) =>
+          !schedule.startAt ||
+          !schedule.endAt ||
+          new Date(schedule.startAt) >= new Date(schedule.endAt),
+      )
+    ) {
+      setMessageScope('performance');
+      setError('各公演回の終了時刻は開始時刻より後に設定してください。');
+      return;
+    }
     setBusy(true);
     setMessageScope('performance');
     setError(null);
@@ -302,6 +341,15 @@ const OrganizationAdmin = () => {
             title,
             description,
             ...(dashboard?.kind === 'exhibition' ? {} : { isAccepting }),
+            ...(dashboard?.kind === 'gym'
+              ? {
+                  scheduleTimes: gymScheduleDrafts.map((schedule) => ({
+                    id: schedule.id,
+                    startAt: new Date(schedule.startAt).toISOString(),
+                    endAt: new Date(schedule.endAt).toISOString(),
+                  })),
+                }
+              : {}),
           },
           headers: sessionHeaders(),
         },
@@ -621,6 +669,58 @@ const OrganizationAdmin = () => {
                 }
               />
             </label>
+            {dashboard.kind === 'gym' && (
+              <fieldset className={styles.scheduleTimes}>
+                <legend>公演時間</legend>
+                {gymScheduleDrafts.map((schedule, index) => (
+                  <div className={styles.scheduleTimeRow} key={schedule.id}>
+                    <strong>{schedule.roundName}</strong>
+                    <label>
+                      開始
+                      <input
+                        type='datetime-local'
+                        value={schedule.startAt}
+                        onInput={(event) =>
+                          setGymScheduleDrafts((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    startAt: (event.target as HTMLInputElement)
+                                      .value,
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      終了
+                      <input
+                        type='datetime-local'
+                        value={schedule.endAt}
+                        onInput={(event) =>
+                          setGymScheduleDrafts((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    endAt: (event.target as HTMLInputElement)
+                                      .value,
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                        required
+                      />
+                    </label>
+                  </div>
+                ))}
+              </fieldset>
+            )}
             <button disabled={busy}>{busy ? '保存中...' : '変更を保存'}</button>
           </form>
           {messageScope === 'performance' && error && <Alert type='error'>{error}</Alert>}

@@ -264,8 +264,55 @@ Deno.serve(async (req) => {
         const { error } = await client.from('class_performances').update({ title, description, is_accepting: isAccepting, year }).eq('id', own.performance.id);
         if (error) {throw error;}
       } else {
-        const { error } = await client.from('gym_performances').update({ description, is_accepting: isAccepting, year }).in('id', own.performances.map((performance) => performance.id));
-        if (error) {throw error;}
+        if (!Array.isArray(body.scheduleTimes)) {
+          const { error } = await client.from('gym_performances').update({ description, is_accepting: isAccepting, year }).in('id', own.performances.map((performance) => performance.id));
+          if (error) {throw error;}
+        } else {
+          const scheduleTimes = new Map<number, { startAt: string; endAt: string }>();
+          for (const item of body.scheduleTimes) {
+            if (
+              !item ||
+              typeof item !== 'object' ||
+              !Number.isInteger((item as { id?: unknown }).id) ||
+              typeof (item as { startAt?: unknown }).startAt !== 'string' ||
+              typeof (item as { endAt?: unknown }).endAt !== 'string'
+            ) {
+              throw new HttpError(400, '公演時間の指定が不正です。');
+            }
+            const schedule = item as { id: number; startAt: string; endAt: string };
+            if (scheduleTimes.has(schedule.id)) {
+              throw new HttpError(400, '公演時間の指定が重複しています。');
+            }
+            const startAt = new Date(schedule.startAt);
+            const endAt = new Date(schedule.endAt);
+            if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime()) || startAt >= endAt) {
+              throw new HttpError(400, '終了時刻は開始時刻より後に設定してください。');
+            }
+            scheduleTimes.set(schedule.id, {
+              startAt: startAt.toISOString(),
+              endAt: endAt.toISOString(),
+            });
+          }
+          if (scheduleTimes.size !== own.performances.length) {
+            throw new HttpError(400, 'すべての公演回の時間を指定してください。');
+          }
+          for (const performance of own.performances) {
+            const schedule = scheduleTimes.get(performance.id);
+            if (!schedule) {
+              throw new HttpError(400, '対象外の公演回が含まれています。');
+            }
+            const { error } = await client.from('gym_performances')
+              .update({
+                description,
+                is_accepting: isAccepting,
+                year,
+                start_at: schedule.startAt,
+                end_at: schedule.endAt,
+              })
+              .eq('id', performance.id);
+            if (error) {throw error;}
+          }
+        }
       }
       return json({ updated: true }, corsHeaders);
     }
