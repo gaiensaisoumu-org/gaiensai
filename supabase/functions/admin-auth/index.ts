@@ -2632,10 +2632,12 @@ Deno.serve(async (req) => {
         throw new HttpError(404, 'クラス公演が見つかりません。');
       }
       const item = rawPerformance as Record<string, unknown>;
-      const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
-        id: item.id, year: body.performanceType === 'gym' ? item.year : null,
-        class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
-        description: item.description, image_path: item.image_path,
+  const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
+    id: item.id, year: body.performanceType === 'gym' ? item.year : null,
+    class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
+    start_at: body.performanceType === 'gym' ? item.start_at : null,
+    end_at: body.performanceType === 'gym' ? item.end_at : null,
+    description: item.description, image_path: item.image_path,
         total_capacity: body.performanceType === 'gym' ? item.capacity : null,
         junior_capacity: body.performanceType === 'gym' ? item.junior_capacity : null,
         is_accepting: body.performanceType === 'gym' ? item.is_accepting : null,
@@ -2709,10 +2711,12 @@ Deno.serve(async (req) => {
         throw new HttpError(404, 'クラス公演が見つかりません。');
       }
       const item = rawPerformance as Record<string, unknown>;
-      const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
-        id: item.id, year: body.performanceType === 'gym' ? item.year : null,
-        class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
-        description: item.description, image_path: item.image_path,
+  const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
+    id: item.id, year: body.performanceType === 'gym' ? item.year : null,
+    class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
+    start_at: body.performanceType === 'gym' ? item.start_at : null,
+    end_at: body.performanceType === 'gym' ? item.end_at : null,
+    description: item.description, image_path: item.image_path,
         total_capacity: body.performanceType === 'gym' ? item.capacity : null,
         junior_capacity: body.performanceType === 'gym' ? item.junior_capacity : null,
         is_accepting: body.performanceType === 'gym' ? item.is_accepting : null,
