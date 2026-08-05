@@ -172,7 +172,7 @@ export default defineConfig({
               cacheName: 'performance-images',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 3, // 現在は差し替えの可能性が高いので、一時的に3時間のみのキャッシュ
+                maxAgeSeconds: 60 * 60 * 24 * 7 * 2, // 2週間キャッシュする
               },
             },
           },

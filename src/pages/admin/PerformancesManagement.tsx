@@ -11,6 +11,7 @@ import {
   readErrorMessage,
 } from '../../layout/AdminAuthLayout';
 import { getPerformanceImageUrl, supabase } from '../../lib/supabase';
+import { preparePerformanceImage } from '../../lib/performanceImage';
 import styles from './PerformancesManagement.module.css';
 
 type PerformancesManagement = {
@@ -288,20 +289,19 @@ const PerformancesManagementContent = () => {
       setError('JPEG・PNG・WebP形式の画像を選択してください。');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('画像ファイルは5MB以下にしてください。');
-      return;
-    }
-
     setIsUploadingImage(true);
     setError(null);
     setSuccess(null);
     try {
+      const uploadFile = await preparePerformanceImage(file);
+      if (uploadFile.size > 5 * 1024 * 1024) {
+        throw new Error('変換後の画像ファイルは5MB以下にしてください。');
+      }
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
         reader.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(uploadFile);
       });
       const { data, error: invokeError } = await supabase.functions.invoke(
         'admin-auth',
@@ -310,7 +310,7 @@ const PerformancesManagementContent = () => {
             action: 'uploadClassPerformanceImage',
             recordId: editingPerformance.id,
             performanceType: editingPerformance.performance_type ?? 'class',
-            contentType: file.type,
+            contentType: uploadFile.type,
             base64: dataUrl.split(',')[1],
           },
           headers: { 'x-admin-session-token': getSessionToken() ?? '' },
@@ -601,7 +601,7 @@ const PerformancesManagementContent = () => {
                   {isUploadingImage ? 'アップロード中...' : '画像を差し替える'}
                   <input type='file' accept='image/jpeg,image/png,image/webp' onChange={uploadImage} disabled={isUploadingImage || isSaving} />
                 </label>
-                <span className={styles.imageHint}>JPEG・PNG・WebP形式、5MB以下の画像を選択してください。</span>
+                <span className={styles.imageHint}>JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。</span>
               </div>
               <h4>各公演回</h4>
               {editingGymGroup.map((schedule, index) => (
@@ -664,7 +664,7 @@ const PerformancesManagementContent = () => {
                 />
               </label>
               <span className={styles.imageHint}>
-                JPEG・PNG・WebP形式、5MB以下の画像を選択してください。
+                JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。
               </span>
             </div>}
             {editingGymGroup.length === 0 && editingPerformance.performance_type !== 'exhibition' && <div className={styles.capacityFields}>

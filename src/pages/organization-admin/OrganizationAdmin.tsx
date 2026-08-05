@@ -5,6 +5,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import NormalSection from '../../components/ui/NormalSection';
 import Switch from '../../components/ui/Switch';
 import { getPerformanceImageUrl, supabase } from '../../lib/supabase';
+import { preparePerformanceImage } from '../../lib/performanceImage';
 import { readErrorMessage } from '../../layout/AdminAuthLayout';
 import { useTitle } from '../../hooks/useTitle';
 import styles from './OrganizationAdmin.module.css';
@@ -506,23 +507,23 @@ const OrganizationAdmin = () => {
       setError('JPEG・PNG・WebP形式の画像を選択してください。');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('画像ファイルは5MB以下にしてください。');
-      return;
-    }
     setIsUploadingImage(true);
     try {
+      const uploadFile = await preparePerformanceImage(file);
+      if (uploadFile.size > 5 * 1024 * 1024) {
+        throw new Error('変換後の画像ファイルは5MB以下にしてください。');
+      }
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
         reader.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(uploadFile);
       });
       const base64 = dataUrl.split(',')[1];
       const { error: invokeError } = await supabase.functions.invoke(
         'organization-admin',
         {
-          body: { action: 'uploadImage', contentType: file.type, base64 },
+          body: { action: 'uploadImage', contentType: uploadFile.type, base64 },
           headers: sessionHeaders(),
         },
       );
@@ -973,7 +974,7 @@ const OrganizationAdmin = () => {
               />
             </label>
             <p className={styles.imageHint}>
-              JPEG・PNG・WebP形式、5MB以下の画像を選択してください。
+              JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。
             </p>
           </div>
           {messageScope === 'image' && error && (
