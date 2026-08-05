@@ -1,7 +1,7 @@
-import { useMemo } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useTitle } from '../../hooks/useTitle';
 import performancesSnapshot from '../../generated/performances-static.json';
-import { getPerformanceImageUrl } from '../../lib/supabase';
+import { getPerformanceImageUrl, supabase } from '../../lib/supabase';
 import baseStyles from '../../styles/sub-pages.module.css';
 import styles from './Performances.module.css';
 import NormalSection from '../../components/ui/NormalSection';
@@ -52,8 +52,36 @@ type PerformanceSnapshot = {
 
 const snapshot = performancesSnapshot as unknown as PerformanceSnapshot;
 
+type AcceptanceRow = {
+  performance_type: 'class' | 'gym';
+  performance_id: number;
+  is_accepting: boolean;
+};
+
 const Performances = () => {
   useTitle('公演一覧');
+  const [acceptance, setAcceptance] = useState<Map<string, boolean> | null>(
+    null,
+  );
+  useEffect(() => {
+    const loadAcceptance = async () => {
+      const { data, error } = await supabase.rpc(
+        'get_public_performance_acceptance',
+      );
+      if (error) {
+        return;
+      }
+      setAcceptance(
+        new Map(
+          ((data ?? []) as AcceptanceRow[]).map((row) => [
+            `${row.performance_type}:${row.performance_id}`,
+            row.is_accepting,
+          ]),
+        ),
+      );
+    };
+    void loadAcceptance();
+  }, []);
   const classData = useMemo(() => snapshot.performances ?? [], []);
   const gymData = useMemo(() => {
     // 【重複除去ロジック】
@@ -73,6 +101,12 @@ const Performances = () => {
     return uniqueGroupPerformances;
   }, []);
   const exhibitionData = useMemo(() => snapshot.exhibitionClubs ?? [], []);
+  const isGymGroupAccepting = (groupName: string) =>
+    (snapshot.gymPerformances ?? []).some(
+      (performance) =>
+        performance.group_name === groupName &&
+        acceptance?.get(`gym:${performance.id}`) === true,
+    );
 
   return (
     <>
@@ -122,9 +156,9 @@ const Performances = () => {
                       </div>
                       <div>
                         <span
-                          className={`${styles.statusBadge} ${perf.is_accepting ? styles.statusAccepting : styles.statusClosed}`}
+                          className={`${styles.statusBadge} ${acceptance?.get(`class:${perf.id}`) ? styles.statusAccepting : styles.statusClosed}`}
                         >
-                          {perf.is_accepting ? '受付中' : '受付終了'}
+                          {acceptance?.get(`class:${perf.id}`) ? '受付中' : '受付停止中'}
                         </span>
                       </div>
                     </div>
@@ -205,9 +239,9 @@ const Performances = () => {
                       </div>
                       <div>
                         <span
-                          className={`${styles.statusBadge} ${perf.is_accepting ? styles.statusAccepting : styles.statusClosed}`}
+                          className={`${styles.statusBadge} ${isGymGroupAccepting(perf.group_name) ? styles.statusAccepting : styles.statusClosed}`}
                         >
-                          {perf.is_accepting ? '受付中' : '受付終了'}
+                          {isGymGroupAccepting(perf.group_name) ? '受付中' : '受付停止中'}
                         </span>
                       </div>
                     </div>
