@@ -76,6 +76,15 @@
   color: #2e7d32;
 }
 
+.accountConfirmationAffiliation {
+  margin: 1rem 0;
+  color: var(--accent-color);
+  font-size: clamp(2rem, 10vw, 3.25rem);
+  font-weight: bold;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .passwordButton {
   align-self: flex-start;
   margin-top: 0.4rem;

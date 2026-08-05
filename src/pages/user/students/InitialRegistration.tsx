@@ -4,6 +4,10 @@ import { supabase } from '../../../lib/supabase';
 import styles from './InitialRegistration.module.css';
 import { useTitle } from '../../../hooks/useTitle';
 import Alert from '../../../components/ui/Alert';
+import Modal from '../../../components/ui/Modal';
+
+const STUDENT_ACCOUNT_CONFIRMATION_STORAGE_PREFIX =
+  'student-account-confirmed:v1:';
 
 type InitialRegistrationProps = {
   onRegistered: () => Promise<boolean>;
@@ -17,6 +21,10 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAccountConfirmationModalOpen, setIsAccountConfirmationModalOpen] =
+    useState(false);
+  const [isWrongAccountModalOpen, setIsWrongAccountModalOpen] =
+    useState(false);
 
   useTitle('初回登録 - 生徒用ページ');
 
@@ -43,6 +51,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
         data: { user },
       } = await supabase.auth.getUser();
       setUsername(user?.email?.replace('@gaiensai.local', '') ?? '');
+      setIsAccountConfirmationModalOpen(true);
     };
 
     void loadUsername();
@@ -114,6 +123,15 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
       return;
     }
 
+    try {
+      localStorage.setItem(
+        `${STUDENT_ACCOUNT_CONFIRMATION_STORAGE_PREFIX}${user.id}`,
+        'true',
+      );
+    } catch {
+      // The database remains the source of truth when storage is unavailable.
+    }
+
     const didRefreshProfile = await onRegistered();
     if (!didRefreshProfile) {
       setErrorMessage(
@@ -128,6 +146,9 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+
+  const affiliation = Number(username);
+  const hasValidAffiliation = Number.isInteger(affiliation) && affiliation > 0;
 
   return (
     <section className={styles.registrationContainer}>
@@ -210,6 +231,39 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
           ログアウト
         </button>
       </section>
+      {isAccountConfirmationModalOpen && hasValidAffiliation ? (
+        <Modal
+          setIsOpen={setIsAccountConfirmationModalOpen}
+          handleAction={() => setIsAccountConfirmationModalOpen(false)}
+          headingText='アカウントを間違えていませんか？'
+          buttonText='はい、確認しました'
+          cancelButtonText='間違っています'
+          closeOnOverlayClick={false}
+          onCancel={() => {
+            setIsAccountConfirmationModalOpen(false);
+            setIsWrongAccountModalOpen(true);
+          }}
+        >
+          <p>このアカウントで登録される情報です。</p>
+          <p className={styles.accountConfirmationAffiliation}>
+            {Math.floor(affiliation / 10000)}年
+            {Math.floor((affiliation % 10000) / 100)}組
+            {affiliation % 100}番
+          </p>
+        </Modal>
+      ) : null}
+      {isWrongAccountModalOpen ? (
+        <Modal
+          setIsOpen={setIsWrongAccountModalOpen}
+          handleAction={handleLogout}
+          headingText='ログアウトして、正しいアカウントでログインをし直してください'
+          buttonText='ログアウト'
+          showCancelButton={false}
+          closeOnOverlayClick={false}
+        >
+          <p>このアカウントでは初回登録を続けないでください。</p>
+        </Modal>
+      ) : null}
     </section>
   );
 };

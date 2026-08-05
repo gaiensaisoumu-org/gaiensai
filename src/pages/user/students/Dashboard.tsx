@@ -38,6 +38,8 @@ import { withTimeout } from '../../../utils/withTimeout';
 import Modal from '../../../components/ui/Modal';
 
 const STUDENT_TICKETS_CACHE_PREFIX = 'ticket-display-cache:v1:';
+const STUDENT_ACCOUNT_CONFIRMATION_STORAGE_PREFIX =
+  'student-account-confirmed:v1:';
 const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 const readAllLocalStorageTickets = (): Array<
@@ -149,6 +151,12 @@ const Dashboard = ({ userData }: DashboardProps) => {
     string | null
   >(null);
   const [isClearCacheModalOpen, setIsClearCacheModalOpen] = useState(false);
+  const [isAccountConfirmationModalOpen, setIsAccountConfirmationModalOpen] =
+    useState(false);
+  const [isConfirmingAccount, setIsConfirmingAccount] = useState(false);
+  const [accountConfirmationError, setAccountConfirmationError] = useState<
+    string | null
+  >(null);
 
   useTitle('ダッシュボード - 生徒用ページ');
 
@@ -262,7 +270,11 @@ const Dashboard = ({ userData }: DashboardProps) => {
       setIsOnline(true);
 
       const dashboard = (ticketsData ?? {}) as {
-        profile?: { affiliation?: number | null; clubs?: string[] | null };
+        profile?: {
+          affiliation?: number | null;
+          clubs?: string[] | null;
+          account_confirmed?: boolean | null;
+        };
         config?: {
           is_active?: boolean | null;
           show_length?: number | null;
@@ -289,6 +301,9 @@ const Dashboard = ({ userData }: DashboardProps) => {
         schedules?: unknown[];
       };
       const controls = dashboard.controls;
+      if (dashboard.profile?.account_confirmed === false) {
+        setIsAccountConfirmationModalOpen(true);
+      }
       if (typeof dashboard.config?.is_active === 'boolean') {
         setIsTicketIssuingEnabled(dashboard.config.is_active);
       }
@@ -697,6 +712,39 @@ const Dashboard = ({ userData }: DashboardProps) => {
     setIsClearCacheModalOpen(false);
   };
 
+  const handleAccountConfirmation = async () => {
+    setAccountConfirmationError(null);
+    setIsConfirmingAccount(true);
+
+    try {
+      const { error } = await supabase.rpc('confirm_student_account');
+      if (error) {
+        throw error;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        try {
+          localStorage.setItem(
+            `${STUDENT_ACCOUNT_CONFIRMATION_STORAGE_PREFIX}${user.id}`,
+            'true',
+          );
+        } catch {
+          // The database remains the source of truth when storage is unavailable.
+        }
+      }
+      setIsAccountConfirmationModalOpen(false);
+    } catch {
+      setAccountConfirmationError(
+        '確認内容を保存できませんでした。通信状況を確認して、もう一度お試しください。',
+      );
+    } finally {
+      setIsConfirmingAccount(false);
+    }
+  };
+
   const handlePasswordChange = async (event: Event) => {
     event.preventDefault();
     setPasswordChangeError(null);
@@ -1006,6 +1054,39 @@ const Dashboard = ({ userData }: DashboardProps) => {
         >
           <p>チケット表示履歴が消去されます。</p>
           <p>チケットはキャンセルされません。</p>
+        </Modal>
+      ) : null}
+      {isAccountConfirmationModalOpen ? (
+        <Modal
+          setIsOpen={setIsAccountConfirmationModalOpen}
+          handleAction={handleAccountConfirmation}
+          headingText='アカウントを間違えていませんか？'
+          buttonText={isConfirmingAccount ? '保存中...' : '確認しました'}
+          showCancelButton={false}
+          closeOnOverlayClick={false}
+        >
+          <p>このアカウントで登録されている情報です。</p>
+          <p className={styles.accountConfirmationAffiliation}>
+            {Math.floor(userData.affiliation / 10000)}年
+            {Math.floor((userData.affiliation % 10000) / 100)}組
+            {userData.affiliation % 100}番
+          </p>
+          <p>
+            間違っている場合は、
+            <a
+              href='https://docs.google.com/forms/d/e/1FAIpQLSfGsEXv2e1IoDbF2RjhrCyK5myHU0Dq-YJ4_3dHMhNeLAvjUg/viewform?usp=dialog'
+              target='_blank'
+              rel='noopener noreferrer'
+            >
+              お問い合わせフォーム
+            </a>
+            よりご連絡ください。
+          </p>
+          {accountConfirmationError ? (
+            <p className={styles.passwordError} role='alert'>
+              {accountConfirmationError}
+            </p>
+          ) : null}
         </Modal>
       ) : null}
     </>
