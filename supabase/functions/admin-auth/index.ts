@@ -51,6 +51,7 @@ type AdminAuthRequest = {
   studentId?: unknown;
   clubs?: unknown;
   accountType?: unknown;
+  userEmail?: unknown;
   juniorPassword?: unknown;
   secretCode?: unknown;
   maxAdmissionOnlyJuniorAccounts?: unknown;
@@ -101,6 +102,16 @@ type AdminAuthBody =
   | { mode: 'updateAllTeachers'; teachers: { id: number; name: string }[] }
   | { mode: 'deleteAllStudentAccounts' }
   | { mode: 'deleteAccountsByType'; accountType: 'student' | 'junior' }
+  | {
+      mode: 'resetUserData';
+      accountType: 'student' | 'junior';
+      userEmail: string;
+    }
+  | {
+      mode: 'deleteUserAccount';
+      accountType: 'student' | 'junior';
+      userEmail: string;
+    }
   | { mode: 'deleteAllTicketsAndResetCounters' }
   | { mode: 'getStatusDashboard' }
   | { mode: 'getTicketManagementData' }
@@ -444,6 +455,24 @@ const parseBody = (body: unknown): AdminAuthBody => {
       );
     }
     return { mode: 'deleteAccountsByType', accountType };
+  }
+
+  if (action === 'resetUserData' || action === 'deleteUserAccount') {
+    const { accountType, userEmail } = body as AdminAuthRequest;
+    if (accountType !== 'student' && accountType !== 'junior') {
+      throw new HttpError(400, 'accountType は student または junior を指定してください。');
+    }
+    if (
+      typeof userEmail !== 'string' ||
+      !/^[^@\s]+@gaiensai\.local$/.test(userEmail)
+    ) {
+      throw new HttpError(400, 'userEmail が不正です。');
+    }
+    return {
+      mode: action === 'resetUserData' ? 'resetUserData' : 'deleteUserAccount',
+      accountType,
+      userEmail,
+    };
   }
 
   if (action === 'deleteAllTicketsAndResetCounters') {
@@ -1386,6 +1415,76 @@ Deno.serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    if (body.mode === 'resetUserData' || body.mode === 'deleteUserAccount') {
+      const session = await requireValidSession(adminClient, req);
+      const { data, error: listError } = await adminClient.auth.admin.listUsers({
+        perPage: 1000,
+      });
+      if (listError) {
+        throw listError;
+      }
+      const authUser = data.users.find(
+        (user) => user.email?.toLowerCase() === body.userEmail,
+      );
+      if (!authUser) {
+        throw new HttpError(404, '対象のAuthユーザーが見つかりません。');
+      }
+      const localPart = body.userEmail.split('@')[0] ?? '';
+      const isStudent = /^\d+$/.test(localPart) &&
+        Number(localPart) >= 10000 && Number(localPart) <= 40000;
+      if ((body.accountType === 'student') !== isStudent) {
+        throw new HttpError(400, '対象アカウントの種類が一致しません。');
+      }
+
+      const { count: ticketCount, error: ticketCountError } = await adminClient
+        .from('tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', authUser.id);
+      if (ticketCountError) {
+        throw ticketCountError;
+      }
+      const { error: deleteTicketsError } = await adminClient
+        .from('tickets')
+        .delete()
+        .eq('user_id', authUser.id);
+      if (deleteTicketsError) {
+        throw deleteTicketsError;
+      }
+      const { error: deleteProfileError } = await adminClient
+        .from('users')
+        .delete()
+        .eq('id', authUser.id);
+      if (deleteProfileError) {
+        throw deleteProfileError;
+      }
+
+      if (body.mode === 'deleteUserAccount') {
+        const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(
+          authUser.id,
+        );
+        if (deleteAuthError) {
+          throw deleteAuthError;
+        }
+      }
+
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      return new Response(
+        JSON.stringify({
+          deletedTickets: ticketCount ?? 0,
+          deletedUserData: true,
+          deletedAuthUser: body.mode === 'deleteUserAccount',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (

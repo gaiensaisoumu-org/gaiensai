@@ -223,6 +223,9 @@ const JuniorAccountContent = () => {
     ExistingJuniorAccount[]
   >([]);
   const [isLoadingExistingUsers, setIsLoadingExistingUsers] = useState(false);
+  const [accountActionEmail, setAccountActionEmail] = useState<string | null>(
+    null,
+  );
 
   const fetchExistingJuniorAccounts = async () => {
     setIsLoadingExistingUsers(true);
@@ -274,6 +277,48 @@ const JuniorAccountContent = () => {
   useEffect(() => {
     void fetchExistingJuniorAccounts();
   }, []);
+
+  const handleAccountAction = async (
+    account: ExistingJuniorAccount,
+    action: 'resetUserData' | 'deleteUserAccount',
+  ) => {
+    const isDeletingAccount = action === 'deleteUserAccount';
+    const confirmed = window.confirm(
+      isDeletingAccount
+        ? `ID: ${account.id} のチケット・ユーザーデータ・ログイン情報をすべて削除します。元に戻せません。続行しますか？`
+        : `ID: ${account.id} の発券済みチケットとユーザーデータを削除します。ログイン情報は残ります。続行しますか？`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    setAccountActionEmail(account.email);
+    setResultMessage(null);
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        deletedTickets: number;
+      }>('admin-auth', {
+        body: { action, accountType: 'junior', userEmail: account.email },
+        headers: { 'x-admin-session-token': getSessionToken() ?? '' },
+      });
+      if (error) {
+        throw error;
+      }
+      await fetchExistingJuniorAccounts();
+      setResultMessage({
+        type: 'success',
+        text: isDeletingAccount
+          ? `ID: ${account.id} のユーザーを削除しました。`
+          : `ID: ${account.id} のユーザーデータを消去しました（チケット ${data?.deletedTickets ?? 0} 件）。`,
+      });
+    } catch (err) {
+      setResultMessage({
+        type: 'error',
+        text: `操作に失敗しました: ${await readErrorMessage(err)}`,
+      });
+    } finally {
+      setAccountActionEmail(null);
+    }
+  };
 
   const handleManualRegister = async () => {
     setManualResultMessage(null);
@@ -788,12 +833,13 @@ const JuniorAccountContent = () => {
                 <th>利用形態</th>
                 <th>申込内容</th>
                 <th>最終ログイン</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {existingJuniorAccounts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={styles.info}>
+                  <td colSpan={6} className={styles.info}>
                     登録済みの中学生アカウントはありません。
                   </td>
                 </tr>
@@ -808,6 +854,28 @@ const JuniorAccountContent = () => {
                       {account.lastSignIn
                         ? new Date(account.lastSignIn).toLocaleString()
                         : '未ログイン'}
+                    </td>
+                    <td>
+                      <button
+                        type='button'
+                        className={styles.inlineEditButton}
+                        onClick={() =>
+                          void handleAccountAction(account, 'resetUserData')
+                        }
+                        disabled={accountActionEmail !== null}
+                      >
+                        ユーザーデータを消去
+                      </button>
+                      <button
+                        type='button'
+                        className={styles.inlineEditButton}
+                        onClick={() =>
+                          void handleAccountAction(account, 'deleteUserAccount')
+                        }
+                        disabled={accountActionEmail !== null}
+                      >
+                        ユーザーを削除
+                      </button>
                     </td>
                   </tr>
                 ))

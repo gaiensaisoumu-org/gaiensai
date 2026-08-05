@@ -3,11 +3,14 @@ import styles from './Modal.module.css';
 
 type ModalProps = {
   setIsOpen: (isOpen: boolean) => void;
-  handleAction: () => void;
+  handleAction: () => void | Promise<void>;
   headingText: string;
   buttonText: string;
   children?: preact.ComponentChildren;
   showCancelButton?: boolean;
+  closeOnOverlayClick?: boolean;
+  cancelButtonText?: string;
+  onCancel?: () => void;
 };
 
 const Modal = ({
@@ -17,11 +20,18 @@ const Modal = ({
   buttonText,
   children,
   showCancelButton = true,
+  closeOnOverlayClick = true,
+  cancelButtonText = 'キャンセル',
+  onCancel,
 }: ModalProps) => {
   const [isDoingAction, setIsDoingAction] = useState(false);
-  const handleOnClick = () => {
+  const handleOnClick = async () => {
     setIsDoingAction(true);
-    handleAction();
+    try {
+      await handleAction();
+    } finally {
+      setIsDoingAction(false);
+    }
   };
 
   return (
@@ -29,7 +39,7 @@ const Modal = ({
       className={styles.modalOverlay}
       role='presentation'
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (closeOnOverlayClick && event.target === event.currentTarget) {
           setIsOpen(false);
         }
       }}
@@ -50,10 +60,16 @@ const Modal = ({
             <button
               type='button'
               className={styles.modalCancelButton}
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                if (onCancel) {
+                  onCancel();
+                  return;
+                }
+                setIsOpen(false);
+              }}
               disabled={isDoingAction}
             >
-              キャンセル
+              {cancelButtonText}
             </button>
           ) : null}
           <button
