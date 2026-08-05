@@ -12,23 +12,30 @@
 import { render } from 'preact';
 import App from './App';
 
+const PRELOAD_ERROR_RELOAD_KEY = 'pwa-preload-error-reload-attempted';
+const ENTRY_MODULE_RELOAD_KEY = 'pwa-entry-module-reload-attempted';
+
+// エントリーモジュールの起動に成功したら、前回の復旧試行を解除する。
+try {
+  sessionStorage.removeItem(PRELOAD_ERROR_RELOAD_KEY);
+  sessionStorage.removeItem(ENTRY_MODULE_RELOAD_KEY);
+} catch {
+  // ストレージが無効な環境でも、アプリの起動自体は継続する。
+}
+
 // デプロイ直後に旧版が存在しない分割チャンクを先読みしたときだけ、一度再読込して復旧する。
-// 同一URLで繰り返さないため、継続的な配信障害ではリロードループにならない。
+// 復旧に失敗しても、同じブラウザセッションで無限に再読込しない。
 window.addEventListener('vite:preloadError', (event) => {
   event.preventDefault();
 
-  const failedUrl = String(
-    (event as Event & { payload?: unknown }).payload ?? location.href,
-  );
-  const recoveryKey = `vite-preload-recovery:${failedUrl}`;
-
   try {
-    if (sessionStorage.getItem(recoveryKey)) {
+    if (sessionStorage.getItem(PRELOAD_ERROR_RELOAD_KEY)) {
       return;
     }
-    sessionStorage.setItem(recoveryKey, '1');
+    sessionStorage.setItem(PRELOAD_ERROR_RELOAD_KEY, '1');
   } catch {
-    // sessionStorage が利用できない環境でも、一度は復旧を試みる。
+    // ストレージが使えない場合は、リロードループ回避を優先する。
+    return;
   }
 
   window.location.reload();
