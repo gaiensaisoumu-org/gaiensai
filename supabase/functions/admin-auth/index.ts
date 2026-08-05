@@ -81,6 +81,8 @@ type AdminAuthRequest = {
   performanceType?: unknown;
   startAt?: unknown;
   endAt?: unknown;
+  roundName?: unknown;
+  isActive?: unknown;
 };
 
 type TicketIssueMode =
@@ -195,6 +197,13 @@ type AdminAuthBody =
       performanceType: 'class' | 'gym' | 'exhibition';
       startAt: string | null;
       endAt: string | null;
+    }
+  | {
+      mode: 'updatePerformanceSchedule';
+      id: number;
+      roundName: string;
+      startAt: string;
+      isActive: boolean;
     }
   | {
       mode: 'uploadClassPerformanceImage';
@@ -743,6 +752,31 @@ const parseBody = (body: unknown): AdminAuthBody => {
       performanceType: values.performanceType,
       startAt,
       endAt,
+    };
+  }
+
+  if (action === 'updatePerformanceSchedule') {
+    const values = body as AdminAuthRequest;
+    const roundName =
+      typeof values.roundName === 'string' ? values.roundName.trim() : '';
+    if (roundName.length === 0 || roundName.length > 200) {
+      throw new HttpError(400, '公演回名は1〜200文字で入力してください。');
+    }
+    if (
+      typeof values.startAt !== 'string' ||
+      Number.isNaN(Date.parse(values.startAt))
+    ) {
+      throw new HttpError(400, '開始時刻を正しく入力してください。');
+    }
+    if (typeof values.isActive !== 'boolean') {
+      throw new HttpError(400, 'isActive は真偽値で指定してください。');
+    }
+    return {
+      mode: 'updatePerformanceSchedule',
+      id: normalizeInteger(values.recordId, 'recordId', 1, 1000000),
+      roundName,
+      startAt: values.startAt,
+      isActive: values.isActive,
     };
   }
 
@@ -2618,6 +2652,69 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({ updated: true }), {
         status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'updatePerformanceSchedule') {
+      const session = await requireValidSession(adminClient, req);
+      const { data: existingSchedule, error: existingScheduleError } =
+        await adminClient
+          .from('performances_schedule')
+          .select('start_at')
+          .eq('id', body.id)
+          .maybeSingle();
+
+      if (existingScheduleError) {
+        throw existingScheduleError;
+      }
+      if (!existingSchedule) {
+        throw new HttpError(404, '公演回が見つかりません。');
+      }
+
+      const { data: schedule, error } = await adminClient
+        .from('performances_schedule')
+        .update({
+          round_name: body.roundName,
+          start_at: body.startAt,
+          is_active: body.isActive,
+        })
+        .eq('id', body.id)
+        .select('id, round_name, start_at, is_active')
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      if (!schedule) {
+        throw new HttpError(404, '公演回が見つかりません。');
+      }
+
+      const startTimeChanged =
+        Date.parse(existingSchedule.start_at) !== Date.parse(body.startAt);
+      let redeployTriggered = false;
+      let redeployError: string | undefined;
+      if (startTimeChanged) {
+        try {
+          await triggerCloudflarePagesDeploy();
+          redeployTriggered = true;
+        } catch (error) {
+          redeployError =
+            error instanceof Error ? error.message : '不明なエラーが発生しました。';
+        }
+      }
+
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      return new Response(JSON.stringify({
+        updated: true,
+        schedule,
+        redeployTriggered,
+        redeployError,
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

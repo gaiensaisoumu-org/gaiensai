@@ -52,6 +52,11 @@
   font-weight: 600;
 }
 
+.settingTimeLabel {
+  font-weight: 400;
+  margin-left: 1rem;
+}
+
 .settingLabelGroup {
   display: grid;
   gap: 0.2rem;

@@ -38,6 +38,33 @@ type GymScheduleDraft = {
   isAccepting: boolean;
 };
 
+const JAPAN_TIME_ZONE = 'Asia/Tokyo';
+
+const toJapanDateTimeInputValue = (value: string | null | undefined) => {
+  if (!value) {
+    return '';
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: JAPAN_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
+};
+
+const japanDateTimeInputToIso = (value: string) => {
+  const [date, time] = value.split('T');
+  const [year, month, day] = (date ?? '').split('-').map(Number);
+  const [hour, minute] = (time ?? '').split(':').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute)).toISOString();
+};
+
 const PerformancesManagementContent = () => {
   useTitle('公演情報を変更 - 管理画面');
   const [performances, setPerformances] = useState<PerformancesManagement[]>([]);
@@ -107,8 +134,8 @@ const PerformancesManagementContent = () => {
     setTotalCapacity(String(performance.total_capacity ?? 0));
     setJuniorCapacity(String(performance.junior_capacity ?? 0));
     setIsAccepting(performance.is_accepting ?? false);
-    setStartAt(performance.start_at?.slice(0, 16) ?? '');
-    setEndAt(performance.end_at?.slice(0, 16) ?? '');
+    setStartAt(toJapanDateTimeInputValue(performance.start_at));
+    setEndAt(toJapanDateTimeInputValue(performance.end_at));
     setError(null);
     setSuccess(null);
   };
@@ -122,8 +149,8 @@ const PerformancesManagementContent = () => {
     setEditingGymGroup(group.map((performance) => ({
       performance,
       title: performance.title ?? '',
-      startAt: performance.start_at?.slice(0, 16) ?? '',
-      endAt: performance.end_at?.slice(0, 16) ?? '',
+      startAt: toJapanDateTimeInputValue(performance.start_at),
+      endAt: toJapanDateTimeInputValue(performance.end_at),
       totalCapacity: String(performance.total_capacity ?? 0),
       juniorCapacity: String(performance.junior_capacity ?? 0),
       isAccepting: performance.is_accepting ?? false,
@@ -146,7 +173,7 @@ const PerformancesManagementContent = () => {
     if (editingGymGroup.length > 0) {
       if (!className.trim() || editingGymGroup.some((schedule) =>
         !schedule.title.trim() || !schedule.startAt || !schedule.endAt ||
-        new Date(schedule.startAt) >= new Date(schedule.endAt) ||
+        schedule.startAt >= schedule.endAt ||
         !Number.isInteger(Number(schedule.totalCapacity)) || Number(schedule.totalCapacity) < 1 ||
         !Number.isInteger(Number(schedule.juniorCapacity)) || Number(schedule.juniorCapacity) < 0 ||
         Number(schedule.juniorCapacity) > Number(schedule.totalCapacity),
@@ -158,7 +185,7 @@ const PerformancesManagementContent = () => {
       try {
         const updated = await Promise.all(editingGymGroup.map(async (schedule) => {
           const { data, error: invokeError } = await supabase.functions.invoke('admin-auth', {
-            body: { action: 'updateClassPerformance', recordId: schedule.performance.id, performanceType: 'gym', className, description, title: schedule.title, startAt: new Date(schedule.startAt).toISOString(), endAt: new Date(schedule.endAt).toISOString(), totalCapacity: Number(schedule.totalCapacity), juniorCapacity: Number(schedule.juniorCapacity), isAccepting: schedule.isAccepting },
+            body: { action: 'updateClassPerformance', recordId: schedule.performance.id, performanceType: 'gym', className, description, title: schedule.title, startAt: japanDateTimeInputToIso(schedule.startAt), endAt: japanDateTimeInputToIso(schedule.endAt), totalCapacity: Number(schedule.totalCapacity), juniorCapacity: Number(schedule.juniorCapacity), isAccepting: schedule.isAccepting },
             headers: { 'x-admin-session-token': getSessionToken() ?? '' },
           });
           if (invokeError || !data?.performance) {
@@ -215,8 +242,8 @@ const PerformancesManagementContent = () => {
             juniorCapacity: parsedJuniorCapacity,
             isAccepting,
             performanceType: editingPerformance.performance_type ?? 'class',
-            startAt: startAt ? new Date(startAt).toISOString() : null,
-            endAt: endAt ? new Date(endAt).toISOString() : null,
+            startAt: startAt ? japanDateTimeInputToIso(startAt) : null,
+            endAt: endAt ? japanDateTimeInputToIso(endAt) : null,
           },
           headers: { 'x-admin-session-token': getSessionToken() ?? '' },
         },
@@ -373,11 +400,11 @@ const PerformancesManagementContent = () => {
                                 <strong>{performance.title || '名称未設定'}</strong>
                                 <span>
                                   {performance.start_at
-                                    ? new Date(performance.start_at).toLocaleString()
+                                    ? new Date(performance.start_at).toLocaleString('ja-JP', { timeZone: JAPAN_TIME_ZONE })
                                     : '-'}
                                   {' 〜 '}
                                   {performance.end_at
-                                    ? new Date(performance.end_at).toLocaleString()
+                                    ? new Date(performance.end_at).toLocaleString('ja-JP', { timeZone: JAPAN_TIME_ZONE })
                                     : '-'}
                                 </span>
                               </div>

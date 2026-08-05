@@ -106,6 +106,12 @@ const buildActiveTicketTypeIds = (controls: TicketTypeControls): number[] => {
   return Array.from(activeIds);
 };
 
+const toLocalDateTimeInputValue = (value: string): string => {
+  const date = new Date(value);
+  const pad = (number: number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const mapActiveIdsToTicketTypeControls = (
   activeTicketTypeIds: number[],
 ): TicketTypeControls => {
@@ -233,45 +239,24 @@ const SettingsContent = () => {
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
   const [settingsMessageScope, setSettingsMessageScope] =
     useState<SettingsMessageScope>(null);
-  const [classPerformances, setClassPerformances] = useState<
-    {
-      id: number;
-      class_name: string;
-      is_accepting: boolean;
-      total_capacity: number;
-      junior_capacity: number;
-    }[]
-  >([]);
-  const [gymPerformances, setGymPerformances] = useState<
-    {
-      id: number;
-      group_name: string;
-      round_name: string;
-      is_accepting: boolean;
-      capacity: number;
-      junior_capacity: number;
-    }[]
-  >([]);
   const [schedules, setSchedules] = useState<
-    { id: number; round_name: string; is_active: boolean }[]
+    { id: number; round_name: string; start_at: string; is_active: boolean }[]
   >([]);
+  const [editingSchedule, setEditingSchedule] = useState<{
+    id: number;
+    roundName: string;
+    startAt: string;
+    isActive: boolean;
+  } | null>(null);
   const [relationships, setRelationships] = useState<
     { id: number; name: string; is_accepting: boolean }[]
   >([]);
   const [editingNumericKey, setEditingNumericKey] =
     useState<NumericSettingKey | null>(null);
   const [editingNumericValue, setEditingNumericValue] = useState('');
-  const [editingPerformanceInfo, setEditingPerformanceInfo] = useState<{
-    table: 'class_performances' | 'gym_performances';
-    id: number;
-    column: string;
-    label: string;
-    min: number;
-    max: number;
-  } | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<
-    'performances' | 'gym_performances' | 'schedules' | 'relationships'
-  >('performances');
+    'schedules' | 'relationships'
+  >('schedules');
   const [isModalSubmitting, setIsModalSubmitting] = useState(false);
   const [juniorPassword, setJuniorPassword] = useState('');
   const [juniorPasswordConfirm, setJuniorPasswordConfirm] = useState('');
@@ -591,47 +576,24 @@ const SettingsContent = () => {
 
         if (isActive) {
           // テーブルデータのフェッチ
-          const [
-            { data: cp },
-            { data: gp },
-            { data: sch },
-            { data: rel },
-            { data: jp },
-          ] = await Promise.all([
-            supabase
-              .from('class_performances')
-              .select(
-                'id, class_name, is_accepting, total_capacity, junior_capacity',
-              )
-              .order('class_name'),
-            supabase
-              .from('gym_performances')
-              .select(
-                'id, group_name, round_name, is_accepting, capacity, junior_capacity',
-              )
-              .order('id'),
-            supabase
-              .from('performances_schedule')
-              .select('id, round_name, is_active')
-              .order('id'),
-            supabase
-              .from('relationships')
-              .select('id, name, is_accepting')
-              .order('id'),
-            supabase.functions.invoke('admin-auth', {
-              body: { action: 'getJuniorPassword' },
-              headers: {
-                'x-admin-session-token': token,
-              },
-            }),
-          ]);
+          const [{ data: sch }, { data: rel }, { data: jp }] =
+            await Promise.all([
+              supabase
+                .from('performances_schedule')
+                .select('id, round_name, start_at, is_active')
+                .order('id'),
+              supabase
+                .from('relationships')
+                .select('id, name, is_accepting')
+                .order('id'),
+              supabase.functions.invoke('admin-auth', {
+                body: { action: 'getJuniorPassword' },
+                headers: {
+                  'x-admin-session-token': token,
+                },
+              }),
+            ]);
 
-          if (cp) {
-            setClassPerformances(cp);
-          }
-          if (gp) {
-            setGymPerformances(gp);
-          }
           if (sch) {
             setSchedules(sch);
           }
@@ -793,11 +755,7 @@ const SettingsContent = () => {
   };
 
   const handleToggleTableValue = async (
-    table:
-      | 'class_performances'
-      | 'gym_performances'
-      | 'performances_schedule'
-      | 'relationships',
+    table: 'performances_schedule' | 'relationships',
     id: number,
     column: string,
     nextValue: boolean | number,
@@ -837,19 +795,7 @@ const SettingsContent = () => {
       }
 
       // ローカルステートの更新
-      if (table === 'class_performances') {
-        setClassPerformances((prev) =>
-          prev.map((p) =>
-            p.id === id ? ({ ...p, [column]: nextValue } as typeof p) : p,
-          ),
-        );
-      } else if (table === 'gym_performances') {
-        setGymPerformances((prev) =>
-          prev.map((p) =>
-            p.id === id ? ({ ...p, [column]: nextValue } as typeof p) : p,
-          ),
-        );
-      } else if (table === 'performances_schedule') {
+      if (table === 'performances_schedule') {
         setSchedules((prev) =>
           prev.map((s) =>
             s.id === id ? { ...s, is_active: nextValue as boolean } : s,
@@ -950,25 +896,88 @@ const SettingsContent = () => {
     setSettingsSuccess(null);
   };
 
-  const openIndividualNumericEditModal = (
-    table: 'class_performances' | 'gym_performances',
-    id: number,
-    column: string,
-    label: string,
-    min: number,
-    max: number,
-    currentValue: number,
-  ) => {
-    setEditingPerformanceInfo({ table, id, column, label, min, max });
-    setEditingNumericValue(String(currentValue));
+  const openScheduleEditModal = (schedule: (typeof schedules)[number]) => {
+    setEditingSchedule({
+      id: schedule.id,
+      roundName: schedule.round_name,
+      startAt: toLocalDateTimeInputValue(schedule.start_at),
+      isActive: schedule.is_active,
+    });
     setSettingsMessageScope('modal');
     setSettingsError(null);
     setSettingsSuccess(null);
   };
 
+  const closeScheduleEditModal = () => {
+    setEditingSchedule(null);
+    setSettingsMessageScope(null);
+    setSettingsError(null);
+    setSettingsSuccess(null);
+  };
+
+  const handleConfirmScheduleEdit = async () => {
+    if (!editingSchedule) {
+      return;
+    }
+    if (!editingSchedule.roundName.trim()) {
+      setSettingsError('公演回名を入力してください。');
+      return;
+    }
+    if (!editingSchedule.startAt || Number.isNaN(Date.parse(editingSchedule.startAt))) {
+      setSettingsError('開始時刻を正しく入力してください。');
+      return;
+    }
+
+    setIsModalSubmitting(true);
+    try {
+      const token = getSessionToken();
+      if (!token) {
+        throw new Error('セッションがありません。再ログインしてください。');
+      }
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: {
+          action: 'updatePerformanceSchedule',
+          recordId: editingSchedule.id,
+          roundName: editingSchedule.roundName,
+          startAt: new Date(editingSchedule.startAt).toISOString(),
+          isActive: editingSchedule.isActive,
+        },
+        headers: { 'x-admin-session-token': token },
+      });
+      if (error) {
+        throw error;
+      }
+      if (!data?.updated || !data.schedule) {
+        throw new Error('公演回の保存に失敗しました。');
+      }
+      setSchedules((current) =>
+        current.map((schedule) =>
+          schedule.id === editingSchedule.id ? data.schedule : schedule,
+        ),
+      );
+      closeScheduleEditModal();
+      setSettingsMessageScope('detailSection');
+      if (data.redeployError) {
+        setSettingsError(
+          `公演回を更新しましたが、再デプロイの開始に失敗しました。手動で再デプロイしてください。${data.redeployError}`,
+        );
+      } else {
+        setSettingsSuccess(
+          data.redeployTriggered
+            ? '公演回を更新し、再デプロイを開始しました。反映まで数分かかる場合があります。'
+            : '公演回を更新しました。',
+        );
+      }
+    } catch (error) {
+      const message = await readErrorMessage(error);
+      setSettingsError(`公演回の保存に失敗しました。${message}`);
+    } finally {
+      setIsModalSubmitting(false);
+    }
+  };
+
   const closeNumericEditModal = () => {
     setEditingNumericKey(null);
-    setEditingPerformanceInfo(null);
     setEditingNumericValue('');
     setSettingsMessageScope(null);
     setSettingsError(null);
@@ -976,62 +985,6 @@ const SettingsContent = () => {
   };
 
   const handleConfirmNumericEdit = async () => {
-    if (editingPerformanceInfo) {
-      const { table, id, column, label, min, max } = editingPerformanceInfo;
-      const parsed = Number(editingNumericValue);
-      if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-        setSettingsError(
-          `${label}は${min}〜${max}の範囲の整数で入力してください。`,
-        );
-        return;
-      }
-
-      // 公演ごとの中学生枠と合計定員の整合性チェック
-      if (table === 'class_performances' || table === 'gym_performances') {
-        const targetPerf =
-          table === 'class_performances'
-            ? classPerformances.find((p) => p.id === id)
-            : gymPerformances.find((p) => p.id === id);
-        if (targetPerf) {
-          if (
-            (column === 'total_capacity' || column === 'capacity') &&
-            parsed < targetPerf.junior_capacity
-          ) {
-            setSettingsError(
-              '合計定員は現在の中学生枠より少なく設定できません。',
-            );
-            return;
-          }
-          if (
-            column === 'junior_capacity' &&
-            parsed >
-              (table === 'class_performances'
-                ? classPerformances.find((p) => p.id === id)!.total_capacity
-                : gymPerformances.find((p) => p.id === id)!.capacity)
-          ) {
-            setSettingsError(
-              '中学生枠は現在の合計定員より多く設定できません。',
-            );
-            return;
-          }
-        }
-      }
-
-      setIsModalSubmitting(true);
-      const success = await handleToggleTableValue(
-        table,
-        id,
-        column,
-        parsed,
-        'detailSection',
-      );
-      setIsModalSubmitting(false);
-      if (success) {
-        closeNumericEditModal();
-      }
-      return;
-    }
-
     if (!editingNumericKey) {
       return;
     }
@@ -1914,24 +1867,6 @@ const SettingsContent = () => {
           <button
             type='button'
             role='tab'
-            className={`${styles.tabButton} ${activeDetailTab === 'performances' ? styles.tabButtonActive : ''}`}
-            aria-selected={activeDetailTab === 'performances'}
-            onClick={() => setActiveDetailTab('performances')}
-          >
-            クラス
-          </button>
-          <button
-            type='button'
-            role='tab'
-            className={`${styles.tabButton} ${activeDetailTab === 'gym_performances' ? styles.tabButtonActive : ''}`}
-            aria-selected={activeDetailTab === 'gym_performances'}
-            onClick={() => setActiveDetailTab('gym_performances')}
-          >
-            部活
-          </button>
-          <button
-            type='button'
-            role='tab'
             className={`${styles.tabButton} ${activeDetailTab === 'schedules' ? styles.tabButtonActive : ''}`}
             aria-selected={activeDetailTab === 'schedules'}
             onClick={() => setActiveDetailTab('schedules')}
@@ -1950,166 +1885,40 @@ const SettingsContent = () => {
         </div>
 
         <div className={styles.tabContent}>
-          {activeDetailTab === 'performances' && (
-            <div className={styles.toggleList}>
-              <h3>クラス公演の受付</h3>
-              {classPerformances.map((p) => (
-                <div key={`cp-${p.id}`} className={styles.field}>
-                  <span className={styles.settingLabel}>{p.class_name}</span>
-                  <div className={styles.settingControlGroup}>
-                    <span className={styles.settingHint}>
-                      定員: {p.total_capacity}名
-                    </span>
-                    <button
-                      type='button'
-                      className={styles.inlineEditButton}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openIndividualNumericEditModal(
-                          'class_performances',
-                          p.id,
-                          'total_capacity',
-                          `${p.class_name}の合計定員`,
-                          1,
-                          1000,
-                          p.total_capacity,
-                        );
-                      }}
-                    >
-                      変更
-                    </button>
-                    <span className={styles.settingHint}>
-                      中学生: {p.junior_capacity}名
-                    </span>
-                    <button
-                      type='button'
-                      className={styles.inlineEditButton}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openIndividualNumericEditModal(
-                          'class_performances',
-                          p.id,
-                          'junior_capacity',
-                          `${p.class_name}の中学生枠`,
-                          0,
-                          1000,
-                          p.junior_capacity,
-                        );
-                      }}
-                    >
-                      変更
-                    </button>
-                    <label>
-                      <Switch
-                        checked={p.is_accepting}
-                        onChange={(val) =>
-                          handleToggleTableValue(
-                            'class_performances',
-                            p.id,
-                            'is_accepting',
-                            val,
-                            'detailSection',
-                          )
-                        }
-                      />
-                    </label>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {activeDetailTab === 'gym_performances' && (
-            <div className={styles.toggleList}>
-              <h3>部活(体育館公演)の受付</h3>
-              {gymPerformances.map((p) => (
-                <div key={`gp-${p.id}`} className={styles.field}>
-                  <span className={styles.settingLabel}>
-                    {p.group_name} {p.round_name}
-                  </span>
-                  <div className={styles.settingControlGroup}>
-                    <span className={styles.settingHint}>
-                      定員: {p.capacity}名
-                    </span>
-                    <button
-                      type='button'
-                      className={styles.inlineEditButton}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openIndividualNumericEditModal(
-                          'gym_performances',
-                          p.id,
-                          'capacity',
-                          `${p.group_name} ${p.round_name}の定員`,
-                          1,
-                          2000,
-                          p.capacity,
-                        );
-                      }}
-                    >
-                      変更
-                    </button>
-                    <span className={styles.settingHint}>
-                      中学生: {p.junior_capacity}名
-                    </span>
-                    <button
-                      type='button'
-                      className={styles.inlineEditButton}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        openIndividualNumericEditModal(
-                          'gym_performances',
-                          p.id,
-                          'junior_capacity',
-                          `${p.group_name} ${p.round_name}の中学生枠`,
-                          0,
-                          2000,
-                          p.junior_capacity,
-                        );
-                      }}
-                    >
-                      変更
-                    </button>
-                    <label>
-                      <Switch
-                        checked={p.is_accepting}
-                        onChange={(val) =>
-                          handleToggleTableValue(
-                            'gym_performances',
-                            p.id,
-                            'is_accepting',
-                            val,
-                            'detailSection',
-                          )
-                        }
-                      />
-                    </label>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {activeDetailTab === 'schedules' && (
             <div className={styles.toggleList}>
-              <h3>公演回の有効状態</h3>
+              <h3>公演回の設定</h3>
               {schedules.map((s) => (
                 <div key={`sch-${s.id}`} className={styles.field}>
-                  <span className={styles.settingLabel}>{s.round_name}</span>
-                  <label>
-                    <Switch
-                      checked={s.is_active}
-                      onChange={(val) =>
-                        handleToggleTableValue(
-                          'performances_schedule',
-                          s.id,
-                          'is_active',
-                          val,
-                          'detailSection',
-                        )
-                      }
-                    />
-                  </label>
+                  <span className={styles.settingLabel}>
+                    {s.round_name}
+                    <span className={styles.settingTimeLabel}>
+                      {new Date(s.start_at).toLocaleString('ja-JP')}〜
+                    </span>
+                  </span>
+                  <div className={styles.settingControlGroup}>
+                    <button
+                      type='button'
+                      className={styles.inlineEditButton}
+                      onClick={() => openScheduleEditModal(s)}
+                    >
+                      編集
+                    </button>
+                    <label>
+                      <Switch
+                        checked={s.is_active}
+                        onChange={(val) =>
+                          handleToggleTableValue(
+                            'performances_schedule',
+                            s.id,
+                            'is_active',
+                            val,
+                            'detailSection',
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
@@ -2322,7 +2131,7 @@ const SettingsContent = () => {
           </button>
         </form>
       </NormalSection>
-      {(editingNumericKey || editingPerformanceInfo) && (
+      {editingNumericKey && (
         <div
           className={styles.settingModalOverlay}
           role='presentation'
@@ -2340,24 +2149,14 @@ const SettingsContent = () => {
             onClick={(event) => event.stopPropagation()}
           >
             <h3 id='settings-edit-title' className={styles.settingModalTitle}>
-              {editingNumericKey
-                ? NUMERIC_SETTING_META[editingNumericKey].label
-                : editingPerformanceInfo?.label}
+              {NUMERIC_SETTING_META[editingNumericKey].label}
               を変更
             </h3>
             <input
               className={styles.fieldControl}
               type='number'
-              min={
-                editingNumericKey
-                  ? NUMERIC_SETTING_META[editingNumericKey].min
-                  : editingPerformanceInfo?.min
-              }
-              max={
-                editingNumericKey
-                  ? NUMERIC_SETTING_META[editingNumericKey].max
-                  : editingPerformanceInfo?.max
-              }
+              min={NUMERIC_SETTING_META[editingNumericKey].min}
+              max={NUMERIC_SETTING_META[editingNumericKey].max}
               value={editingNumericValue}
               onInput={(event) =>
                 setEditingNumericValue((event.target as HTMLInputElement).value)
@@ -2385,6 +2184,99 @@ const SettingsContent = () => {
                 disabled={isModalSubmitting}
               >
                 {isModalSubmitting ? '同期中...' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingSchedule && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeScheduleEditModal();
+            }
+          }}
+        >
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='schedule-edit-title'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id='schedule-edit-title' className={styles.settingModalTitle}>
+              公演回を編集
+            </h3>
+            <label className={styles.authLabel} htmlFor='schedule-round-name'>
+              公演回名
+            </label>
+            <input
+              id='schedule-round-name'
+              className={styles.fieldControl}
+              value={editingSchedule.roundName}
+              onInput={(event) =>
+                setEditingSchedule((current) =>
+                  current
+                    ? {
+                        ...current,
+                        roundName: (event.target as HTMLInputElement).value,
+                      }
+                    : current,
+                )
+              }
+            />
+            <label className={styles.authLabel} htmlFor='schedule-start-at'>
+              開始時刻
+            </label>
+            <input
+              id='schedule-start-at'
+              className={styles.fieldControl}
+              type='datetime-local'
+              value={editingSchedule.startAt}
+              onInput={(event) =>
+                setEditingSchedule((current) =>
+                  current
+                    ? {
+                        ...current,
+                        startAt: (event.target as HTMLInputElement).value,
+                      }
+                    : current,
+                )
+              }
+            />
+            <div className={styles.settingControlGroup}>
+              <span className={styles.settingLabel}>有効にする</span>
+              <Switch
+                checked={editingSchedule.isActive}
+                onChange={(isActive) =>
+                  setEditingSchedule((current) =>
+                    current ? { ...current, isActive } : current,
+                  )
+                }
+              />
+            </div>
+            {settingsMessageScope === 'modal' && settingsError && (
+              <p className={styles.authError}>{settingsError}</p>
+            )}
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={closeScheduleEditModal}
+                disabled={isModalSubmitting}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={styles.settingModalConfirm}
+                onClick={handleConfirmScheduleEdit}
+                disabled={isModalSubmitting}
+              >
+                {isModalSubmitting ? '保存中...' : '保存'}
               </button>
             </div>
           </div>
