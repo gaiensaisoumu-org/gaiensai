@@ -259,38 +259,40 @@ const StatusContent = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <p className={styles.tableScrollHint}>
-            ← 横にスクロールできます →
-          </p>
-          <div className={styles.tableWrap}>
-            <table>
-              <thead>
-                <tr>
-                  <th>クラス</th>
-                  <th>初回登録</th>
-                  <th>登録率</th>
-                  <th>発券</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboard.classes.map((row) => {
-                  const total = row.account_count ?? 0;
-                  const rate = total
-                    ? ((row.initial_count ?? 0) / total) * 100
-                    : 0;
-                  return (
-                    <tr key={row.name}>
-                      <th>{row.name}</th>
-                      <td>
-                        {number(row.initial_count)} / {number(total)}
-                      </td>
-                      <td>{rate.toFixed(1)}%</td>
-                      <td>{number(row.ticket_count)} 枚</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div>
+            <p className={styles.tableScrollHint}>
+              ← 横にスクロールできます →
+            </p>
+            <div className={styles.tableWrap}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>クラス</th>
+                    <th>初回登録</th>
+                    <th>登録率</th>
+                    <th>発券</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboard.classes.map((row) => {
+                    const total = row.account_count ?? 0;
+                    const rate = total
+                      ? ((row.initial_count ?? 0) / total) * 100
+                      : 0;
+                    return (
+                      <tr key={row.name}>
+                        <th>{row.name}</th>
+                        <td>
+                          {number(row.initial_count)} / {number(total)}
+                        </td>
+                        <td>{rate.toFixed(1)}%</td>
+                        <td>{number(row.ticket_count)} 枚</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </NormalSection>
