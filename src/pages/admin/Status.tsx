@@ -259,6 +259,9 @@ const StatusContent = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
+          <p className={styles.tableScrollHint}>
+            ← 横にスクロールできます →
+          </p>
           <div className={styles.tableWrap}>
             <table>
               <thead>
@@ -294,6 +297,9 @@ const StatusContent = () => {
 
       <NormalSection>
         <h2>部活別の発券状況</h2>
+        <p className={styles.tableScrollHint}>
+          ← 横にスクロールできます →
+        </p>
         <div className={styles.tableWrap}>
           <table>
             <thead>

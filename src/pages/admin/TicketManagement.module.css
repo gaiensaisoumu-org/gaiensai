@@ -80,6 +80,13 @@
   overflow-x: auto;
 }
 
+.tableScrollHint {
+  margin: 0 0 .5rem;
+  color: var(--sub-text-color);
+  font-size: .85rem;
+  text-align: center;
+}
+
 .tableWrap table {
   width: 100%;
   min-width: 1300px;
@@ -93,6 +100,7 @@
   border-bottom: 1px solid var(--table-border-color);
   text-align: left;
   vertical-align: top;
+  white-space: nowrap;
 }
 
 .tableWrap th {

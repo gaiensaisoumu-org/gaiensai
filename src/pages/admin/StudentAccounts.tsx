@@ -907,6 +907,9 @@ const StudentAccountsContent = () => {
             </button>
           </div>
 
+          <p className={styles.tableScrollHint}>
+            ← 横にスクロールできます →
+          </p>
           <div className={styles.tableWrapper}>
             <table className={styles.managementTable}>
               <thead>
@@ -1026,6 +1029,9 @@ const StudentAccountsContent = () => {
             </span>
           </div>
 
+          <p className={styles.tableScrollHint}>
+            ← 横にスクロールできます →
+          </p>
           <div className={styles.tableWrapper}>
             <table className={styles.managementTable}>
               <thead>

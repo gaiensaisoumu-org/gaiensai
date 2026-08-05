@@ -756,6 +756,9 @@ const JuniorAccountContent = () => {
         {skippedAccounts.length > 0 ? (
           <div>
             <h3>既存扱い（skipped）になったアカウント</h3>
+            <p className={styles.tableScrollHint}>
+              ← 横にスクロールできます →
+            </p>
             <div className={styles.tableWrapper}>
               <table className={styles.managementTable}>
                 <thead>
@@ -783,6 +786,9 @@ const JuniorAccountContent = () => {
           <h2>読み込みプレビュー</h2>
           <p className={styles.noteText}>
             先頭100件を表示しています（合計 {csvAccounts.length} 件）
+          </p>
+          <p className={styles.tableScrollHint}>
+            ← 横にスクロールできます →
           </p>
           <div className={styles.tableWrapper}>
             <table className={styles.managementTable}>
@@ -823,6 +829,9 @@ const JuniorAccountContent = () => {
         </div>
         <p className={styles.noteText}>
           既存扱い（スキップ）になったアカウントもここに表示されます。
+        </p>
+        <p className={styles.tableScrollHint}>
+          ← 横にスクロールできます →
         </p>
         <div className={styles.tableWrapper}>
           <table className={styles.managementTable}>

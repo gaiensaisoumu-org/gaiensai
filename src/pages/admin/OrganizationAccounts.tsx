@@ -374,6 +374,9 @@ const OrganizationAccountsContent = () => {
       </NormalSection>
       <NormalSection>
         <h2>アカウント一覧</h2>
+        <p className={styles.tableScrollHint}>
+          ← 横にスクロールできます →
+        </p>
         <div className={styles.organizationTableWrap}>
           <table className={styles.organizationAccountTable}>
             <thead>

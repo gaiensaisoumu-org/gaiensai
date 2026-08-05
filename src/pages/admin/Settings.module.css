@@ -184,7 +184,7 @@
 
 .organizationAccountTable {
   width: 100%;
-  min-width: 560px;
+  min-width: max-content;
   border-collapse: collapse;
 }
 
@@ -193,6 +193,7 @@
   padding: 0.65rem;
   border-bottom: 1px solid var(--settings-border-color);
   text-align: left;
+  white-space: nowrap;
 }
 
 .organizationActions {
@@ -430,8 +431,16 @@
   max-height: 800px;
 }
 
+.tableScrollHint {
+  margin: 0 0 0.5rem;
+  color: var(--sub-text-color);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 .managementTable {
   width: 100%;
+  min-width: max-content;
   border-collapse: collapse;
   color: #eee;
 }
@@ -444,6 +453,7 @@
 .managementTable th,
 .managementTable td {
   padding: 12px;
+  white-space: nowrap;
 }
 
 .managementTable tbody tr {

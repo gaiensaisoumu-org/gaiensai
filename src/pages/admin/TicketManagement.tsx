@@ -419,6 +419,9 @@ const TicketManagementContent = () => {
           </button>
         </div>
         <p className={styles.resultCount}>{rows.length} 件を表示</p>
+        <p className={styles.tableScrollHint}>
+          ← 横にスクロールできます →
+        </p>
         <div className={styles.tableWrap}>
           <table>
             <thead>
