@@ -1438,6 +1438,21 @@ Deno.serve(async (req) => {
         throw new HttpError(400, '対象アカウントの種類が一致しません。');
       }
 
+      if (body.mode === 'resetUserData' && isStudent) {
+        const { data: studentProfile, error: studentProfileError } =
+          await adminClient
+            .from('users')
+            .select('id')
+            .eq('email', body.userEmail)
+            .maybeSingle();
+        if (studentProfileError) {
+          throw studentProfileError;
+        }
+        if (!studentProfile) {
+          throw new HttpError(400, '初回登録が未完了の生徒アカウントです。');
+        }
+      }
+
       const { count: ticketCount, error: ticketCountError } = await adminClient
         .from('tickets')
         .select('id', { count: 'exact', head: true })
@@ -1455,7 +1470,7 @@ Deno.serve(async (req) => {
       const { error: deleteProfileError } = await adminClient
         .from('users')
         .delete()
-        .eq('id', authUser.id);
+        .eq('email', body.userEmail);
       if (deleteProfileError) {
         throw deleteProfileError;
       }
@@ -1782,10 +1797,13 @@ Deno.serve(async (req) => {
         throw error;
       }
 
-      const authUserIds = users.map((user) => user.id);
+      const authUserEmails = users.flatMap((user) =>
+        user.email ? [user.email] : [],
+      );
       const PROFILE_FETCH_BATCH_SIZE = 50;
       const userProfiles: {
         id: string;
+        email: string;
         clubs: string[] | null;
         junior_usage_type: number | null;
         application_day: string | null;
@@ -1793,13 +1811,16 @@ Deno.serve(async (req) => {
 
       for (
         let index = 0;
-        index < authUserIds.length;
+        index < authUserEmails.length;
         index += PROFILE_FETCH_BATCH_SIZE
       ) {
         const { data, error: profilesError } = await adminClient
           .from('users')
-          .select('id, clubs, junior_usage_type, application_day')
-          .in('id', authUserIds.slice(index, index + PROFILE_FETCH_BATCH_SIZE));
+          .select('id, email, clubs, junior_usage_type, application_day')
+          .in(
+            'email',
+            authUserEmails.slice(index, index + PROFILE_FETCH_BATCH_SIZE),
+          );
 
         if (profilesError) {
           throw profilesError;
@@ -1808,20 +1829,23 @@ Deno.serve(async (req) => {
         userProfiles.push(...(data ?? []));
       }
 
-      const clubsByUserId = new Map(
+      const clubsByUserEmail = new Map(
         userProfiles.map((profile) => [
-          profile.id,
+          profile.email.toLowerCase(),
           profile.clubs ?? [],
         ]),
       );
-      const juniorProfileByUserId = new Map(
+      const juniorProfileByUserEmail = new Map(
         userProfiles.map((profile) => [
-          profile.id,
+          profile.email.toLowerCase(),
           {
             juniorUsageType: profile.junior_usage_type,
             applicationDay: profile.application_day,
           },
         ]),
+      );
+      const registeredUserEmails = new Set(
+        userProfiles.map((profile) => profile.email.toLowerCase()),
       );
 
       // @gaiensai.local のドメインを持つユーザーのみを抽出
@@ -1830,9 +1854,16 @@ Deno.serve(async (req) => {
         .map((u) => ({
           studentId: u.user_metadata?.student_id || u.email?.split('@')[0],
           email: u.email,
-          clubs: clubsByUserId.get(u.id) ?? [],
-          juniorUsageType: juniorProfileByUserId.get(u.id)?.juniorUsageType ?? null,
-          applicationDay: juniorProfileByUserId.get(u.id)?.applicationDay ?? null,
+          clubs: clubsByUserEmail.get(u.email?.toLowerCase() ?? '') ?? [],
+          isInitialRegistrationComplete: registeredUserEmails.has(
+            u.email?.toLowerCase() ?? '',
+          ),
+          juniorUsageType:
+            juniorProfileByUserEmail.get(u.email?.toLowerCase() ?? '')
+              ?.juniorUsageType ?? null,
+          applicationDay:
+            juniorProfileByUserEmail.get(u.email?.toLowerCase() ?? '')
+              ?.applicationDay ?? null,
           lastSignIn: u.last_sign_in_at,
           createdAt: u.created_at,
         }))

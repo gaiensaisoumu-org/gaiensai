@@ -31,6 +31,7 @@ type StudentUser = {
   studentId: string;
   email: string;
   clubs: string[];
+  isInitialRegistrationComplete: boolean;
   lastSignIn?: string;
   createdAt: string;
 };
@@ -1030,6 +1031,7 @@ const StudentAccountsContent = () => {
               <thead>
                 <tr>
                   <th>学年クラス番号 (ID)</th>
+                  <th>初回登録</th>
                   <th>部活</th>
                   <th>最終ログイン</th>
                   <th>操作</th>
@@ -1038,7 +1040,7 @@ const StudentAccountsContent = () => {
               <tbody>
                 {existingUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className={styles.info}>
+                    <td colSpan={5} className={styles.info}>
                       登録済みの生徒アカウントはありません。
                     </td>
                   </tr>
@@ -1047,11 +1049,16 @@ const StudentAccountsContent = () => {
                     <tr key={user.studentId}>
                       <td>{user.studentId}</td>
                       <td className={styles.tableCellSub}>
-                        {user.clubs.length > 0
+                        {user.isInitialRegistrationComplete
+                          ? '済み'
+                          : '未登録'}
+                      </td>
+                      <td className={styles.tableCellSub}>
+                        {!user.isInitialRegistrationComplete
+                          ? '-'
+                          : user.clubs.length > 0
                           ? user.clubs.join('、')
-                          : user.lastSignIn
-                            ? 'なし'
-                            : '未選択'}
+                          : 'なし'}
                       </td>
                       <td className={styles.tableCellSub}>
                         {user.lastSignIn
@@ -1064,7 +1071,9 @@ const StudentAccountsContent = () => {
                           className={styles.inlineEditButton}
                           onClick={() => openClubEditModal(user)}
                           disabled={
-                            isGenerating || isSavingClubs || !user.lastSignIn
+                            isGenerating ||
+                            isSavingClubs ||
+                            !user.isInitialRegistrationComplete
                           }
                         >
                           部活変更
@@ -1084,7 +1093,9 @@ const StudentAccountsContent = () => {
                             void handleAccountAction(user, 'resetUserData')
                           }
                           disabled={
-                            isGenerating || accountActionEmail !== null
+                            isGenerating ||
+                            accountActionEmail !== null ||
+                            !user.isInitialRegistrationComplete
                           }
                         >
                           ユーザーデータを消去
