@@ -1746,6 +1746,34 @@ Deno.serve(async (req) => {
       );
 
       const remaining = usersRemaining.length;
+      let juniorCountersReset = false;
+
+      // 中学生アカウントを全件削除した後に、利用形態ごとの集計値も初期化する。
+      // どちらも単一行のカウンターテーブルなので、行自体は残して値だけリセットする。
+      if (targetType === 'junior' && remaining === 0) {
+        const { error: resetSplitCountersError } = await adminClient
+          .from('junior_account_split_counters')
+          .update({
+            separate_on_registration_count: 0,
+            later_split_count: 0,
+          })
+          .eq('id', 1);
+
+        if (resetSplitCountersError) {
+          throw resetSplitCountersError;
+        }
+
+        const { error: resetAdmissionOnlyCountError } = await adminClient
+          .from('junior_admission_only_account_counts')
+          .update({ admission_only_count: 0 })
+          .eq('id', 1);
+
+        if (resetAdmissionOnlyCountError) {
+          throw resetAdmissionOnlyCountError;
+        }
+
+        juniorCountersReset = true;
+      }
 
       await adminClient
         .from('admin_sessions')
@@ -1758,6 +1786,7 @@ Deno.serve(async (req) => {
           accountType: targetType,
           count: deletedCount,
           remaining, // 残数があることをフロントに伝える
+          juniorCountersReset,
           errors: errors.length > 0 ? errors : undefined,
         }),
         {

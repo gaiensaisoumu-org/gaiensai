@@ -369,6 +369,7 @@ const SettingsContent = () => {
     setIsDeletingAllAccounts(true);
     setShowDeleteAllAccountsModal(false);
     let totalDeletedSoFar = 0;
+    let juniorCountersWereReset = false;
     const accountType = pendingDeleteAccountType;
     const accountLabel =
       accountType === 'student' ? '生徒アカウント' : '中学生アカウント';
@@ -399,6 +400,7 @@ const SettingsContent = () => {
         }
 
         totalDeletedSoFar += data.count;
+        juniorCountersWereReset = data?.juniorCountersReset === true;
 
         if (data.remaining > 0) {
           setSettingsSuccess(
@@ -411,7 +413,7 @@ const SettingsContent = () => {
       }
 
       setSettingsSuccess(
-        `合計 ${totalDeletedSoFar} 件の${accountLabel}を削除しました。`,
+        `合計 ${totalDeletedSoFar} 件の${accountLabel}を削除しました。${accountType === 'junior' && juniorCountersWereReset ? ' 中学生アカウントの利用形態カウンターもリセットしました。' : ''}`,
       );
     } catch (error) {
       const message = await readErrorMessage(error);
