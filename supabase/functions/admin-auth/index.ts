@@ -126,6 +126,7 @@ type AdminAuthBody =
       userEmail: string;
     }
   | { mode: 'deleteAllTicketsAndResetCounters' }
+  | { mode: 'deleteAllFlappyLeaderboardEntries' }
   | { mode: 'getStatusDashboard' }
   | { mode: 'getTicketManagementData' }
   | { mode: 'cancelTicket'; code: string }
@@ -512,6 +513,10 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'deleteAllTicketsAndResetCounters') {
     return { mode: 'deleteAllTicketsAndResetCounters' };
+  }
+
+  if (action === 'deleteAllFlappyLeaderboardEntries') {
+    return { mode: 'deleteAllFlappyLeaderboardEntries' };
   }
 
   if (action === 'getStudentUsers') {
@@ -1830,6 +1835,44 @@ Deno.serve(async (req) => {
           deleted: true,
           deletedTicketCount: ticketCount ?? 0,
           countersReset: true,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    if (body.mode === 'deleteAllFlappyLeaderboardEntries') {
+      const session = await requireValidSession(adminClient, req);
+
+      const { count: leaderboardEntryCount, error: countError } =
+        await adminClient
+          .from('flappy_leaderboard')
+          .select('id', { count: 'exact', head: true });
+
+      if (countError) {
+        throw countError;
+      }
+
+      const { error: deleteError } = await adminClient
+        .from('flappy_leaderboard')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      return new Response(
+        JSON.stringify({
+          deleted: true,
+          deletedLeaderboardEntryCount: leaderboardEntryCount ?? 0,
         }),
         {
           status: 200,

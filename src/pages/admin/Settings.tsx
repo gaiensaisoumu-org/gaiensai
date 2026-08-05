@@ -347,6 +347,8 @@ const SettingsContent = () => {
     useState(false);
   const [showDeleteAllTicketsModal, setShowDeleteAllTicketsModal] =
     useState(false);
+  const [showDeleteAllLeaderboardModal, setShowDeleteAllLeaderboardModal] =
+    useState(false);
   const [
     showDeleteAllOrganizationAdminsModal,
     setShowDeleteAllOrganizationAdminsModal,
@@ -355,6 +357,8 @@ const SettingsContent = () => {
     useState<AccountDeletionType>('student');
   const [isDeletingAllAccounts, setIsDeletingAllAccounts] = useState(false);
   const [isDeletingAllTickets, setIsDeletingAllTickets] = useState(false);
+  const [isDeletingAllLeaderboard, setIsDeletingAllLeaderboard] =
+    useState(false);
   const [isDeletingAllOrganizationAdmins, setIsDeletingAllOrganizationAdmins] =
     useState(false);
 
@@ -464,6 +468,42 @@ const SettingsContent = () => {
       );
     } finally {
       setIsDeletingAllTickets(false);
+    }
+  };
+
+  const handleDeleteAllLeaderboard = async () => {
+    setSettingsMessageScope('deletionTool');
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    setIsDeletingAllLeaderboard(true);
+    setShowDeleteAllLeaderboardModal(false);
+
+    try {
+      const token = getSessionToken();
+      if (!token) {
+        throw new Error('セッションがありません。再ログインしてください。');
+      }
+
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: { action: 'deleteAllFlappyLeaderboardEntries' },
+        headers: { 'x-admin-session-token': token },
+      });
+
+      if (error) {
+        throw error;
+      }
+      if (!data?.deleted) {
+        throw new Error('ランキングの削除に失敗しました。');
+      }
+
+      setSettingsSuccess(
+        `隠しミニゲームのランキングを ${data.deletedLeaderboardEntryCount ?? 0} 件削除しました。`,
+      );
+    } catch (error) {
+      const message = await readErrorMessage(error);
+      setSettingsError(`ランキングの削除に失敗しました。${message}`);
+    } finally {
+      setIsDeletingAllLeaderboard(false);
     }
   };
 
@@ -2125,10 +2165,28 @@ const SettingsContent = () => {
             disabled={
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
+              isDeletingAllLeaderboard ||
               isDeletingAllOrganizationAdmins
             }
           >
             全てのチケットを削除してカウンターをリセット
+          </button>
+          <h3>隠しミニゲームのランキング削除</h3>
+          <p className={styles.noteText}>
+            隠しミニゲームのランキングを全て削除します。
+          </p>
+          <button
+            type='button'
+            className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
+            onClick={() => setShowDeleteAllLeaderboardModal(true)}
+            disabled={
+              isDeletingAllAccounts ||
+              isDeletingAllTickets ||
+              isDeletingAllLeaderboard ||
+              isDeletingAllOrganizationAdmins
+            }
+          >
+            隠しミニゲームのランキングを全消去
           </button>
           <h3>生徒アカウントの削除</h3>
           <button
@@ -2141,6 +2199,7 @@ const SettingsContent = () => {
             disabled={
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
+              isDeletingAllLeaderboard ||
               isDeletingAllOrganizationAdmins
             }
           >
@@ -2157,6 +2216,7 @@ const SettingsContent = () => {
             disabled={
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
+              isDeletingAllLeaderboard ||
               isDeletingAllOrganizationAdmins
             }
           >
@@ -2173,6 +2233,7 @@ const SettingsContent = () => {
             disabled={
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
+              isDeletingAllLeaderboard ||
               isDeletingAllOrganizationAdmins
             }
           >
@@ -2430,6 +2491,54 @@ const SettingsContent = () => {
         </div>
       )}
 
+      {showDeleteAllLeaderboardModal && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowDeleteAllLeaderboardModal(false);
+            }
+          }}
+        >
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='delete-all-leaderboard-title'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='delete-all-leaderboard-title'
+              className={styles.settingModalTitle}
+            >
+              隠しミニゲームのランキングを全消去しますか？
+            </h3>
+            <p>
+              この操作は取り消せません。全てのランキング記録が削除されます。本当に実行しますか？
+            </p>
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={() => setShowDeleteAllLeaderboardModal(false)}
+                disabled={isDeletingAllLeaderboard}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={`${styles.settingModalConfirm} ${styles.settingModalConfirmDanger}`}
+                onClick={handleDeleteAllLeaderboard}
+                disabled={isDeletingAllLeaderboard}
+              >
+                {isDeletingAllLeaderboard ? '削除中...' : '全消去'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeleteAllOrganizationAdminsModal && (
         <div
           className={styles.settingModalOverlay}
@@ -2493,6 +2602,12 @@ const SettingsContent = () => {
       {isDeletingAllTickets && (
         <div className={styles.settingModalOverlay}>
           <LoadingSpinner message='全てのチケットを削除し、カウンターをリセット中です...' />
+        </div>
+      )}
+
+      {isDeletingAllLeaderboard && (
+        <div className={styles.settingModalOverlay}>
+          <LoadingSpinner message='隠しミニゲームのランキングを全消去中です...' />
         </div>
       )}
 
