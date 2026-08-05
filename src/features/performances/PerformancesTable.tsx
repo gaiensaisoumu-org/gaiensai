@@ -47,6 +47,7 @@ type PerformancesTableProps = {
   showToggleRemainingMode?: boolean;
   restrictedClassName?: string | null;
   filterAccepting?: boolean;
+  filterPerformanceAccepting?: boolean;
   scheduleFilter?: (scheduleId: number, roundName: string) => boolean;
 };
 
@@ -59,6 +60,7 @@ const PerformancesTable = ({
   showToggleRemainingMode = false,
   restrictedClassName = null,
   filterAccepting = false,
+  filterPerformanceAccepting = filterAccepting,
   scheduleFilter,
 }: PerformancesTableProps) => {
   const autoSelectedCellKeyRef = useRef<string | null>(null);
@@ -231,7 +233,7 @@ const PerformancesTable = ({
         >
       ).filter(
         (performance) =>
-          (!filterAccepting || performance.is_accepting === true) &&
+          (!filterPerformanceAccepting || performance.is_accepting === true) &&
           (!restrictedClassName ||
             performance.class_name === restrictedClassName),
       );

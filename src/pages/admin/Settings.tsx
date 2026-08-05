@@ -1250,6 +1250,16 @@ const SettingsContent = () => {
       </NormalSection>
 
       <NormalSection>
+        <h2>公演情報を変更</h2>
+        <p className={styles.noteText}>
+          クラス・体育館・展示公演の情報、定員、受付状態を一覧から編集できます。保存時の年度は設定中の年度に自動同期されます。
+        </p>
+        <a className={styles.linkButton} href='/admin/performances-management'>
+          公演情報を変更
+        </a>
+      </NormalSection>
+
+      <NormalSection>
         <h2>生徒アカウント管理</h2>
         <p className={styles.noteText}>
           学年・クラス・出席番号の全組み合わせに対するログインアカウントを一括生成し、Authへ登録します。

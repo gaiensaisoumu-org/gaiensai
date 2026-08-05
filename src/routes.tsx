@@ -51,6 +51,9 @@ export const OrganizationAdmin = lazy(
 export const OrganizationAccounts = lazy(
   () => import('./pages/admin/OrganizationAccounts'),
 );
+export const PerformancesManagement = lazy(
+  () => import('./pages/admin/PerformancesManagement'),
+);
 
 // re-export the eagerly-loaded routes so callers can treat them uniformly
 export { Ticket, TicketHistory };

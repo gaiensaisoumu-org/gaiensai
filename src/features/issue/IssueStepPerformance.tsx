@@ -17,6 +17,7 @@ type IssueStepPerformanceProps = {
   gymRemainingMode?: "general" | "total" | "junior";
   showClassPerformances?: boolean;
   showGymPerformances?: boolean;
+  allowClosedPerformances?: boolean;
   onSelectPerformance: (selection: SelectedPerformance) => void;
 };
 
@@ -32,6 +33,7 @@ const IssueStepPerformance = ({
   gymRemainingMode = "general",
   showClassPerformances = true,
   showGymPerformances = true,
+  allowClosedPerformances = false,
   onSelectPerformance,
 }: IssueStepPerformanceProps) => {
   return (
@@ -50,7 +52,7 @@ const IssueStepPerformance = ({
             onAvailableCellClick={onSelectPerformance}
             restrictedGroupNames={restrictedGroupNames}
             selectedCellKey={selectedCellKey}
-            filterAccepting={true}
+            filterAccepting={!allowClosedPerformances}
             scheduleFilter={gymScheduleFilter}
             remainingMode={gymRemainingMode}
           />
@@ -63,7 +65,8 @@ const IssueStepPerformance = ({
           restrictedClassName={restrictedClassName}
           onAvailableCellClick={onSelectPerformance}
           selectedCellKey={selectedCellKey}
-          filterAccepting={true}
+            filterAccepting={true}
+            filterPerformanceAccepting={!allowClosedPerformances}
           scheduleFilter={classScheduleFilter}
         />
       ) : (

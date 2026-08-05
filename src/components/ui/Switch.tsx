@@ -6,7 +6,12 @@ type SwitchProps = {
 
 const Switch = ({ checked, onChange, id }: SwitchProps) => {
   return (
-    <div
+    <button
+      type='button'
+      role='switch'
+      aria-checked={checked}
+      aria-label='切り替え'
+      onClick={() => onChange(!checked)}
       style={{
         position: 'relative',
         width: '34px',
@@ -14,20 +19,12 @@ const Switch = ({ checked, onChange, id }: SwitchProps) => {
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
+        padding: 0,
+        border: 0,
+        background: 'transparent',
       }}
     >
-      <input
-        type='checkbox'
-        id={id}
-        style={{
-          opacity: 0,
-          width: 0,
-          height: 0,
-          position: 'absolute',
-        }}
-        checked={checked}
-        onChange={(e) => onChange(e.currentTarget.checked)}
-      />
+      {id && <span id={id} />}
       <div
         style={{
           width: '34px',
@@ -51,7 +48,7 @@ const Switch = ({ checked, onChange, id }: SwitchProps) => {
           transition: 'left 0.2s, background-color 0.2s',
         }}
       />
-    </div>
+    </button>
   );
 };
 

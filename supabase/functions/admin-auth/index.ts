@@ -69,6 +69,17 @@ type AdminAuthRequest = {
   organizationKind?: unknown;
   organizationPerformanceId?: unknown;
   organizationAdmins?: unknown;
+  className?: unknown;
+  title?: unknown;
+  description?: unknown;
+  totalCapacity?: unknown;
+  juniorCapacity?: unknown;
+  isAccepting?: unknown;
+  contentType?: unknown;
+  base64?: unknown;
+  performanceType?: unknown;
+  startAt?: unknown;
+  endAt?: unknown;
 };
 
 type TicketIssueMode =
@@ -168,6 +179,27 @@ type AdminAuthBody =
   | { mode: 'updateJuniorPassword'; juniorPassword: string }
   | { mode: 'validateJuniorSecretCode'; secretCode: string }
   | { mode: 'getOrganizationAdmins' }
+  | { mode: 'getClassPerformances' }
+  | {
+      mode: 'updateClassPerformance';
+      id: number;
+      className: string;
+      title: string;
+      description: string;
+      totalCapacity: number;
+      juniorCapacity: number;
+      isAccepting: boolean;
+      performanceType: 'class' | 'gym' | 'exhibition';
+      startAt: string | null;
+      endAt: string | null;
+    }
+  | {
+      mode: 'uploadClassPerformanceImage';
+      id: number;
+      contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+      base64: string;
+      performanceType: 'class' | 'gym' | 'exhibition';
+    }
   | {
       mode: 'createOrganizationAdmin';
       username: string;
@@ -652,6 +684,82 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'getOrganizationAdmins') {
     return { mode: 'getOrganizationAdmins' };
+  }
+
+  if (action === 'getClassPerformances') {
+    return { mode: 'getClassPerformances' };
+  }
+
+  if (action === 'updateClassPerformance') {
+    const values = body as AdminAuthRequest;
+    if (values.performanceType !== 'class' && values.performanceType !== 'gym' && values.performanceType !== 'exhibition') {
+      throw new HttpError(400, '公演種別が不正です。');
+    }
+    const className = typeof values.className === 'string' ? values.className.trim() : '';
+    const title = typeof values.title === 'string' ? values.title.trim() : '';
+    const description = typeof values.description === 'string' ? values.description.trim() : '';
+    if (className.length === 0 || className.length > 100) {
+      throw new HttpError(400, 'クラス名は1〜100文字で入力してください。');
+    }
+    if (title.length > 200 || description.length > 5000) {
+      throw new HttpError(400, '公演タイトルまたは説明が長すぎます。');
+    }
+    const totalCapacity = values.performanceType === 'exhibition'
+      ? 1
+      : normalizeInteger(values.totalCapacity, 'totalCapacity', 1, 10000);
+    const juniorCapacity = values.performanceType === 'exhibition'
+      ? 0
+      : normalizeInteger(values.juniorCapacity, 'juniorCapacity', 0, totalCapacity);
+    const startAt = values.performanceType === 'gym' && typeof values.startAt === 'string'
+      ? values.startAt : null;
+    const endAt = values.performanceType === 'gym' && typeof values.endAt === 'string'
+      ? values.endAt : null;
+    if (values.performanceType === 'gym' && (!startAt || !endAt || Number.isNaN(Date.parse(startAt)) || Number.isNaN(Date.parse(endAt)) || Date.parse(startAt) >= Date.parse(endAt))) {
+      throw new HttpError(400, '開始時刻と終了時刻を正しく入力してください。');
+    }
+    if (typeof values.isAccepting !== 'boolean') {
+      throw new HttpError(400, 'isAccepting は真偽値で指定してください。');
+    }
+    return {
+      mode: 'updateClassPerformance',
+      id: normalizeInteger(values.recordId, 'recordId', 1, 1000000),
+      className,
+      title,
+      description,
+      totalCapacity,
+      juniorCapacity,
+      isAccepting: values.isAccepting,
+      performanceType: values.performanceType,
+      startAt,
+      endAt,
+    };
+  }
+
+  if (action === 'uploadClassPerformanceImage') {
+    const values = body as AdminAuthRequest;
+    if (values.performanceType !== 'class' && values.performanceType !== 'gym' && values.performanceType !== 'exhibition') {
+      throw new HttpError(400, '公演種別が不正です。');
+    }
+    if (
+      values.contentType !== 'image/jpeg' &&
+      values.contentType !== 'image/png' &&
+      values.contentType !== 'image/webp'
+    ) {
+      throw new HttpError(400, 'JPEG・PNG・WebP画像のみアップロードできます。');
+    }
+    if (typeof values.base64 !== 'string' || values.base64.length === 0) {
+      throw new HttpError(400, '画像データが不正です。');
+    }
+    if (values.base64.length > 7_000_000) {
+      throw new HttpError(400, '画像ファイルは5MB以下にしてください。');
+    }
+    return {
+      mode: 'uploadClassPerformanceImage',
+      id: normalizeInteger(values.recordId, 'recordId', 1, 1000000),
+      contentType: values.contentType,
+      base64: values.base64,
+      performanceType: values.performanceType,
+    };
   }
 
   if (action === 'createOrganizationAdmin') {
@@ -2456,6 +2564,171 @@ Deno.serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+
+    if (body.mode === 'getClassPerformances') {
+      const session = await requireValidSession(adminClient, req);
+      const settings = await fetchAdminSettings(adminClient);
+      const [classResult, gymResult, exhibitionResult] = await Promise.all([
+        adminClient
+        .from('class_performances')
+        .select('id, year, class_name, title, description, image_path, total_capacity, junior_capacity, is_accepting')
+        .order('class_name'),
+        adminClient.from('gym_performances').select('id, year, group_name, round_name, start_at, end_at, description, image_path, capacity, junior_capacity, is_accepting').order('start_at'),
+        adminClient.from('exhibition_clubs').select('id, group_name, description, image_path').order('id'),
+      ]);
+      const error = classResult.error ?? gymResult.error ?? exhibitionResult.error;
+      if (error) {
+        throw error;
+      }
+      const performances = [
+        ...(classResult.data ?? []).map((item) => ({ ...item, performance_type: 'class' })),
+        ...(gymResult.data ?? []).map((item) => ({ id: item.id, year: item.year, class_name: item.group_name, title: item.round_name, start_at: item.start_at, end_at: item.end_at, description: item.description, image_path: item.image_path, total_capacity: item.capacity, junior_capacity: item.junior_capacity, is_accepting: item.is_accepting, performance_type: 'gym' })),
+        ...(exhibitionResult.data ?? []).map((item) => ({ id: item.id, year: null, class_name: item.group_name, title: '', description: item.description, image_path: item.image_path, total_capacity: null, junior_capacity: null, is_accepting: null, performance_type: 'exhibition' })),
+      ];
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({
+        performances: performances ?? [],
+        eventYear: settings.event_year,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'updateClassPerformance') {
+      const session = await requireValidSession(adminClient, req);
+      const settings = await fetchAdminSettings(adminClient);
+      const table = body.performanceType === 'class' ? 'class_performances' : body.performanceType === 'gym' ? 'gym_performances' : 'exhibition_clubs';
+      const update = body.performanceType === 'class' ? {
+          year: settings.event_year,
+          class_name: body.className,
+          title: body.title,
+          description: body.description,
+          total_capacity: body.totalCapacity,
+          junior_capacity: body.juniorCapacity,
+          is_accepting: body.isAccepting,
+        } : body.performanceType === 'gym' ? {
+          year: settings.event_year, group_name: body.className, round_name: body.title,
+          description: body.description, capacity: body.totalCapacity,
+          junior_capacity: body.juniorCapacity, is_accepting: body.isAccepting,
+          start_at: body.startAt, end_at: body.endAt,
+        } : { group_name: body.className, description: body.description };
+      const { data: rawPerformance, error } = await adminClient
+        .from(table)
+        .update(update)
+        .eq('id', body.id)
+        .select('*')
+        .maybeSingle();
+      if (error) {
+        if (error.code === '23505') {
+          throw new HttpError(400, '同じクラス名の公演が既にあります。');
+        }
+        throw error;
+      }
+      if (!rawPerformance) {
+        throw new HttpError(404, 'クラス公演が見つかりません。');
+      }
+      const item = rawPerformance as Record<string, unknown>;
+      const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
+        id: item.id, year: body.performanceType === 'gym' ? item.year : null,
+        class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
+        description: item.description, image_path: item.image_path,
+        total_capacity: body.performanceType === 'gym' ? item.capacity : null,
+        junior_capacity: body.performanceType === 'gym' ? item.junior_capacity : null,
+        is_accepting: body.performanceType === 'gym' ? item.is_accepting : null,
+        performance_type: body.performanceType,
+      };
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({
+        updated: true,
+        performance,
+        eventYear: settings.event_year,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'uploadClassPerformanceImage') {
+      const session = await requireValidSession(adminClient, req);
+      const table = body.performanceType === 'class' ? 'class_performances' : body.performanceType === 'gym' ? 'gym_performances' : 'exhibition_clubs';
+      const { data: existingPerformance, error: findError } = await adminClient
+        .from(table)
+        .select('id')
+        .eq('id', body.id)
+        .maybeSingle();
+      if (findError) {
+        throw findError;
+      }
+      if (!existingPerformance) {
+        throw new HttpError(404, 'クラス公演が見つかりません。');
+      }
+      const extension = body.contentType === 'image/jpeg'
+        ? 'jpg'
+        : body.contentType === 'image/png' ? 'png' : 'webp';
+      let bytes: Uint8Array;
+      try {
+        const binary = atob(body.base64);
+        bytes = Uint8Array.from(
+          binary,
+          (character) => character.charCodeAt(0),
+        );
+      } catch {
+        throw new HttpError(400, '画像データが不正です。');
+      }
+      if (bytes.byteLength > 5 * 1024 * 1024) {
+        throw new HttpError(400, '画像ファイルは5MB以下にしてください。');
+      }
+      const path = `admin/${body.performanceType}-${body.id}.${extension}`;
+      const { error: uploadError } = await adminClient.storage
+        .from('performance-images')
+        .upload(path, bytes, {
+          contentType: body.contentType,
+          upsert: true,
+          cacheControl: '3600',
+        });
+      if (uploadError) {
+        throw uploadError;
+      }
+      const settings = await fetchAdminSettings(adminClient);
+      const { data: rawPerformance, error: updateError } = await adminClient
+        .from(table)
+        .update(body.performanceType === 'exhibition' ? { image_path: path } : { image_path: path, year: settings.event_year })
+        .eq('id', body.id)
+        .select('*')
+        .maybeSingle();
+      if (updateError) {
+        throw updateError;
+      }
+      if (!rawPerformance) {
+        throw new HttpError(404, 'クラス公演が見つかりません。');
+      }
+      const item = rawPerformance as Record<string, unknown>;
+      const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
+        id: item.id, year: body.performanceType === 'gym' ? item.year : null,
+        class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
+        description: item.description, image_path: item.image_path,
+        total_capacity: body.performanceType === 'gym' ? item.capacity : null,
+        junior_capacity: body.performanceType === 'gym' ? item.junior_capacity : null,
+        is_accepting: body.performanceType === 'gym' ? item.is_accepting : null,
+        performance_type: body.performanceType,
+      };
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({
+        updated: true,
+        performance,
+        eventYear: settings.event_year,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (body.mode === 'createOrganizationAdmin') {

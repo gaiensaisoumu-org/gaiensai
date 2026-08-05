@@ -26,6 +26,7 @@ import {
   SecretBase,
   OrganizationAdmin,
   OrganizationAccounts,
+  PerformancesManagement,
 } from './routes';
 import LineCallback from './features/auth/Line';
 import NotFound from './shared/NotFound';
@@ -133,6 +134,7 @@ const AdminPageLayout = () => (
         <Route path='/student-accounts' component={StudentAccounts} />
         <Route path='/junior-accounts' component={JuniorAccounts} />
         <Route path='/organization-accounts' component={OrganizationAccounts} />
+        <Route path='/performances-management' component={PerformancesManagement} />
         <Route default component={NotFound} />
       </Router>
     </div>

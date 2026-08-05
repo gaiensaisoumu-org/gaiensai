@@ -166,6 +166,7 @@ const AdminTicketIssueContent = () => {
             classRemainingMode={remainingMode}
             gymRemainingMode={remainingMode}
             onSelectPerformance={setSelection}
+            allowClosedPerformances={true}
           />
         )}
         <NormalSection>
