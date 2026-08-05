@@ -182,6 +182,7 @@ type AdminAuthBody =
     }
   | { mode: 'changeOrganizationAdminUsername'; organizationAdminId: string; username: string }
   | { mode: 'deleteOrganizationAdmin'; organizationAdminId: string }
+  | { mode: 'deleteAllOrganizationAdmins' }
   | { mode: 'bulkCreateOrganizationAdmins'; admins: { username: string; password: string; kind: 'class' | 'gym' | 'exhibition'; performanceId: number }[] };
 
 type AdminConfigRow = {
@@ -733,6 +734,10 @@ const parseBody = (body: unknown): AdminAuthBody => {
       throw new HttpError(400, '団体管理者IDが不正です。');
     }
     return { mode: 'deleteOrganizationAdmin', organizationAdminId };
+  }
+
+  if (action === 'deleteAllOrganizationAdmins') {
+    return { mode: 'deleteAllOrganizationAdmins' };
   }
 
   if (action === 'bulkCreateOrganizationAdmins') {
@@ -2613,6 +2618,24 @@ Deno.serve(async (req) => {
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', session.id);
       return new Response(JSON.stringify({ deleted: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'deleteAllOrganizationAdmins') {
+      const session = await requireValidSession(adminClient, req);
+      const { error, count } = await adminClient
+        .from('organization_admins')
+        .delete({ count: 'exact' })
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) {
+        throw error;
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ deleted: true, count: count ?? 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

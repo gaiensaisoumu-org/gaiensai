@@ -346,10 +346,16 @@ const SettingsContent = () => {
     useState(false);
   const [showDeleteAllTicketsModal, setShowDeleteAllTicketsModal] =
     useState(false);
+  const [
+    showDeleteAllOrganizationAdminsModal,
+    setShowDeleteAllOrganizationAdminsModal,
+  ] = useState(false);
   const [pendingDeleteAccountType, setPendingDeleteAccountType] =
     useState<AccountDeletionType>('student');
   const [isDeletingAllAccounts, setIsDeletingAllAccounts] = useState(false);
   const [isDeletingAllTickets, setIsDeletingAllTickets] = useState(false);
+  const [isDeletingAllOrganizationAdmins, setIsDeletingAllOrganizationAdmins] =
+    useState(false);
 
   const handleDeleteAllAccounts = async () => {
     setSettingsMessageScope('deletionTool');
@@ -457,6 +463,42 @@ const SettingsContent = () => {
       );
     } finally {
       setIsDeletingAllTickets(false);
+    }
+  };
+
+  const handleDeleteAllOrganizationAdmins = async () => {
+    setSettingsMessageScope('deletionTool');
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    setIsDeletingAllOrganizationAdmins(true);
+    setShowDeleteAllOrganizationAdminsModal(false);
+
+    try {
+      const token = getSessionToken();
+      if (!token) {
+        throw new Error('セッションがありません。再ログインしてください。');
+      }
+
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: { action: 'deleteAllOrganizationAdmins' },
+        headers: { 'x-admin-session-token': token },
+      });
+
+      if (error) {
+        throw error;
+      }
+      if (!data?.deleted) {
+        throw new Error('削除に失敗しました。');
+      }
+
+      setSettingsSuccess(
+        `合計 ${data.count ?? 0} 件の管理者アカウントを削除しました。`,
+      );
+    } catch (error) {
+      const message = await readErrorMessage(error);
+      setSettingsError(`管理者アカウントの削除に失敗しました。${message}`);
+    } finally {
+      setIsDeletingAllOrganizationAdmins(false);
     }
   };
 
@@ -2033,7 +2075,11 @@ const SettingsContent = () => {
             type='button'
             className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
             onClick={() => setShowDeleteAllTicketsModal(true)}
-            disabled={isDeletingAllAccounts || isDeletingAllTickets}
+            disabled={
+              isDeletingAllAccounts ||
+              isDeletingAllTickets ||
+              isDeletingAllOrganizationAdmins
+            }
           >
             全てのチケットを削除してカウンターをリセット
           </button>
@@ -2045,7 +2091,11 @@ const SettingsContent = () => {
               setPendingDeleteAccountType('student');
               setShowDeleteAllAccountsModal(true);
             }}
-            disabled={isDeletingAllAccounts || isDeletingAllTickets}
+            disabled={
+              isDeletingAllAccounts ||
+              isDeletingAllTickets ||
+              isDeletingAllOrganizationAdmins
+            }
           >
             全ての生徒アカウントを削除
           </button>
@@ -2057,9 +2107,29 @@ const SettingsContent = () => {
               setPendingDeleteAccountType('junior');
               setShowDeleteAllAccountsModal(true);
             }}
-            disabled={isDeletingAllAccounts || isDeletingAllTickets}
+            disabled={
+              isDeletingAllAccounts ||
+              isDeletingAllTickets ||
+              isDeletingAllOrganizationAdmins
+            }
           >
             全ての中学生アカウントを削除
+          </button>
+          <h3>管理者アカウントの削除</h3>
+          <p className={styles.noteText}>
+            全てのクラス・部活管理者アカウントを削除します。
+          </p>
+          <button
+            type='button'
+            className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
+            onClick={() => setShowDeleteAllOrganizationAdminsModal(true)}
+            disabled={
+              isDeletingAllAccounts ||
+              isDeletingAllTickets ||
+              isDeletingAllOrganizationAdmins
+            }
+          >
+            全ての管理者アカウントを削除
           </button>
         </div>
         {settingsMessageScope === 'deletionTool' && settingsError && (
@@ -2313,6 +2383,54 @@ const SettingsContent = () => {
         </div>
       )}
 
+      {showDeleteAllOrganizationAdminsModal && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowDeleteAllOrganizationAdminsModal(false);
+            }
+          }}
+        >
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='delete-all-organization-admins-title'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='delete-all-organization-admins-title'
+              className={styles.settingModalTitle}
+            >
+              全ての管理者アカウントを削除しますか？
+            </h3>
+            <p>
+              この操作は取り消せません。全てのクラス・部活管理者アカウントと、そのログインセッションが削除されます。本当に実行しますか？
+            </p>
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={() => setShowDeleteAllOrganizationAdminsModal(false)}
+                disabled={isDeletingAllOrganizationAdmins}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={`${styles.settingModalConfirm} ${styles.settingModalConfirmDanger}`}
+                onClick={handleDeleteAllOrganizationAdmins}
+                disabled={isDeletingAllOrganizationAdmins}
+              >
+                {isDeletingAllOrganizationAdmins ? '削除中...' : '削除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isDeletingAllAccounts && (
         <div className={styles.settingModalOverlay}>
           <LoadingSpinner
@@ -2328,6 +2446,12 @@ const SettingsContent = () => {
       {isDeletingAllTickets && (
         <div className={styles.settingModalOverlay}>
           <LoadingSpinner message='全てのチケットを削除し、カウンターをリセット中です...' />
+        </div>
+      )}
+
+      {isDeletingAllOrganizationAdmins && (
+        <div className={styles.settingModalOverlay}>
+          <LoadingSpinner message='全ての管理者アカウントを削除中です...' />
         </div>
       )}
     </div>
