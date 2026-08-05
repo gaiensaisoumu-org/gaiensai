@@ -145,23 +145,22 @@ const userHtml = `<!doctype html>
 )}" />
   <script>
     (() => {
-      const reloadKey = 'pwa-entry-module-reload-attempted';
+      // sessionStorage はPWAや一部のWebViewではリロード時に維持されないことがある。
+      // URLに再試行済みの印を残し、スクリプト取得失敗による無限リロードを防ぐ。
+      const retryParameter = 'entry-module-retry';
       const showRecoveryScreen = () => {
         const app = document.getElementById('app');
         if (!app) return;
         app.innerHTML = '<main style="box-sizing:border-box;display:grid;min-height:100vh;place-items:center;padding:24px;font-family:system-ui,sans-serif;color:#081b47;background:#f8fafc"><section style="max-width:32rem;padding:24px;border-radius:12px;background:#fff;box-shadow:0 4px 20px #081b4720"><h1 style="margin-top:0">更新に失敗しました</h1><p>ブラウザを再起動してください。</p><p>改善しない場合は、ブラウザのサイトデータを削除してからもう一度開いてください。</p><a href="/" style="display:inline-block;padding:10px 16px;border-radius:8px;color:#fff;background:#081b47;text-decoration:none">もう一度開く</a></section></main>';
       };
       const recoverEntryModule = () => {
-        try {
-          if (sessionStorage.getItem(reloadKey)) {
-            showRecoveryScreen();
-            return;
-          }
-          sessionStorage.setItem(reloadKey, '1');
-          location.reload();
-        } catch {
+        const retryUrl = new URL(window.location.href);
+        if (retryUrl.searchParams.has(retryParameter)) {
           showRecoveryScreen();
+          return;
         }
+        retryUrl.searchParams.set(retryParameter, '1');
+        window.location.replace(retryUrl.toString());
       };
       window.addEventListener('error', (event) => {
         const target = event.target;
