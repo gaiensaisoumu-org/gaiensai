@@ -417,6 +417,29 @@ const OrganizationAdmin = () => {
     }
   };
 
+  const logout = () => {
+    const sessionToken = localStorage.getItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    setDashboard(null);
+    setUsername('');
+    setPassword('');
+    setError(null);
+    setNotice(null);
+    setMessageScope(null);
+    setBusy(false);
+
+    if (sessionToken) {
+      void supabase.functions
+        .invoke('organization-admin', {
+          body: { action: 'logout' },
+          headers: { 'x-organization-admin-session-token': sessionToken },
+        })
+        .catch(() => {
+          // ローカルのセッションは、通信に失敗しても必ず破棄する。
+        });
+    }
+  };
+
   const save = async (event: Event) => {
     event.preventDefault();
     if (
@@ -781,7 +804,7 @@ const OrganizationAdmin = () => {
     return (
       <>
         <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
-        <div className={styles.shell}>
+        <div className={styles.shell} key='organization-admin-login'>
           <NormalSection>
             <h2>ログイン</h2>
             <form onSubmit={login} className={styles.form}>
@@ -826,7 +849,7 @@ const OrganizationAdmin = () => {
   return (
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
-      <div className={styles.shell}>
+      <div className={styles.shell} key='organization-admin-dashboard'>
         <div className={styles.heading}>
           <div>
             <h2 className={subPageStyles.linedH2}>{name}</h2>
@@ -834,10 +857,7 @@ const OrganizationAdmin = () => {
           <button
             type='button'
             className={styles.secondary}
-            onClick={() => {
-              localStorage.removeItem(TOKEN_KEY);
-              setDashboard(null);
-            }}
+            onClick={logout}
           >
             ログアウト
           </button>
