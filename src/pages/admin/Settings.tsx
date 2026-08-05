@@ -227,6 +227,7 @@ const SettingsContent = () => {
   const [ticketTypeControls, setTicketTypeControls] =
     useState<TicketTypeControls>(DEFAULT_TICKET_TYPE_CONTROLS);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
+  const [isRedeploying, setIsRedeploying] = useState(false);
   const [isSyncingSetting, setIsSyncingSetting] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
@@ -1145,6 +1146,27 @@ const SettingsContent = () => {
     }
   };
 
+  const handleRedeploy = async () => {
+    setIsRedeploying(true);
+    setSettingsMessageScope('globalSection');
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: { action: 'triggerRedeploy' },
+        headers: { 'x-admin-session-token': getSessionToken() ?? '' },
+      });
+      if (error || !data?.redeployTriggered) {
+        throw error ?? new Error('再デプロイを開始できませんでした。');
+      }
+      setSettingsSuccess('再デプロイを開始しました。反映まで数分かかる場合があります。');
+    } catch (error) {
+      setSettingsError(`再デプロイの開始に失敗しました。${await readErrorMessage(error)}`);
+    } finally {
+      setIsRedeploying(false);
+    }
+  };
+
   return (
     <div>
       {!isSettingsLoading && settings.eventYear !== config.year && (
@@ -1237,6 +1259,21 @@ const SettingsContent = () => {
         {settingsMessageScope === 'globalSection' && settingsSuccess && (
           <p className={styles.authSuccess}>{settingsSuccess}</p>
         )}
+      </NormalSection>
+
+      <NormalSection>
+        <h2>サイトの再デプロイ</h2>
+        <p className={styles.noteText}>
+          公演情報など、ビルド時に生成されるサイト内容を最新の状態に反映します。
+        </p>
+        <button
+          type='button'
+          className={styles.inlineEditButton}
+          onClick={handleRedeploy}
+          disabled={isRedeploying}
+        >
+          {isRedeploying ? '再デプロイを開始中…' : '再デプロイする'}
+        </button>
       </NormalSection>
 
       <NormalSection>

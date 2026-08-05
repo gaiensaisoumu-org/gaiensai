@@ -89,6 +89,16 @@ const PerformancesManagementContent = () => {
     void load();
   }, []);
 
+  const triggerRedeploy = async () => {
+    const { data, error } = await supabase.functions.invoke('admin-auth', {
+      body: { action: 'triggerRedeploy' },
+      headers: { 'x-admin-session-token': getSessionToken() ?? '' },
+    });
+    if (error || !data?.redeployTriggered) {
+      throw error ?? new Error('再デプロイを開始できませんでした。');
+    }
+  };
+
   const openEditModal = (performance: PerformancesManagement) => {
     setEditingPerformance(performance);
     setClassName(performance.class_name ?? '');
@@ -161,7 +171,8 @@ const PerformancesManagementContent = () => {
         ));
         setEditingPerformance(null);
         setEditingGymGroup([]);
-        setSuccess('体育館公演を更新しました。');
+        await triggerRedeploy();
+        setSuccess('体育館公演を更新し、再デプロイを開始しました。');
       } catch (saveError) {
         setError(`体育館公演の更新に失敗しました。${await readErrorMessage(saveError)}`);
       } finally {
@@ -230,8 +241,9 @@ const PerformancesManagementContent = () => {
         ),
       );
       setEditingPerformance(null);
+      await triggerRedeploy();
       setSuccess(
-        `${updatedPerformance.class_name ?? 'クラス公演'}を更新しました。年度は設定中の年度（${updatedPerformance.year ?? '-'}年度）に同期されています。反映するには再デプロイしてください。`,
+        `${updatedPerformance.class_name ?? 'クラス公演'}を更新し、再デプロイを開始しました。年度は設定中の年度（${updatedPerformance.year ?? '-'}年度）に同期されています。`,
       );
     } catch (saveError) {
       setError(`クラス公演の更新に失敗しました。${await readErrorMessage(saveError)}`);
@@ -298,7 +310,8 @@ const PerformancesManagementContent = () => {
         typeof data.eventYear === 'number' ? data.eventYear : updatedPerformance.year,
       );
       setImageVersion(Date.now());
-      setSuccess('公演画像を更新しました。');
+      await triggerRedeploy();
+      setSuccess('公演画像を更新し、再デプロイを開始しました。');
     } catch (uploadError) {
       setError(`画像の更新に失敗しました。${await readErrorMessage(uploadError)}`);
     } finally {
@@ -489,7 +502,7 @@ const PerformancesManagementContent = () => {
           <div>
             <h2>公演情報を変更</h2>
             <p className={styles.note}>
-              クラス・体育館・展示公演の情報、定員、受付状態を編集できます。保存時の年度は設定中の年度に自動同期されます。<strong style={{ color: 'var(--heading-text-color)' }}>反映するには再デプロイしてください。</strong>
+              クラス・体育館・展示公演の情報、定員、受付状態を編集できます。保存時の年度は設定中の年度に自動同期され、再デプロイが自動で開始されます。
             </p>
           </div>
           <button

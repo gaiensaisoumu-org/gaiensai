@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getCorsHeaders } from '@shared/cors.ts';
 import { getEnv } from '@shared/getEnv.ts';
 import HttpError from '@shared/HttpError.ts';
+import { triggerCloudflarePagesDeploy } from '@shared/triggerCloudflarePagesDeploy.ts';
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 8;
 const SESSION_HEADER = 'x-organization-admin-session-token';
@@ -169,6 +170,10 @@ Deno.serve(async (req) => {
     }
 
     const admin = await requireAdmin(client, req);
+    if (action === 'triggerRedeploy') {
+      await triggerCloudflarePagesDeploy();
+      return json({ redeployTriggered: true }, corsHeaders);
+    }
     if (action === 'getDashboard') {
       const own = await ownPerformance(client, admin);
       if (own.kind === 'exhibition') {

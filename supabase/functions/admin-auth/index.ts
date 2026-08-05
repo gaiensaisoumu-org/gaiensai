@@ -8,6 +8,7 @@ import { compare, hash } from 'bcryptjs';
 import { getCorsHeaders } from '@shared/cors.ts';
 import { getEnv } from '@shared/getEnv.ts';
 import HttpError from '@shared/HttpError.ts';
+import { triggerCloudflarePagesDeploy } from '@shared/triggerCloudflarePagesDeploy.ts';
 import {
   generateManualCode,
   generateTicketCode,
@@ -108,6 +109,7 @@ type AdminAuthBody =
   | { mode: 'logoutSession' }
   | { mode: 'changePassword'; currentPassword: string; newPassword: string }
   | { mode: 'getSettings' }
+  | { mode: 'triggerRedeploy' }
   | { mode: 'getTeachers' }
   | { mode: 'updateTeacher'; teacherId: number; name: string }
   | { mode: 'updateAllTeachers'; teachers: { id: number; name: string }[] }
@@ -680,6 +682,10 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'getSettings') {
     return { mode: 'getSettings' };
+  }
+
+  if (action === 'triggerRedeploy') {
+    return { mode: 'triggerRedeploy' };
   }
 
   if (action === 'getOrganizationAdmins') {
@@ -2305,6 +2311,19 @@ Deno.serve(async (req) => {
         .eq('id', session.id);
 
       return new Response(JSON.stringify({ updated: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'triggerRedeploy') {
+      const session = await requireValidSession(adminClient, req);
+      await triggerCloudflarePagesDeploy();
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ redeployTriggered: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

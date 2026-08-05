@@ -288,7 +288,6 @@ const OrganizationAdmin = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [roundFilter, setRoundFilter] = useState('all');
   const [showCapacityModal, setShowCapacityModal] = useState(false);
-  const [showDeploymentNotice, setShowDeploymentNotice] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imageVersion, setImageVersion] = useState(0);
   const [draftCapacity, setDraftCapacity] = useState('');
@@ -301,6 +300,16 @@ const OrganizationAdmin = () => {
   const [transferText, setTransferText] = useState('');
   const [nameNotice, setNameNotice] = useState<string | null>(null);
   const [showMissingAffiliationModal, setShowMissingAffiliationModal] = useState(false);
+
+  const triggerRedeploy = async () => {
+    const { data, error } = await supabase.functions.invoke('organization-admin', {
+      body: { action: 'triggerRedeploy' },
+      headers: sessionHeaders(),
+    });
+    if (error || !data?.redeployTriggered) {
+      throw error ?? new Error('再デプロイを開始できませんでした。');
+    }
+  };
 
   const nameDirectoryKey = useMemo(() => {
     if (!dashboard || dashboard.kind === 'exhibition') {
@@ -453,8 +462,8 @@ const OrganizationAdmin = () => {
         throw invokeError;
       }
       await load();
-      setNotice('公演情報を更新しました。');
-      setShowDeploymentNotice(true);
+      await triggerRedeploy();
+      setNotice('公演情報を更新し、再デプロイを開始しました。');
     } catch (cause) {
       setError(await readErrorMessage(cause));
     } finally {
@@ -499,8 +508,8 @@ const OrganizationAdmin = () => {
       }
       await load();
       setImageVersion(Date.now());
-      setNotice('公演画像を更新しました。');
-      setShowDeploymentNotice(true);
+      await triggerRedeploy();
+      setNotice('公演画像を更新し、再デプロイを開始しました。');
     } catch (cause) {
       setError(await readErrorMessage(cause));
     } finally {
@@ -1275,42 +1284,6 @@ const OrganizationAdmin = () => {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
-        {showDeploymentNotice && (
-          <div
-            className={styles.modalOverlay}
-            role='presentation'
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) {
-                setShowDeploymentNotice(false);
-              }
-            }}
-          >
-            <div
-              className={styles.modal}
-              role='dialog'
-              aria-modal='true'
-              aria-labelledby='deployment-notice-title'
-              onClick={(event) => event.stopPropagation()}
-            >
-              <h3 id='deployment-notice-title'>公演情報を変更しました</h3>
-              <Alert>
-                変更は完了しましたが、ここで変更しただけでは反映されません。
-                <strong>
-                  お問い合わせフォームから「公演情報を変更したので再デプロイをしてほしい」
-                </strong>
-                と連絡をお願いします。
-              </Alert>
-              <div className={styles.modalActions}>
-                <button
-                  type='button'
-                  onClick={() => setShowDeploymentNotice(false)}
-                >
-                  閉じる
-                </button>
-              </div>
             </div>
           </div>
         )}
