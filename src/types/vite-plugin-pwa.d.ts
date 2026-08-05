@@ -6,5 +6,7 @@ declare module 'virtual:pwa-register' {
     onRegisterError?: (error: Error) => void;
   }
 
-  export function registerSW(options?: RegisterSWOptions): (reloadPage?: boolean) => void;
+  export function registerSW(
+    options?: RegisterSWOptions,
+  ): (reloadPage?: boolean) => Promise<void>;
 }

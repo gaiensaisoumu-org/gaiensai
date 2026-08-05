@@ -148,6 +148,7 @@ export default defineConfig({
       workbox: {
         skipWaiting: false, // ボタンを押すまで待機させる（promptモードの基本）
         clientsClaim: true, // アクティブになったら即座に制御を開始する
+        cleanupOutdatedCaches: true,
         globPatterns: [
           '**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,json,yaml}',
         ],

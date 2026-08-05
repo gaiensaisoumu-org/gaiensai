@@ -12,9 +12,13 @@ export const PWAUpdateToast = ({
 }: PWAUpdateToastProps) => {
   const [needRefresh, setNeedRefresh] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // 1. useEffect内で生成された updateSW 関数を保持するための Ref
-  const updateSWRef = useRef<((reloadPage?: boolean) => void) | null>(null);
+  // useEffect内で生成された更新関数と、連打防止用のロックを保持する。
+  const updateServiceWorkerRef = useRef<
+    ((reloadPage?: boolean) => Promise<void>) | null
+  >(null);
+  const isUpdatingRef = useRef(false);
 
   // Check if there are unsaved inputs
   const hasUnsavedData = useCallback((): boolean => {
@@ -34,7 +38,8 @@ export const PWAUpdateToast = ({
 
   // Register service worker
   useEffect(() => {
-    const updateSW = registerSW({
+    let cleanupRegistration: (() => void) | undefined;
+    const updateServiceWorker = registerSW({
       onNeedRefresh() {
         setNeedRefresh(true);
       },
@@ -59,7 +64,7 @@ export const PWAUpdateToast = ({
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        return () => {
+        cleanupRegistration = () => {
           clearInterval(intervalId);
           document.removeEventListener(
             'visibilitychange',
@@ -73,27 +78,40 @@ export const PWAUpdateToast = ({
       },
     });
 
-    updateSWRef.current = updateSW;
+    updateServiceWorkerRef.current = updateServiceWorker;
 
-    return () => {};
+    return () => {
+      cleanupRegistration?.();
+    };
   }, []);
 
-  // 実際に更新（skipWaiting & リロード）を実行する内部関数
-  const executeUpdate = useCallback(() => {
-    if (updateSWRef.current) {
-      // 4. Refに保持しておいた関数に true を渡して実行する
-      updateSWRef.current(true);
+  // skip waiting は vite-plugin-pwa に任せる。ここで location.reload() は行わない。
+  const executeUpdate = useCallback(async () => {
+    if (isUpdatingRef.current || !updateServiceWorkerRef.current) {
+      return;
+    }
+
+    isUpdatingRef.current = true;
+    setIsUpdating(true);
+
+    try {
+      await updateServiceWorkerRef.current(true);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Service worker update error', error);
+      isUpdatingRef.current = false;
+      setIsUpdating(false);
     }
   }, []);
 
   // Handle update click with data protection
-  const handleUpdate = useCallback(() => {
+  const handleUpdate = useCallback(async () => {
     if (hasUnsavedData()) {
       setShowWarning(true);
       return;
     }
 
-    executeUpdate();
+    await executeUpdate();
   }, [hasUnsavedData, executeUpdate]);
 
   // Handle "あとで" click
@@ -103,9 +121,9 @@ export const PWAUpdateToast = ({
   }, []);
 
   // Handle force update from warning dialog
-  const handleForceUpdate = useCallback(() => {
+  const handleForceUpdate = useCallback(async () => {
     setShowWarning(false);
-    executeUpdate();
+    await executeUpdate();
   }, [executeUpdate]);
 
   if (!needRefresh) {
@@ -128,8 +146,9 @@ export const PWAUpdateToast = ({
           <button
             className={`${styles.pwaUpdateToastButton} ${styles.pwaUpdateToastButtonUpdate}`}
             onClick={handleUpdate}
+            disabled={isUpdating}
           >
-            更新
+            {isUpdating ? '更新中…' : '更新'}
           </button>
         </div>
       </div>
@@ -153,8 +172,9 @@ export const PWAUpdateToast = ({
               <button
                 className={`${styles.pwaUpdateWarningButton} ${styles.pwaUpdateWarningButtonConfirm}`}
                 onClick={handleForceUpdate}
+                disabled={isUpdating}
               >
-                更新する
+                {isUpdating ? '更新中…' : '更新する'}
               </button>
             </div>
           </div>
