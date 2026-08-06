@@ -48,6 +48,32 @@
   align-items: end;
 }
 
+.rosterExportControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: .85rem;
+  margin-top: .85rem;
+}
+
+.rosterExportControls label {
+  display: grid;
+  min-width: min(100%, 22rem);
+  gap: .35rem;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.rosterExportControls select {
+  min-width: 0;
+  padding: .6rem;
+  border: 1px solid var(--select-border-color);
+  border-radius: .4rem;
+  background: var(--normal-section-bg-color);
+  color: var(--main-text-color);
+  font: inherit;
+}
+
 .filters label {
   display: grid;
   gap: .35rem;

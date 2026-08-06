@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { FaCheck } from 'react-icons/fa6';
 import { RiEdit2Fill } from 'react-icons/ri';
+import { formatTicketCode } from './formatTicketCode';
 import styles from './IssuedTicketCardList.module.css';
 
 export type TicketCardStatus =
@@ -368,9 +369,7 @@ const IssuedTicketCardList = ({
                         <span
                           className={`${styles.ticketMetaValue} ${styles.ticketCodeValue}`}
                         >
-                          {ticket.code
-                            .replace(/.{4}/g, '$&-')
-                            .replace(/-$/, '')}
+                          {formatTicketCode(ticket.code)}
                         </span>
                       </div>
                     )}

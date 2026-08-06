@@ -2215,13 +2215,15 @@ Deno.serve(async (req) => {
         adminClient.from('ticket_types').select('id, name, type'),
         adminClient.from('class_tickets').select('id, class_id, round_id'),
         adminClient.from('gym_tickets').select('id, performance_id'),
-        adminClient.from('class_performances').select('id, class_name, title'),
+        adminClient
+          .from('class_performances')
+          .select('id, class_name, title, total_capacity, junior_capacity'),
         adminClient
           .from('performances_schedule')
           .select('id, round_name, start_at'),
         adminClient
           .from('gym_performances')
-          .select('id, group_name, round_name, start_at'),
+          .select('id, group_name, round_name, start_at, capacity, junior_capacity'),
       ]);
       const results = [
         ticketsResult,

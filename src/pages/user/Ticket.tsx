@@ -20,6 +20,7 @@ import {
   type TicketDecodedDisplaySeed,
 } from '../../features/tickets/ticketCodeDecode.ts';
 import { formatTicketTypeLabel } from '../../features/tickets/formatTicketTypeLabel.ts';
+import { formatTicketCode } from '../../features/tickets/formatTicketCode';
 import { resolveJuniorRelationshipName } from '../../features/tickets/juniorRelationship.ts';
 import { NoIndexMeta } from '../../components/NoIndexMeta.tsx';
 
@@ -1256,7 +1257,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 }
               />
               <p className={styles.ticketCode}>
-                {code.replace(/.{4}/g, '$&-').replace(/-$/, '')}
+                {formatTicketCode(code)}
               </p>
             </div>
           )}

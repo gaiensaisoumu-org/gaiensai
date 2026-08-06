@@ -11,6 +11,12 @@ import {
 } from '../../layout/AdminAuthLayout';
 import styles from './TicketManagement.module.css';
 import { applyDecodedSerials } from '../../features/tickets/decodeTicketSerial';
+import { formatTicketCode } from '../../features/tickets/formatTicketCode';
+import {
+  downloadRosterXlsx,
+  type RosterXlsxSheet,
+  type RosterXlsxTicket,
+} from '../../features/tickets/downloadRosterXlsx';
 
 type Ticket = {
   id: string;
@@ -34,6 +40,9 @@ type Master = {
   round_name?: string;
   group_name?: string;
   start_at?: string | null;
+  total_capacity?: number | null;
+  capacity?: number | null;
+  junior_capacity?: number | null;
 };
 type ManagementData = {
   tickets: Ticket[];
@@ -53,6 +62,118 @@ const statusLabel: Record<string, string> = {
   cancelled: '取消済み',
 };
 
+const formatIssuedAt = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? '-'
+    : date.toLocaleString('ja-JP', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      });
+};
+
+type Roster = RosterXlsxSheet & {
+  id: string;
+};
+
+const buildRosters = (data: ManagementData): Roster[] => {
+  const users = new Map(data.users.map((user) => [user.id, user]));
+  const classTickets = new Map(data.classTickets.map((ticket) => [ticket.id, ticket]));
+  const gymTickets = new Map(data.gymTickets.map((ticket) => [ticket.id, ticket]));
+  const validTickets = data.tickets.filter(
+    (ticket) =>
+      ticket.status === 'valid' &&
+      ticket.ticket_type !== 5 &&
+      ticket.ticket_type !== 6,
+  );
+  const createRosterTicket = (
+    ticket: Ticket,
+    roundId: number,
+  ): RosterXlsxTicket => ({
+    affiliation: users.get(ticket.user_id)?.affiliation ?? null,
+    relationship: ticket.relationship,
+    code: ticket.code,
+    createdAt: ticket.created_at,
+    roundId,
+  });
+
+  const classRosters = data.classes.map((performance) => {
+    const performanceId = performance.id;
+    return {
+      id: `class:${performanceId}`,
+      name: `${performance.class_name ?? ''} ${performance.title ?? ''}`.trim(),
+      rounds: data.schedules.map((schedule) => ({
+        id: schedule.id,
+        name: schedule.round_name ?? '-',
+      })),
+      tickets: validTickets.flatMap((ticket) => {
+        const link = classTickets.get(ticket.id);
+        if (!link || link.class_id !== performanceId) {
+          return [];
+        }
+        return [
+          createRosterTicket(
+            ticket,
+            link.round_id,
+          ),
+        ];
+      }),
+      generalCapacity: Math.max(
+        0,
+        Number(performance.total_capacity ?? 0) -
+          Number(performance.junior_capacity ?? 0),
+      ),
+    };
+  });
+
+  const gymGroups = new Map<string, Master[]>();
+  data.gyms.forEach((performance) => {
+    const groupName = performance.group_name ?? '-';
+    gymGroups.set(groupName, [...(gymGroups.get(groupName) ?? []), performance]);
+  });
+  const gymRosters = [...gymGroups.entries()].map(([groupName, performances]) => {
+    const performanceIds = new Set(performances.map((performance) => performance.id));
+    return {
+      id: `gym:${groupName}`,
+      name: groupName,
+      rounds: performances.map((performance) => ({
+        id: performance.id,
+        name: performance.round_name ?? '-',
+      })),
+      tickets: validTickets.flatMap((ticket) => {
+        const link = gymTickets.get(ticket.id);
+        if (!link || !performanceIds.has(link.performance_id)) {
+          return [];
+        }
+        return [
+          createRosterTicket(
+            ticket,
+            link.performance_id,
+          ),
+        ];
+      }),
+      generalCapacity: Math.max(
+        0,
+        ...performances.map((performance) =>
+          Number(performance.capacity ?? 0) -
+          Number(performance.junior_capacity ?? 0),
+        ),
+      ),
+    };
+  });
+
+  return [
+    ...classRosters.sort(
+      (a, b) => Number(a.id.slice('class:'.length)) - Number(b.id.slice('class:'.length)),
+    ),
+    ...gymRosters.sort(
+      (a, b) =>
+        Math.min(...a.rounds.map((round) => round.id)) -
+        Math.min(...b.rounds.map((round) => round.id)),
+    ),
+  ];
+};
+
 const TicketManagementContent = () => {
   useTitle('チケット管理 - 管理画面');
   const [data, setData] = useState<ManagementData | null>(null);
@@ -70,6 +191,8 @@ const TicketManagementContent = () => {
   const [ticketType, setTicketType] = useState('');
   const [ticketKind, setTicketKind] = useState('');
   const [cancellingCode, setCancellingCode] = useState<string | null>(null);
+  const [selectedRosterId, setSelectedRosterId] = useState('');
+  const [isExportingRoster, setIsExportingRoster] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -222,7 +345,7 @@ const TicketManagementContent = () => {
                 ? { ...item, status: 'cancelled' }
                 : item,
             ),
-          },
+        },
       );
       setMessage({ type: 'info', text: 'チケットを取り消しました。' });
     } catch (error) {
@@ -272,6 +395,39 @@ const TicketManagementContent = () => {
       return (master?.name ?? '-').replace(/\([^)]*\)/g, '');
     })),
   ].sort();
+  const rosters = useMemo(
+    () => (data ? buildRosters(data) : []),
+    [data],
+  );
+
+  const downloadRosters = async (targets: Roster[]) => {
+    if (targets.length === 0) {
+      setMessage({ type: 'error', text: '出力できるクラス・部活がありません。' });
+      return;
+    }
+    setIsExportingRoster(true);
+    setMessage(null);
+    try {
+      const date = new Date();
+      const dateText = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      await downloadRosterXlsx({
+        rosters: targets,
+        relationships: (data?.relationships ?? []).map((relationship) => ({
+          id: relationship.id,
+          name: relationship.name ?? '—',
+        })),
+        filename: `招待者名簿_${targets.length === 1 ? targets[0].name : '一括'}_${dateText}.xlsx`,
+      });
+      setMessage({ type: 'info', text: '招待者名簿を出力しました。' });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: `招待者名簿の出力に失敗しました: ${await readErrorMessage(error)}`,
+      });
+    } finally {
+      setIsExportingRoster(false);
+    }
+  };
 
   if (loading) {
     return <LoadingSpinner message='チケット一覧を読み込んでいます...' />;
@@ -304,6 +460,59 @@ const TicketManagementContent = () => {
           <a className={styles.issueButton} href='/admin/status'>
             ステータス画面を開く
           </a>
+        </div>
+      </NormalSection>
+      <NormalSection>
+        <div className={styles.sectionHeading}>
+          <div>
+            <h2>招待者名簿</h2>
+            <p>クラス・部活ごとの招待者名簿をExcel形式で出力します。</p>
+          </div>
+        </div>
+        <div className={styles.rosterExportControls}>
+          <label>
+            クラス・部活
+            <select
+              value={selectedRosterId}
+              onChange={(event) =>
+                setSelectedRosterId(
+                  (event.target as HTMLSelectElement).value,
+                )
+              }
+              disabled={isExportingRoster}
+            >
+              <option value=''>選択してください</option>
+              <option value='all'>すべて（複数シート）</option>
+              {rosters.map((roster) => (
+                <option key={roster.id} value={roster.id}>
+                  {roster.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type='button'
+            className={styles.issueButton}
+            disabled={
+              isExportingRoster ||
+              (selectedRosterId !== 'all' &&
+                !rosters.some((roster) => roster.id === selectedRosterId))
+            }
+            onClick={() => {
+              if (selectedRosterId === 'all') {
+                void downloadRosters(rosters);
+                return;
+              }
+              const roster = rosters.find(
+                (item) => item.id === selectedRosterId,
+              );
+              if (roster) {
+                void downloadRosters([roster]);
+              }
+            }}
+          >
+            {isExportingRoster ? '出力中…' : '招待者名簿を出力'}
+          </button>
         </div>
       </NormalSection>
       <NormalSection>
@@ -436,6 +645,7 @@ const TicketManagementContent = () => {
                 <th>チケットタイプ</th>
                 <th>チケット種別</th>
                 <th>人数</th>
+                <th>発行日時</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -449,7 +659,9 @@ const TicketManagementContent = () => {
                       {statusLabel[row.ticket.status] ?? row.ticket.status}
                     </span>
                   </td>
-                  <td className={styles.code}>{row.ticket.code}</td>
+                  <td className={styles.code}>
+                    {formatTicketCode(row.ticket.code)}
+                  </td>
                   <td>
                     {row.displayName}
                   </td>
@@ -466,6 +678,7 @@ const TicketManagementContent = () => {
                     {row.ticketKind}
                   </td>
                   <td>{row.ticket.person_count} 人分</td>
+                  <td>{formatIssuedAt(row.ticket.created_at)}</td>
                   <td>
                     <div className={styles.actions}>
                       <a
@@ -493,7 +706,7 @@ const TicketManagementContent = () => {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={12} className={styles.empty}>
+                  <td colSpan={13} className={styles.empty}>
                     該当するチケットはありません。
                   </td>
                 </tr>

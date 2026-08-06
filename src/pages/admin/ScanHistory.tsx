@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { ServerUrlModal } from '../../components/admin/ServerUrlModal';
+import { formatTicketCode } from '../../features/tickets/formatTicketCode';
 import {
   SCAN_SERVER_URL_STORAGE_KEY,
   clampCount,
@@ -960,7 +961,7 @@ const ScanHistory = () => {
                         <tr key={record.id}>
                           <td className={styles.cellId}>{record.id}</td>
                           <td className={styles.cellCode}>
-                            {record.ticket_code}
+                            {formatTicketCode(record.ticket_code)}
                           </td>
                           <td>
                             <span
@@ -1169,7 +1170,9 @@ const ScanHistory = () => {
                           <td>{row.createdAtLabel}</td>
                           <td>{row.location}</td>
                           <td>{row.operation_type}</td>
-                          <td className={styles.cellCode}>{row.ticket_code}</td>
+                          <td className={styles.cellCode}>
+                            {formatTicketCode(row.ticket_code)}
+                          </td>
                           <td>{row.message}</td>
                           <td className={styles.detailsCell}>
                             {row.detailsText}

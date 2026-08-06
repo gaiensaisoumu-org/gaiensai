@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import type { Borders } from 'exceljs';
 import Alert from '../../components/ui/Alert';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import NormalSection from '../../components/ui/NormalSection';
@@ -8,6 +7,8 @@ import { getPerformanceImageUrl, supabase } from '../../lib/supabase';
 import { preparePerformanceImage } from '../../lib/performanceImage';
 import { readErrorMessage } from '../../layout/AdminAuthLayout';
 import { useTitle } from '../../hooks/useTitle';
+import { formatTicketCode } from '../../features/tickets/formatTicketCode';
+import { downloadRosterXlsx } from '../../features/tickets/downloadRosterXlsx';
 import styles from './OrganizationAdmin.module.css';
 import subPageStyles from '../../styles/sub-pages.module.css';
 
@@ -54,7 +55,7 @@ type StoredNameDirectory = {
   names: NameDirectory;
 };
 
-const downloadRosterXlsx = async (
+const exportRosterXlsx = async (
   organizationName: string,
   tickets: TicketLink[],
   rounds: PerformanceRound[],
@@ -62,11 +63,6 @@ const downloadRosterXlsx = async (
   generalCapacity: number,
   namesByAffiliation: NameDirectory,
 ) => {
-  const { default: ExcelJS } = await import('exceljs');
-  const workbook = new ExcelJS.Workbook();
-  const relationshipNames = new Map(
-    relationships.map((relationship) => [relationship.id, relationship.name]),
-  );
   const performances = [
     ...rounds,
     ...tickets
@@ -76,148 +72,29 @@ const downloadRosterXlsx = async (
         name: ticket.round_name,
       })),
   ];
-  const headers = [
-    '連番',
-    '学年・クラス・番号',
-    '氏名',
-    '間柄',
-    'コード番号',
-    '発行日',
-  ];
-  const lists = performances.map((performance) =>
-    tickets
-      .filter(
-        (ticket) =>
-          ticket.round_id === performance.id ||
-          (ticket.round_id === undefined &&
-            ticket.round_name === performance.name),
-      )
-      .sort(
-        (a, b) =>
-          (a.tickets.users?.affiliation ?? 0) -
-            (b.tickets.users?.affiliation ?? 0) ||
-          a.tickets.code.localeCompare(b.tickets.code, 'ja'),
-      )
-      .map((ticket) => [
-        isStudentAffiliation(ticket.tickets.users?.affiliation)
-          ? formatAffiliation(ticket.tickets.users.affiliation)
-          : '',
-        namesByAffiliation[String(ticket.tickets.users?.affiliation ?? '')] ??
-          '',
-        relationshipNames.get(ticket.tickets.relationship) ?? '—',
-        ticket.tickets.code,
-        new Date(ticket.tickets.created_at).toLocaleString('ja-JP'),
-      ]),
-  );
-  const outputDate = new Intl.DateTimeFormat('ja-JP', {
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-  }).format(new Date());
-  const rows: string[][] = [
-    ['クラス・部活名', organizationName],
-    ['出力日', outputDate],
-    performances.flatMap((performance) => [
-      performance.name,
-      '',
-      '',
-      '',
-      '',
-      '',
-    ]),
-    performances.flatMap(() => headers),
-  ];
-  const maxLength = Math.max(
-    generalCapacity,
-    ...lists.map((list) => list.length),
-  );
-  for (let rowIndex = 0; rowIndex < maxLength; rowIndex += 1) {
-    rows.push(
-      lists.flatMap((list) => [
-        String(rowIndex + 1),
-        ...(list[rowIndex] ?? ['', '', '', '', '']),
-      ]),
-    );
-  }
-  const worksheet = workbook.addWorksheet('名簿');
-  worksheet.addRows(rows);
-  const lastColumn = Math.max(2, performances.length * 6);
-  worksheet.mergeCells(1, 2, 1, lastColumn);
-  performances.forEach((_, index) => {
-    worksheet.mergeCells(3, index * 6 + 1, 3, index * 6 + 6);
-  });
-  const border: Partial<Borders> = {
-    top: { style: 'thin', color: { argb: 'FFA6A6A6' } },
-    bottom: { style: 'thin', color: { argb: 'FFA6A6A6' } },
-    left: { style: 'thin', color: { argb: 'FFA6A6A6' } },
-    right: { style: 'thin', color: { argb: 'FFA6A6A6' } },
-  };
-  for (let row = 3; row <= rows.length; row += 1) {
-    for (let column = 1; column <= lastColumn; column += 1) {
-      const cell = worksheet.getCell(row, column);
-      cell.font = { name: 'Yu Gothic' };
-      cell.border = border;
-      cell.alignment = { vertical: 'middle' };
-    }
-  }
-  for (let column = 1; column <= lastColumn; column += 1) {
-    const performanceCell = worksheet.getCell(3, column);
-    const headerCell = worksheet.getCell(4, column);
-    performanceCell.font = {
-      name: 'Yu Gothic',
-      bold: true,
-      color: { argb: 'FFFFFFFF' },
-    };
-    performanceCell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF1F4E78' },
-    };
-    performanceCell.border = border;
-    performanceCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    headerCell.font = { name: 'Yu Gothic', bold: true };
-    headerCell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFD9EAF7' },
-    };
-    headerCell.border = border;
-    headerCell.alignment = {
-      horizontal: 'center',
-      vertical: 'middle',
-      wrapText: true,
-    };
-  }
-  for (const cell of ['A1', 'B1', 'A2', 'B2']) {
-    worksheet.getCell(cell).font = {
-      name: 'Yu Gothic',
-      bold: cell === 'B1',
-    };
-  }
-  worksheet.columns = performances.flatMap(() => [
-    { width: 8 },
-    { width: 20 },
-    { width: 18 },
-    { width: 14 },
-    { width: 16 },
-    { width: 22 },
-  ]);
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
 
   const localDate = `${yyyy}-${mm}-${dd}`;
-  link.download = `招待者名簿_${organizationName}_${localDate}.xlsx`;
-  link.click();
-  URL.revokeObjectURL(url);
+  await downloadRosterXlsx({
+    rosters: [{
+      name: organizationName,
+      rounds: performances,
+      tickets: tickets.map((ticket) => ({
+        affiliation: ticket.tickets.users?.affiliation ?? null,
+        name: namesByAffiliation[String(ticket.tickets.users?.affiliation ?? '')] ?? '',
+        relationship: ticket.tickets.relationship,
+        code: ticket.tickets.code,
+        createdAt: ticket.tickets.created_at,
+        roundId: ticket.round_id ?? -1,
+      })),
+      generalCapacity,
+    }],
+    relationships,
+    filename: `招待者名簿_${organizationName}_${localDate}.xlsx`,
+  });
 };
 
 const formatAffiliation = (affiliation: number | null | undefined) => {
@@ -868,7 +745,7 @@ const OrganizationAdmin = () => {
         },
       ),
     );
-    void downloadRosterXlsx(
+    void exportRosterXlsx(
       organizationName,
       dashboard.tickets,
       dashboard.rounds,
@@ -1277,7 +1154,7 @@ const OrganizationAdmin = () => {
                   <tbody>
                     {displayedTickets.map(({ id, tickets, round_name }) => (
                       <tr key={id}>
-                        <td>{tickets.code}</td>
+                        <td>{formatTicketCode(tickets.code)}</td>
                         <td>{round_name}</td>
                         <td>{formatAffiliation(tickets.users?.affiliation)}</td>
                         <td>
