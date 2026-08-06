@@ -387,7 +387,12 @@
 
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 8mm;
+  }
+
+  .ticketContainer {
+    margin: 0;
+    margin-top: 0.5rem;
   }
 
   .printRoot {
@@ -407,7 +412,7 @@
   }
 
   .qrSection {
-    margin: 0.8rem 0;
+    margin: 0;
   }
 
   .gymTicketQr {
