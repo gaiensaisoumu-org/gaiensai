@@ -195,7 +195,11 @@ const Issue = () => {
     const loadRemainingIssueCapacity = async () => {
       const { data } = await getStudentIssueBootstrap();
       const bootstrap = data as {
-        config?: { max_tickets_per_user?: number | null; max_tickets_per_gym_user?: number | null };
+        config?: {
+          max_tickets_per_user?: number | null;
+          max_tickets_per_gym_user?: number | null;
+          gym_ticket_limits_by_club?: Record<string, unknown> | null;
+        };
         profile?: { clubs?: string[] | null };
         class_ticket_count?: number;
         gym_ticket_count?: number;
@@ -208,10 +212,18 @@ const Issue = () => {
       const maxTicketsPerGymUser = Number(
         bootstrap.config?.max_tickets_per_gym_user ?? -1,
       );
-      const gymTicketLimitMultiplier = Math.max(
-        Array.isArray(bootstrap.profile?.clubs) ? bootstrap.profile.clubs.length : 0,
-        1,
-      );
+      const clubs = Array.isArray(bootstrap.profile?.clubs)
+        ? bootstrap.profile.clubs
+        : [];
+      const limitsByClub = bootstrap.config?.gym_ticket_limits_by_club ?? {};
+      const gymTicketLimit = clubs.length > 0
+        ? clubs.reduce((total, club) => {
+            const configuredLimit = Number(limitsByClub[club]);
+            return total + (Number.isInteger(configuredLimit) && configuredLimit >= 0
+              ? configuredLimit
+              : maxTicketsPerGymUser);
+          }, 0)
+        : maxTicketsPerGymUser;
       if (
         !Number.isInteger(maxTicketsPerUser) ||
         !Number.isInteger(maxTicketsPerGymUser) ||
@@ -225,7 +237,7 @@ const Issue = () => {
         class: Math.max(0, maxTicketsPerUser - Number(bootstrap.class_ticket_count ?? 0)),
         gym: Math.max(
           0,
-          maxTicketsPerGymUser * gymTicketLimitMultiplier -
+          gymTicketLimit -
             Number(bootstrap.gym_ticket_count ?? 0),
         ),
       });

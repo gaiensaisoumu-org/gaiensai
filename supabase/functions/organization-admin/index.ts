@@ -205,6 +205,22 @@ Deno.serve(async (req) => {
         return ticket?.ticket_type !== 5 && ticket?.ticket_type !== 6;
       });
       if (own.kind === 'gym') {
+        const { data: config, error: configError } = await client
+          .from('configs')
+          .select('max_tickets_per_gym_user, gym_ticket_limits_by_club')
+          .order('id')
+          .limit(1)
+          .maybeSingle();
+        if (configError) {throw configError;}
+        const limitsByClub = config?.gym_ticket_limits_by_club &&
+          typeof config.gym_ticket_limits_by_club === 'object' &&
+          !Array.isArray(config.gym_ticket_limits_by_club)
+          ? config.gym_ticket_limits_by_club as Record<string, unknown>
+          : {};
+        const configuredLimit = Number(limitsByClub[own.performance.group_name]);
+        const gymTicketLimit = Number.isInteger(configuredLimit) && configuredLimit >= 0
+          ? configuredLimit
+          : Number(config?.max_tickets_per_gym_user ?? 0);
         const roundNames = new Map(
           own.performances.map((performance) => [
             performance.id,
@@ -221,6 +237,7 @@ Deno.serve(async (req) => {
             name: performance.round_name,
           })),
           relationships: relationships ?? [],
+          gymTicketLimit,
           tickets: generalTickets.map((link) => ({
             ...link,
             round_id: (link as { performance_id?: number }).performance_id,
@@ -361,6 +378,36 @@ Deno.serve(async (req) => {
         : await updateQuery.in('id', own.performances.map((performance) => performance.id));
       if (error) {throw error;}
       return json({ updated: true }, corsHeaders);
+    }
+
+    if (action === 'updateGymTicketLimit') {
+      const own = await ownPerformance(client, admin);
+      if (own.kind !== 'gym') {
+        throw new HttpError(403, '体育館公演の部活管理者のみ変更できます。');
+      }
+      const limit = body.limit;
+      if (!Number.isInteger(limit) || typeof limit !== 'number' || limit < 0 || limit > 100) {
+        throw new HttpError(400, '発行上限数は0〜100の範囲の整数で指定してください。');
+      }
+      const { data: config, error: configError } = await client
+        .from('configs')
+        .select('id, gym_ticket_limits_by_club')
+        .order('id')
+        .limit(1)
+        .maybeSingle();
+      if (configError) {throw configError;}
+      if (!config) {throw new HttpError(500, '発行上限設定が見つかりません。');}
+      const limitsByClub = config.gym_ticket_limits_by_club &&
+        typeof config.gym_ticket_limits_by_club === 'object' &&
+        !Array.isArray(config.gym_ticket_limits_by_club)
+        ? config.gym_ticket_limits_by_club as Record<string, unknown>
+        : {};
+      const { error } = await client
+        .from('configs')
+        .update({ gym_ticket_limits_by_club: { ...limitsByClub, [own.performance.group_name]: limit } })
+        .eq('id', config.id);
+      if (error) {throw error;}
+      return json({ updated: true, gymTicketLimit: limit }, corsHeaders);
     }
 
     if (action === 'uploadImage') {

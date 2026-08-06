@@ -538,7 +538,7 @@ export const handleIssueTicketsRequest = async (
     const { data: configRow, error: configError } = await adminClient
       .from('configs')
       .select(
-        'max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, is_active, event_year',
+        'max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, gym_ticket_limits_by_club, is_active, event_year',
       )
       .order('id', { ascending: true })
       .maybeSingle();
@@ -827,12 +827,25 @@ export const handleIssueTicketsRequest = async (
       }
     }
 
-    const gymTicketLimitMultiplier = Math.max(userRow?.clubs?.length ?? 0, 1);
+    const gymTicketLimitsByClub =
+      configRow.gym_ticket_limits_by_club &&
+      typeof configRow.gym_ticket_limits_by_club === 'object' &&
+      !Array.isArray(configRow.gym_ticket_limits_by_club)
+        ? configRow.gym_ticket_limits_by_club as Record<string, unknown>
+        : {};
+    const defaultGymTicketLimit = Number(configRow.max_tickets_per_gym_user);
+    const gymTicketLimit = (userRow?.clubs?.length ?? 0) > 0
+      ? userRow!.clubs!.reduce((total, club) => {
+          const configuredLimit = Number(gymTicketLimitsByClub[club]);
+          return total + (Number.isInteger(configuredLimit) && configuredLimit >= 0
+            ? configuredLimit
+            : defaultGymTicketLimit);
+        }, 0)
+      : defaultGymTicketLimit;
     const maxTicketsPerUser = isJuniorUser
       ? Number(configRow.max_tickets_per_junior_user)
       : issueMode === 'gym'
-        ? Number(configRow.max_tickets_per_gym_user) *
-          gymTicketLimitMultiplier
+        ? gymTicketLimit
         : Number(configRow.max_tickets_per_user);
     const configuredYear = Number(configRow.event_year);
     if (!Number.isInteger(configuredYear) || configuredYear < 0) {

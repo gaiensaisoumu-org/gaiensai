@@ -280,6 +280,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
           show_length?: number | null;
           max_tickets_per_user?: number | null;
           max_tickets_per_gym_user?: number | null;
+          gym_ticket_limits_by_club?: Record<string, unknown> | null;
         };
         controls?: {
           class_invite_mode?: 'open' | 'only-own' | 'off';
@@ -329,11 +330,20 @@ const Dashboard = ({ userData }: DashboardProps) => {
       }
       const maxClassTickets = Number(dashboard.config?.max_tickets_per_user ?? -1);
       const maxGymTickets = Number(dashboard.config?.max_tickets_per_gym_user ?? -1);
-      const gymMultiplier = Math.max(dashboard.profile?.clubs?.length ?? 0, 1);
+      const clubs = dashboard.profile?.clubs ?? [];
+      const limitsByClub = dashboard.config?.gym_ticket_limits_by_club ?? {};
+      const gymTicketLimit = clubs.length > 0
+        ? clubs.reduce((total, club) => {
+            const configuredLimit = Number(limitsByClub[club]);
+            return total + (Number.isInteger(configuredLimit) && configuredLimit >= 0
+              ? configuredLimit
+              : maxGymTickets);
+          }, 0)
+        : maxGymTickets;
       if (maxClassTickets >= 0 && maxGymTickets >= 0) {
         setHasReachedIssueLimit(
           Number(dashboard.class_ticket_count ?? 0) >= maxClassTickets &&
-            Number(dashboard.gym_ticket_count ?? 0) >= maxGymTickets * gymMultiplier,
+            Number(dashboard.gym_ticket_count ?? 0) >= gymTicketLimit,
         );
       }
 

@@ -33,6 +33,7 @@ type AdminAuthRequest = {
   showLength?: unknown;
   maxTicketsPerUser?: unknown;
   maxTicketsPerGymUser?: unknown;
+  gymTicketLimitsByClub?: unknown;
   maxTicketsPerJuniorUser?: unknown;
   juniorReleaseOpen?: unknown;
   ticketIssuingEnabled?: unknown;
@@ -164,6 +165,7 @@ type AdminAuthBody =
       showLength: number;
       maxTicketsPerUser: number;
       maxTicketsPerGymUser: number;
+      gymTicketLimitsByClub: Record<string, number>;
       maxTicketsPerJuniorUser: number;
       maxAdmissionOnlyJuniorAccounts: number;
       juniorReleaseOpen: boolean;
@@ -240,6 +242,7 @@ type AdminSettingsRow = {
   show_length: number;
   max_tickets_per_user: number;
   max_tickets_per_gym_user: number;
+  gym_ticket_limits_by_club: Record<string, number>;
   max_tickets_per_junior_user: number;
   max_admission_only_junior_accounts: number;
   junior_release_open: boolean;
@@ -407,6 +410,27 @@ const normalizeClubs = (value: unknown): string[] => {
   }
 
   return clubs;
+};
+
+const normalizeGymTicketLimitsByClub = (
+  value: unknown,
+): Record<string, number> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new HttpError(400, 'gymTicketLimitsByClub はオブジェクトで送信してください。');
+  }
+
+  const entries = Object.entries(value);
+  if (entries.length > 100) {
+    throw new HttpError(400, '部活別上限は100件まで指定できます。');
+  }
+
+  return Object.fromEntries(entries.map(([club, limit]) => {
+    const name = club.trim();
+    if (name.length === 0 || name.length > 100) {
+      throw new HttpError(400, '部活名が不正です。');
+    }
+    return [name, normalizeInteger(limit, `gymTicketLimitsByClub.${name}`, 0, 100)];
+  }));
 };
 
 const isTicketIssueMode = (value: unknown): value is TicketIssueMode =>
@@ -918,6 +942,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
       showLength,
       maxTicketsPerUser,
       maxTicketsPerGymUser,
+      gymTicketLimitsByClub,
       maxTicketsPerJuniorUser,
       juniorReleaseOpen,
       ticketIssuingEnabled,
@@ -991,6 +1016,9 @@ const parseBody = (body: unknown): AdminAuthBody => {
         'maxTicketsPerGymUser',
         1,
         100,
+      ),
+      gymTicketLimitsByClub: normalizeGymTicketLimitsByClub(
+        gymTicketLimitsByClub,
       ),
       maxTicketsPerJuniorUser: normalizeInteger(
         maxTicketsPerJuniorUser,
@@ -1140,7 +1168,7 @@ const fetchAdminSettings = async (adminClient: SupabaseClient) => {
   const { data, error } = await adminClient
     .from('configs')
     .select(
-      'id, event_year, show_length, max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active',
+      'id, event_year, show_length, max_tickets_per_user, max_tickets_per_gym_user, gym_ticket_limits_by_club, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active',
     )
     .limit(1);
 
@@ -2482,6 +2510,7 @@ Deno.serve(async (req) => {
             showLength: settings.show_length,
             maxTicketsPerUser: settings.max_tickets_per_user,
             maxTicketsPerGymUser: settings.max_tickets_per_gym_user,
+            gymTicketLimitsByClub: settings.gym_ticket_limits_by_club ?? {},
             maxTicketsPerJuniorUser: settings.max_tickets_per_junior_user,
             maxAdmissionOnlyJuniorAccounts:
               settings.max_admission_only_junior_accounts,
@@ -2516,6 +2545,7 @@ Deno.serve(async (req) => {
           show_length: body.showLength,
           max_tickets_per_user: body.maxTicketsPerUser,
           max_tickets_per_gym_user: body.maxTicketsPerGymUser,
+          gym_ticket_limits_by_club: body.gymTicketLimitsByClub,
           max_tickets_per_junior_user: body.maxTicketsPerJuniorUser,
           max_admission_only_junior_accounts:
             body.maxAdmissionOnlyJuniorAccounts,
@@ -2567,6 +2597,7 @@ Deno.serve(async (req) => {
             showLength: body.showLength,
             maxTicketsPerUser: body.maxTicketsPerUser,
             maxTicketsPerGymUser: body.maxTicketsPerGymUser,
+            gymTicketLimitsByClub: body.gymTicketLimitsByClub,
             maxTicketsPerJuniorUser: body.maxTicketsPerJuniorUser,
             maxAdmissionOnlyJuniorAccounts: body.maxAdmissionOnlyJuniorAccounts,
             juniorReleaseOpen: body.juniorReleaseOpen,

@@ -45,6 +45,7 @@ type Dashboard = {
   rounds: PerformanceRound[];
   tickets: TicketLink[];
   relationships: { id: number; name: string }[];
+  gymTicketLimit?: number;
 };
 type MessageScope = 'performance' | 'image' | 'ticketSettings' | 'password';
 type NameDirectory = Record<string, string>;
@@ -69,10 +70,7 @@ const downloadRosterXlsx = async (
   const performances = [
     ...rounds,
     ...tickets
-      .filter(
-        (ticket) =>
-          !rounds.some((round) => round.id === ticket.round_id),
-      )
+      .filter((ticket) => !rounds.some((round) => round.id === ticket.round_id))
       .map((ticket) => ({
         id: ticket.round_id ?? -1,
         name: ticket.round_name,
@@ -104,7 +102,8 @@ const downloadRosterXlsx = async (
         isStudentAffiliation(ticket.tickets.users?.affiliation)
           ? formatAffiliation(ticket.tickets.users.affiliation)
           : '',
-        namesByAffiliation[String(ticket.tickets.users?.affiliation ?? '')] ?? '',
+        namesByAffiliation[String(ticket.tickets.users?.affiliation ?? '')] ??
+          '',
         relationshipNames.get(ticket.tickets.relationship) ?? '—',
         ticket.tickets.code,
         new Date(ticket.tickets.created_at).toLocaleString('ja-JP'),
@@ -118,10 +117,20 @@ const downloadRosterXlsx = async (
   const rows: string[][] = [
     ['クラス・部活名', organizationName],
     ['出力日', outputDate],
-    performances.flatMap((performance) => [performance.name, '', '', '', '', '']),
+    performances.flatMap((performance) => [
+      performance.name,
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]),
     performances.flatMap(() => headers),
   ];
-  const maxLength = Math.max(generalCapacity, ...lists.map((list) => list.length));
+  const maxLength = Math.max(
+    generalCapacity,
+    ...lists.map((list) => list.length),
+  );
   for (let rowIndex = 0; rowIndex < maxLength; rowIndex += 1) {
     rows.push(
       lists.flatMap((list) => [
@@ -173,7 +182,11 @@ const downloadRosterXlsx = async (
       fgColor: { argb: 'FFD9EAF7' },
     };
     headerCell.border = border;
-    headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    headerCell.alignment = {
+      horizontal: 'center',
+      vertical: 'middle',
+      wrapText: true,
+    };
   }
   for (const cell of ['A1', 'B1', 'A2', 'B2']) {
     worksheet.getCell(cell).font = {
@@ -232,8 +245,10 @@ const classNameKey = (className: unknown) => {
   return digits ? `${Number(digits[1])}-${Number(digits[2])}` : null;
 };
 
-const nameDirectoryStorageKey = (kind: Dashboard['kind'], organizationName: string) =>
-  `${NAME_DIRECTORY_STORAGE_PREFIX}:${kind}:${organizationName}`;
+const nameDirectoryStorageKey = (
+  kind: Dashboard['kind'],
+  organizationName: string,
+) => `${NAME_DIRECTORY_STORAGE_PREFIX}:${kind}:${organizationName}`;
 
 const readNameDirectory = (storageKey: string): NameDirectory => {
   try {
@@ -242,16 +257,25 @@ const readNameDirectory = (storageKey: string): NameDirectory => {
       return {};
     }
     const parsed = JSON.parse(raw) as StoredNameDirectory;
-    if (!parsed || typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= Date.now()) {
+    if (
+      !parsed ||
+      typeof parsed.expiresAt !== 'number' ||
+      parsed.expiresAt <= Date.now()
+    ) {
       localStorage.removeItem(storageKey);
       return {};
     }
-    if (!parsed.names || typeof parsed.names !== 'object' || Array.isArray(parsed.names)) {
+    if (
+      !parsed.names ||
+      typeof parsed.names !== 'object' ||
+      Array.isArray(parsed.names)
+    ) {
       return {};
     }
     return Object.fromEntries(
       Object.entries(parsed.names).filter(
-        ([affiliation, name]) => /^\d+$/.test(affiliation) && typeof name === 'string',
+        ([affiliation, name]) =>
+          /^\d+$/.test(affiliation) && typeof name === 'string',
       ),
     );
   } catch {
@@ -289,24 +313,38 @@ const OrganizationAdmin = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [roundFilter, setRoundFilter] = useState('all');
   const [showCapacityModal, setShowCapacityModal] = useState(false);
+  const [showGymTicketLimitModal, setShowGymTicketLimitModal] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imageVersion, setImageVersion] = useState(0);
   const [draftCapacity, setDraftCapacity] = useState('');
   const [draftJuniorCapacity, setDraftJuniorCapacity] = useState('');
-  const [gymScheduleDrafts, setGymScheduleDrafts] = useState<GymScheduleDraft[]>([]);
-  const [namesByAffiliation, setNamesByAffiliation] = useState<NameDirectory>({});
-  const [loadedNameDirectoryKey, setLoadedNameDirectoryKey] = useState<string | null>(null);
-  const [editingAffiliation, setEditingAffiliation] = useState<number | null>(null);
+  const [draftGymTicketLimit, setDraftGymTicketLimit] = useState('');
+  const [gymScheduleDrafts, setGymScheduleDrafts] = useState<
+    GymScheduleDraft[]
+  >([]);
+  const [namesByAffiliation, setNamesByAffiliation] = useState<NameDirectory>(
+    {},
+  );
+  const [loadedNameDirectoryKey, setLoadedNameDirectoryKey] = useState<
+    string | null
+  >(null);
+  const [editingAffiliation, setEditingAffiliation] = useState<number | null>(
+    null,
+  );
   const [nameDraft, setNameDraft] = useState('');
   const [transferText, setTransferText] = useState('');
   const [nameNotice, setNameNotice] = useState<string | null>(null);
-  const [showMissingAffiliationModal, setShowMissingAffiliationModal] = useState(false);
+  const [showMissingAffiliationModal, setShowMissingAffiliationModal] =
+    useState(false);
 
   const triggerRedeploy = async () => {
-    const { data, error } = await supabase.functions.invoke('organization-admin', {
-      body: { action: 'triggerRedeploy' },
-      headers: sessionHeaders(),
-    });
+    const { data, error } = await supabase.functions.invoke(
+      'organization-admin',
+      {
+        body: { action: 'triggerRedeploy' },
+        headers: sessionHeaders(),
+      },
+    );
     if (error || !data?.redeployTriggered) {
       throw error ?? new Error('再デプロイを開始できませんでした。');
     }
@@ -318,8 +356,8 @@ const OrganizationAdmin = () => {
     }
     const organizationName = String(
       dashboard.kind === 'class'
-        ? dashboard.performance.class_name ?? ''
-        : dashboard.performance.group_name ?? '',
+        ? (dashboard.performance.class_name ?? '')
+        : (dashboard.performance.group_name ?? ''),
     );
     return nameDirectoryStorageKey(dashboard.kind, organizationName);
   }, [dashboard]);
@@ -342,7 +380,10 @@ const OrganizationAdmin = () => {
     }
     localStorage.setItem(
       nameDirectoryKey,
-      JSON.stringify({ expiresAt: Date.now() + NAME_DIRECTORY_TTL_MS, names: namesByAffiliation }),
+      JSON.stringify({
+        expiresAt: Date.now() + NAME_DIRECTORY_TTL_MS,
+        names: namesByAffiliation,
+      }),
     );
   }, [loadedNameDirectoryKey, nameDirectoryKey, namesByAffiliation]);
 
@@ -516,7 +557,8 @@ const OrganizationAdmin = () => {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
+        reader.onerror = () =>
+          reject(new Error('画像の読み込みに失敗しました。'));
         reader.readAsDataURL(uploadFile);
       });
       const base64 = dataUrl.split(',')[1];
@@ -639,6 +681,44 @@ const OrganizationAdmin = () => {
     setShowCapacityModal(true);
   };
 
+  const openGymTicketLimitModal = () => {
+    setDraftGymTicketLimit(String(dashboard?.gymTicketLimit ?? ''));
+    setShowGymTicketLimitModal(true);
+  };
+
+  const saveGymTicketLimit = async (event: Event) => {
+    event.preventDefault();
+    const limit = Number(draftGymTicketLimit);
+    if (!Number.isInteger(limit) || limit < 0 || limit > 100) {
+      setMessageScope('ticketSettings');
+      setError('発行上限数は0〜100の範囲の整数で入力してください。');
+      return;
+    }
+    setBusy(true);
+    setMessageScope('ticketSettings');
+    setError(null);
+    setNotice(null);
+    try {
+      const { error: invokeError } = await supabase.functions.invoke(
+        'organization-admin',
+        {
+          body: { action: 'updateGymTicketLimit', limit },
+          headers: sessionHeaders(),
+        },
+      );
+      if (invokeError) {
+        throw invokeError;
+      }
+      await load();
+      setShowGymTicketLimitModal(false);
+      setNotice('体育館公演チケットの発行上限数を更新しました。');
+    } catch (cause) {
+      setError(await readErrorMessage(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveCapacitySettings = async (event: Event) => {
     event.preventDefault();
     const saved = await saveTicketSettings(
@@ -657,7 +737,7 @@ const OrganizationAdmin = () => {
   );
   const displayedTickets = useMemo(
     () =>
-      (dashboard?.tickets
+      dashboard?.tickets
         .filter(
           (ticket) =>
             roundFilter === 'all' ||
@@ -674,7 +754,7 @@ const OrganizationAdmin = () => {
             (a.tickets.users?.affiliation ?? Number.MAX_SAFE_INTEGER) -
               (b.tickets.users?.affiliation ?? Number.MAX_SAFE_INTEGER) ||
             a.tickets.code.localeCompare(b.tickets.code, 'ja'),
-        ) ?? []),
+        ) ?? [],
     [dashboard, roundFilter, roundsForFilter],
   );
   const relationshipNames = useMemo(
@@ -741,14 +821,19 @@ const OrganizationAdmin = () => {
   const importNameDirectory = () => {
     try {
       const parsed = JSON.parse(transferText) as { names?: unknown };
-      if (!parsed.names || typeof parsed.names !== 'object' || Array.isArray(parsed.names)) {
+      if (
+        !parsed.names ||
+        typeof parsed.names !== 'object' ||
+        Array.isArray(parsed.names)
+      ) {
         throw new Error();
       }
       const next = Object.fromEntries(
-        Object.entries(parsed.names as Record<string, unknown>).flatMap(([affiliation, name]) =>
-          /^\d+$/.test(affiliation) && typeof name === 'string'
-            ? [[affiliation, name.trim()]]
-            : [],
+        Object.entries(parsed.names as Record<string, unknown>).flatMap(
+          ([affiliation, name]) =>
+            /^\d+$/.test(affiliation) && typeof name === 'string'
+              ? [[affiliation, name.trim()]]
+              : [],
         ),
       ) as NameDirectory;
       setNamesByAffiliation(next);
@@ -764,22 +849,24 @@ const OrganizationAdmin = () => {
     }
     const organizationName = String(
       dashboard.kind === 'class'
-        ? dashboard.performance.class_name ?? ''
-        : dashboard.performance.group_name ?? '',
+        ? (dashboard.performance.class_name ?? '')
+        : (dashboard.performance.group_name ?? ''),
     );
     const generalCapacity = Math.max(
       0,
-      ...(dashboard.performances ?? [dashboard.performance]).map((performance) => {
-        const total = Number(
-          dashboard.kind === 'class'
-            ? performance.total_capacity
-            : performance.capacity,
-        );
-        const junior = Number(performance.junior_capacity ?? 0);
-        return Number.isFinite(total) && Number.isFinite(junior)
-          ? total - junior
-          : 0;
-      }),
+      ...(dashboard.performances ?? [dashboard.performance]).map(
+        (performance) => {
+          const total = Number(
+            dashboard.kind === 'class'
+              ? performance.total_capacity
+              : performance.capacity,
+          );
+          const junior = Number(performance.junior_capacity ?? 0);
+          return Number.isFinite(total) && Number.isFinite(junior)
+            ? total - junior
+            : 0;
+        },
+      ),
     );
     void downloadRosterXlsx(
       organizationName,
@@ -855,11 +942,7 @@ const OrganizationAdmin = () => {
           <div>
             <h2 className={subPageStyles.linedH2}>{name}</h2>
           </div>
-          <button
-            type='button'
-            className={styles.secondary}
-            onClick={logout}
-          >
+          <button type='button' className={styles.secondary} onClick={logout}>
             ログアウト
           </button>
         </div>
@@ -990,7 +1073,17 @@ const OrganizationAdmin = () => {
               <h2>受付・定員設定</h2>
               <div className={styles.settingsList}>
                 <Alert type='warning'>
-                  定員はむやみに変更しないでください。変更があった場合は総務から理由の確認が入ることがあります。
+                  <ul>
+                    <li>
+                      定員はむやみに変更しないでください。変更があった場合は総務から理由の確認が入ることがあります。
+                    </li>
+                    <li>
+                      チケット発行上限設定は部員だけに適用されます。また、他部活と兼部している部員は、
+                      各部活のチケット発行上限を合算した枚数まで発行できますが、発行枚数のカウントは体育館公演全体で行われるので、
+                      設定値より多く発行できる場合があります。例えば、A部の発行上限を5枚、B部の発行上限を5枚に設定している場合、
+                      兼部している部員はA部で10枚、B部で0枚の合計10枚で発行することも出来ます。ご注意ください。
+                    </li>
+                  </ul>
                 </Alert>
                 <div className={styles.settingRow}>
                   <span>チケット受付を有効にする</span>
@@ -1018,6 +1111,24 @@ const OrganizationAdmin = () => {
                     変更する
                   </button>
                 </div>
+                {dashboard.kind === 'gym' && (
+                  <>
+                    <div className={styles.settingRow}>
+                      <div>
+                        <span>部員のチケット発行上限</span>
+                        <p>{dashboard.gymTicketLimit ?? 0}枚</p>
+                      </div>
+                      <button
+                        type='button'
+                        className={styles.inlineEditButton}
+                        onClick={openGymTicketLimitModal}
+                        disabled={busy}
+                      >
+                        変更する
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
               {messageScope === 'ticketSettings' && error && (
                 <Alert type='error'>{error}</Alert>
@@ -1308,6 +1419,60 @@ const OrganizationAdmin = () => {
             </div>
           </div>
         )}
+        {showGymTicketLimitModal && (
+          <div
+            className={styles.modalOverlay}
+            role='presentation'
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !busy) {
+                setShowGymTicketLimitModal(false);
+              }
+            }}
+          >
+            <div
+              className={styles.modal}
+              role='dialog'
+              aria-modal='true'
+              aria-labelledby='gym-ticket-limit-modal-title'
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h3 id='gym-ticket-limit-modal-title'>発行上限数を変更</h3>
+              <form onSubmit={saveGymTicketLimit} className={styles.form}>
+                <label>
+                  1人あたりの体育館公演チケット発行上限
+                  <input
+                    type='number'
+                    min='0'
+                    max='100'
+                    value={draftGymTicketLimit}
+                    onInput={(event) =>
+                      setDraftGymTicketLimit(
+                        (event.target as HTMLInputElement).value,
+                      )
+                    }
+                    required
+                  />
+                </label>
+                {messageScope === 'ticketSettings' && error && (
+                  <Alert type='error'>{error}</Alert>
+                )}
+                <div className={styles.modalActions}>
+                  <button
+                    type='button'
+                    className={styles.modalCancel}
+                    onClick={() => setShowGymTicketLimitModal(false)}
+                    disabled={busy}
+                  >
+                    キャンセル
+                  </button>
+                  <button type='submit' disabled={busy}>
+                    {busy ? '保存中...' : '保存'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
         {showMissingAffiliationModal && (
           <div
             className={styles.modalOverlay}
@@ -1325,12 +1490,16 @@ const OrganizationAdmin = () => {
               aria-labelledby='missing-affiliation-modal-title'
               onClick={(event) => event.stopPropagation()}
             >
-              <h3 id='missing-affiliation-modal-title'>名簿に未入力の項目があります</h3>
+              <h3 id='missing-affiliation-modal-title'>
+                名簿に未入力の項目があります
+              </h3>
               {hasMissingAffiliation && (
                 <p>学年・クラス・番号が未入力のチケットがあります。</p>
               )}
               {hasMissingName && <p>氏名管理に未登録の氏名があります。</p>}
-              <p>該当する欄は空欄のままExcelを出力します。続行する場合は忘れずにExcelファイルを直接編集して氏名を入力してください。</p>
+              <p>
+                該当する欄は空欄のままExcelを出力します。続行する場合は忘れずにExcelファイルを直接編集して氏名を入力してください。
+              </p>
               <div className={styles.modalActions}>
                 <button
                   type='button'

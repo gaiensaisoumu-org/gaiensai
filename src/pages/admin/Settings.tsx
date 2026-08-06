@@ -18,6 +18,7 @@ type ControlPanelSettings = {
   showLength: number;
   maxTicketsPerUser: number;
   maxTicketsPerGymUser: number;
+  gymTicketLimitsByClub: Record<string, number>;
   maxTicketsPerJuniorUser: number;
   maxAdmissionOnlyJuniorAccounts: number;
   juniorReleaseOpen: boolean;
@@ -213,6 +214,7 @@ const SettingsContent = () => {
     showLength: 60,
     maxTicketsPerUser: 20,
     maxTicketsPerGymUser: 20,
+    gymTicketLimitsByClub: {},
     maxTicketsPerJuniorUser: 2,
     maxAdmissionOnlyJuniorAccounts: 100,
     juniorReleaseOpen: false,
@@ -251,9 +253,12 @@ const SettingsContent = () => {
   const [relationships, setRelationships] = useState<
     { id: number; name: string; is_accepting: boolean }[]
   >([]);
+  const [gymClubs, setGymClubs] = useState<string[]>([]);
   const [editingNumericKey, setEditingNumericKey] =
     useState<NumericSettingKey | null>(null);
   const [editingNumericValue, setEditingNumericValue] = useState('');
+  const [editingGymClub, setEditingGymClub] = useState<string | null>(null);
+  const [editingGymClubLimit, setEditingGymClubLimit] = useState('');
   const [activeDetailTab, setActiveDetailTab] = useState<
     'schedules' | 'relationships'
   >('schedules');
@@ -562,6 +567,9 @@ const SettingsContent = () => {
           typeof nextSettings.showLength !== 'number' ||
           typeof nextSettings.maxTicketsPerUser !== 'number' ||
           typeof nextSettings.maxTicketsPerGymUser !== 'number' ||
+          !nextSettings.gymTicketLimitsByClub ||
+          typeof nextSettings.gymTicketLimitsByClub !== 'object' ||
+          Array.isArray(nextSettings.gymTicketLimitsByClub) ||
           typeof nextSettings.maxAdmissionOnlyJuniorAccounts !== 'number' ||
           typeof nextSettings.juniorReleaseOpen !== 'boolean' ||
           typeof nextSettings.ticketIssuingEnabled !== 'boolean' ||
@@ -576,7 +584,7 @@ const SettingsContent = () => {
 
         if (isActive) {
           // テーブルデータのフェッチ
-          const [{ data: sch }, { data: rel }, { data: jp }] =
+          const [{ data: sch }, { data: rel }, { data: jp }, { data: gym }] =
             await Promise.all([
               supabase
                 .from('performances_schedule')
@@ -592,6 +600,10 @@ const SettingsContent = () => {
                   'x-admin-session-token': token,
                 },
               }),
+              supabase
+                .from('gym_performances')
+                .select('group_name')
+                .order('group_name'),
             ]);
 
           if (sch) {
@@ -602,6 +614,18 @@ const SettingsContent = () => {
           }
           if (jp && !jp.error) {
             setHasJuniorPassword(jp.hasPassword || false);
+          }
+          if (gym) {
+            setGymClubs([
+              ...new Set(
+                gym
+                  .map((item) => item.group_name)
+                  .filter(
+                    (name): name is string =>
+                      typeof name === 'string' && name.length > 0,
+                  ),
+              ),
+            ]);
           }
 
           const activeTicketTypeIds = nextSettings.activeTicketTypeIds
@@ -719,6 +743,7 @@ const SettingsContent = () => {
           showLength: nextSettings.showLength,
           maxTicketsPerUser: nextSettings.maxTicketsPerUser,
           maxTicketsPerGymUser: nextSettings.maxTicketsPerGymUser,
+          gymTicketLimitsByClub: nextSettings.gymTicketLimitsByClub,
           maxTicketsPerJuniorUser: nextSettings.maxTicketsPerJuniorUser,
           maxAdmissionOnlyJuniorAccounts:
             nextSettings.maxAdmissionOnlyJuniorAccounts,
@@ -896,6 +921,57 @@ const SettingsContent = () => {
     setSettingsSuccess(null);
   };
 
+  const openGymClubLimitEditModal = (club: string) => {
+    setEditingGymClub(club);
+    setEditingGymClubLimit(
+      String(
+        settings.gymTicketLimitsByClub[club] ?? settings.maxTicketsPerGymUser,
+      ),
+    );
+    setSettingsMessageScope('modal');
+    setSettingsError(null);
+    setSettingsSuccess(null);
+  };
+
+  const closeGymClubLimitEditModal = () => {
+    setEditingGymClub(null);
+    setEditingGymClubLimit('');
+    setSettingsMessageScope(null);
+    setSettingsError(null);
+    setSettingsSuccess(null);
+  };
+
+  const handleConfirmGymClubLimitEdit = async () => {
+    if (!editingGymClub) {
+      return;
+    }
+
+    const limit = Number(editingGymClubLimit);
+    if (!Number.isInteger(limit) || limit < 0 || limit > 100) {
+      setSettingsError(
+        '部活ごとの発行上限数は0〜100の範囲の整数で入力してください。',
+      );
+      return;
+    }
+
+    const nextSettings = {
+      ...settings,
+      gymTicketLimitsByClub: {
+        ...settings.gymTicketLimitsByClub,
+        [editingGymClub]: limit,
+      },
+    };
+    setIsModalSubmitting(true);
+    const success = await syncSettings(
+      nextSettings,
+      `${editingGymClub}の体育館公演チケット発行上限を更新しました。`,
+    );
+    setIsModalSubmitting(false);
+    if (success) {
+      closeGymClubLimitEditModal();
+    }
+  };
+
   const openScheduleEditModal = (schedule: (typeof schedules)[number]) => {
     setEditingSchedule({
       id: schedule.id,
@@ -923,7 +999,10 @@ const SettingsContent = () => {
       setSettingsError('公演回名を入力してください。');
       return;
     }
-    if (!editingSchedule.startAt || Number.isNaN(Date.parse(editingSchedule.startAt))) {
+    if (
+      !editingSchedule.startAt ||
+      Number.isNaN(Date.parse(editingSchedule.startAt))
+    ) {
       setSettingsError('開始時刻を正しく入力してください。');
       return;
     }
@@ -1154,9 +1233,13 @@ const SettingsContent = () => {
       if (error || !data?.redeployTriggered) {
         throw error ?? new Error('再デプロイを開始できませんでした。');
       }
-      setSettingsSuccess('再デプロイを開始しました。反映まで数分かかる場合があります。');
+      setSettingsSuccess(
+        '再デプロイを開始しました。反映まで数分かかる場合があります。',
+      );
     } catch (error) {
-      setSettingsError(`再デプロイの開始に失敗しました。${await readErrorMessage(error)}`);
+      setSettingsError(
+        `再デプロイの開始に失敗しました。${await readErrorMessage(error)}`,
+      );
     } finally {
       setIsRedeploying(false);
     }
@@ -1383,10 +1466,7 @@ const SettingsContent = () => {
         <p className={styles.noteText}>
           団体管理者アカウントの一括作成・一覧・ID・パスワード変更を行います。
         </p>
-        <a
-          className={styles.linkButton}
-          href='/admin/organization-accounts'
-        >
+        <a className={styles.linkButton} href='/admin/organization-accounts'>
           管理者アカウントを開く
         </a>
       </NormalSection>
@@ -1718,7 +1798,49 @@ const SettingsContent = () => {
             </div>
           </div>
           <div>
-            <h3>その他設定</h3>
+            <h3>部活ごとの発行上限数</h3>
+            {gymClubs.length > 0 ? (
+              <div>
+                <p className={styles.settingHint}>
+                  未設定の場合は共通上限（{settings.maxTicketsPerGymUser}
+                  枚）を使用します。複数の部活に所属する生徒は、所属部活分を合算します。
+                </p>
+                  {gymClubs.map((club) => (
+                    <div key={club} className={styles.field}>
+                      <label
+                        className={styles.settingLabel}
+                        htmlFor={`ticket-limit-${club}`}
+                      >
+                        {club}
+                      </label>
+                      <div className={styles.settingControlGroup}>
+                        <span
+                          id={`ticket-limit-${club}`}
+                          className={styles.fieldValue}
+                        >
+                          {settings.gymTicketLimitsByClub[club] ??
+                            settings.maxTicketsPerGymUser}
+                        </span>
+                        <button
+                          type='button'
+                          className={styles.inlineEditButton}
+                          onClick={() => openGymClubLimitEditModal(club)}
+                          disabled={isSettingsLoading || isSyncingSetting}
+                        >
+                          変更する
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className={styles.settingHint}>
+                体育館公演を登録すると、部活別上限を設定できます。
+              </p>
+            )}
+          </div>
+          <div>
+            <h3>1人あたりのチケット発行上限</h3>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
@@ -1816,6 +1938,9 @@ const SettingsContent = () => {
                 </button>
               </div>
             </div>
+          </div>
+          <div>
+            <h3>その他設定</h3>
             <div className={styles.field}>
               <label className={styles.settingLabel}>中学生枠の一般解放</label>
               <label>
@@ -2181,6 +2306,64 @@ const SettingsContent = () => {
                 type='button'
                 className={styles.settingModalConfirm}
                 onClick={handleConfirmNumericEdit}
+                disabled={isModalSubmitting}
+              >
+                {isModalSubmitting ? '同期中...' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingGymClub && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeGymClubLimitEditModal();
+            }
+          }}
+        >
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='gym-club-limit-edit-title'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='gym-club-limit-edit-title'
+              className={styles.settingModalTitle}
+            >
+              {editingGymClub}の発行上限数を変更
+            </h3>
+            <input
+              className={styles.fieldControl}
+              type='number'
+              min='0'
+              max='100'
+              value={editingGymClubLimit}
+              onInput={(event) =>
+                setEditingGymClubLimit((event.target as HTMLInputElement).value)
+              }
+            />
+            {settingsMessageScope === 'modal' && settingsError && (
+              <p className={styles.authError}>{settingsError}</p>
+            )}
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={closeGymClubLimitEditModal}
+                disabled={isModalSubmitting}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={styles.settingModalConfirm}
+                onClick={handleConfirmGymClubLimitEdit}
                 disabled={isModalSubmitting}
               >
                 {isModalSubmitting ? '同期中...' : 'OK'}

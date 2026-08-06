@@ -302,7 +302,7 @@ td {
   white-space: nowrap;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 750px) {
   .heading,
   .ticketHeading {
     flex-direction: column;
