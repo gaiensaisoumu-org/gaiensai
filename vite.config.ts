@@ -153,17 +153,9 @@ export default defineConfig({
           '**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,json,yaml}',
         ],
         runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*supabase\.co\/.*/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60,
-              },
-            },
-          },
+          // Workbox は先に一致したルールを使用するため、画像用ルールを
+          // Supabase 全般の API ルールより前に置く。
+          // 一度オンラインで取得した公演画像は、オフライン時にもキャッシュから表示する。
           {
             urlPattern:
               /^https:\/\/.*supabase\.co\/storage\/v1\/object\/public\/performance-images\/.*/,
@@ -173,6 +165,17 @@ export default defineConfig({
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 7 * 2, // 2週間キャッシュする
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/.*supabase\.co\/.*/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-api',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60,
               },
             },
           },

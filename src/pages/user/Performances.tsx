@@ -154,13 +154,17 @@ const Performances = () => {
                           </span>
                         </div>
                       </div>
-                      <div>
-                        <span
-                          className={`${styles.statusBadge} ${acceptance?.get(`class:${perf.id}`) ? styles.statusAccepting : styles.statusClosed}`}
-                        >
-                          {acceptance?.get(`class:${perf.id}`) ? '受付中' : '受付停止中'}
-                        </span>
-                      </div>
+                      {acceptance !== null && (
+                        <div>
+                          <span
+                            className={`${styles.statusBadge} ${acceptance.get(`class:${perf.id}`) ? styles.statusAccepting : styles.statusClosed}`}
+                          >
+                            {acceptance.get(`class:${perf.id}`)
+                              ? '受付中'
+                              : '受付停止中'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <h3 className={styles.cardTitle}>
                       {perf.title || '無題の公演'}
@@ -237,13 +241,17 @@ const Performances = () => {
                           </span>
                         </div>
                       </div>
-                      <div>
-                        <span
-                          className={`${styles.statusBadge} ${isGymGroupAccepting(perf.group_name) ? styles.statusAccepting : styles.statusClosed}`}
-                        >
-                          {isGymGroupAccepting(perf.group_name) ? '受付中' : '受付停止中'}
-                        </span>
-                      </div>
+                      {acceptance !== null && (
+                        <div>
+                          <span
+                            className={`${styles.statusBadge} ${isGymGroupAccepting(perf.group_name) ? styles.statusAccepting : styles.statusClosed}`}
+                          >
+                            {isGymGroupAccepting(perf.group_name)
+                              ? '受付中'
+                              : '受付停止中'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <h3 className={styles.cardTitle}>{perf.group_name}</h3>
                   </div>
