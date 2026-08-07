@@ -175,13 +175,17 @@ const Junior = () => {
       setIsLoading(false);
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      void loadProfile(session);
-    });
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (
+        event !== 'INITIAL_SESSION' &&
+        event !== 'SIGNED_IN' &&
+        event !== 'SIGNED_OUT' &&
+        event !== 'USER_UPDATED'
+      ) {
+        return;
+      }
       void loadProfile(nextSession);
     });
 

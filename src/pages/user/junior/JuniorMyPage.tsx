@@ -55,8 +55,6 @@ const JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID = 7;
 const SELF_RELATIONSHIP_ID = 1;
 const ISSUE_POLL_MAX_RETRIES = 20;
 const ISSUE_POLL_INTERVAL_MS = 300;
-const LOAD_TICKET_RETRY_MAX = 20;
-const LOAD_TICKET_RETRY_INTERVAL_MS = 300;
 const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 type AccountSplitState = {
@@ -503,98 +501,70 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         return;
       }
 
-      let ticketsData: Array<{
-        code: string;
-        signature: string;
-        relationship: number;
-        ticket_name: string | null;
-      }> | null = null;
       let pageResponse: unknown;
-
-      for (let i = 0; i < LOAD_TICKET_RETRY_MAX; i++) {
-        let data: Array<{
-          code: string;
-          signature: string;
-          relationship: number;
-          ticket_name: string | null;
-        }> | null = null;
-        let ticketsError: unknown;
-        try {
-          const result = await withTimeout(
-            supabase.rpc("get_junior_my_page"),
-            SUPABASE_RESPONSE_TIMEOUT_MS,
-            true,
-          );
-          pageResponse = result.data;
-          data = result.data as typeof data;
-          ticketsError = result.error;
-        } catch (error) {
-          const isOffline = error instanceof OfflineError;
-          if (isOffline) {
-            setIsOnline(false);
-          }
-          fallbackToCachedTickets(
-            isOffline
-              ? "オフラインのため、チケット情報を取得できません。"
-              : "チケット情報の取得がタイムアウトしました。",
-            isOffline
-              ? "オフラインのため、前回の表示を使用しています。"
-              : undefined,
-          );
-          return;
-        }
-
-        if (ticketsError) {
+      try {
+        const result = await withTimeout(
+          supabase.rpc("get_junior_my_page"),
+          SUPABASE_RESPONSE_TIMEOUT_MS,
+          true,
+        );
+        if (result.error) {
           setTicketError("チケット情報の取得に失敗しました。");
           setTicketLoading(false);
           return;
         }
-
-        const pageData = (data ?? {}) as {
-          config?: { is_active?: boolean | null; max_tickets_per_junior_user?: number | null };
-          controls?: { class_invite_mode?: string | null; rehearsal_invite_mode?: string | null; gym_invite_mode?: string | null; entry_only_mode?: string | null };
-          non_entry_ticket_count?: number;
-          entry_only_ticket_count?: number;
-          tickets?: Array<{ code: string; signature: string; relationship: number; ticket_name: string | null }>;
-          class_performances?: unknown[];
-          gym_performances?: unknown[];
-        };
-        if (typeof pageData.config?.is_active === "boolean") {
-          setIsTicketIssuingEnabled(pageData.config.is_active);
+        pageResponse = result.data;
+      } catch (error) {
+        const isOffline = error instanceof OfflineError;
+        if (isOffline) {
+          setIsOnline(false);
         }
-        const controls = pageData.controls;
-        if (controls) {
-          setHasAnyActiveInviteTicketType(
-            controls.class_invite_mode !== "off" || controls.rehearsal_invite_mode !== "off" ||
-              controls.gym_invite_mode !== "off" || controls.entry_only_mode !== "off",
-          );
-        }
-        const maxTickets = Number(pageData.config?.max_tickets_per_junior_user ?? -1);
-        if (maxTickets >= 0) {
-          const maxIssueCapacity = usageType === 1 ? maxTickets * 2 : maxTickets;
-          setHasReachedJuniorIssueLimit(
-            Number(pageData.non_entry_ticket_count ?? 0) >= maxIssueCapacity &&
-              Number(pageData.entry_only_ticket_count ?? 0) !== 0,
-          );
-        }
-        ticketsData = (pageData.tickets ?? []) as Array<{
-          code: string;
-          signature: string;
-          relationship: number;
-          ticket_name: string | null;
-        }>;
-
-        if (ticketsData.length > 0) {
-          break;
-        }
-
-        await new Promise((resolve) => {
-          window.setTimeout(resolve, LOAD_TICKET_RETRY_INTERVAL_MS);
-        });
+        fallbackToCachedTickets(
+          isOffline
+            ? "オフラインのため、チケット情報を取得できません。"
+            : "チケット情報の取得がタイムアウトしました。",
+          isOffline
+            ? "オフラインのため、前回の表示を使用しています。"
+            : undefined,
+        );
+        return;
       }
 
+      const pageData = (pageResponse ?? {}) as {
+        config?: { is_active?: boolean | null; max_tickets_per_junior_user?: number | null };
+        controls?: { class_invite_mode?: string | null; rehearsal_invite_mode?: string | null; gym_invite_mode?: string | null; entry_only_mode?: string | null };
+        non_entry_ticket_count?: number;
+        entry_only_ticket_count?: number;
+        tickets?: Array<{ code: string; signature: string; relationship: number; ticket_name: string | null }>;
+        class_performances?: unknown[];
+        gym_performances?: unknown[];
+      };
+      if (typeof pageData.config?.is_active === "boolean") {
+        setIsTicketIssuingEnabled(pageData.config.is_active);
+      }
+      const controls = pageData.controls;
+      if (controls) {
+        setHasAnyActiveInviteTicketType(
+          controls.class_invite_mode !== "off" || controls.rehearsal_invite_mode !== "off" ||
+            controls.gym_invite_mode !== "off" || controls.entry_only_mode !== "off",
+        );
+      }
+      const maxTickets = Number(pageData.config?.max_tickets_per_junior_user ?? -1);
+      if (maxTickets >= 0) {
+        const maxIssueCapacity = usageType === 1 ? maxTickets * 2 : maxTickets;
+        setHasReachedJuniorIssueLimit(
+          Number(pageData.non_entry_ticket_count ?? 0) >= maxIssueCapacity &&
+            Number(pageData.entry_only_ticket_count ?? 0) !== 0,
+        );
+      }
+      const tickets = (pageData.tickets ?? []) as Array<{
+        code: string;
+        signature: string;
+        relationship: number;
+        ticket_name: string | null;
+      }>;
+
       setIsOnline(true);
-      const tickets = ticketsData ?? [];
 
       if (tickets.length === 0) {
         setTicketCards([]);
@@ -613,10 +583,6 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         }),
       );
 
-      const pageData = (pageResponse ?? {}) as {
-        class_performances?: unknown[];
-        gym_performances?: unknown[];
-      };
       const classPerformanceData = pageData.class_performances ?? [];
       const gymPerformanceData = pageData.gym_performances ?? [];
 
