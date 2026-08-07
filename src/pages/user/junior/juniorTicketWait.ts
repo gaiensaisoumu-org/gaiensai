@@ -5,25 +5,22 @@ const ISSUE_POLL_MAX_RETRIES = 20;
 const ISSUE_POLL_INTERVAL_MS = 300;
 
 export const waitForJuniorEntryOnlyTicketIssued = async (): Promise<boolean> => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    return false;
-  }
-
   for (let i = 0; i < ISSUE_POLL_MAX_RETRIES; i++) {
-    const { count, error } = await supabase
-      .from('tickets')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('status', 'valid')
-      .eq('ticket_type', JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
-
-    if (!error && Number(count ?? 0) > 0) {
-      return true;
+    const { data, error } = await supabase.rpc('get_junior_my_page');
+    if (!error) {
+      const tickets = (
+        data as {
+          tickets?: Array<{ ticket_type?: number | null }>;
+        } | null
+      )?.tickets;
+      if (
+        tickets?.some(
+          (ticket) =>
+            Number(ticket.ticket_type) === JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID,
+        )
+      ) {
+        return true;
+      }
     }
 
     await new Promise((resolve) => {
