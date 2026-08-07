@@ -5,11 +5,20 @@ export class TimeoutError extends Error {
   }
 }
 
+export class OfflineError extends Error {
+  constructor() {
+    super('Network connection is offline');
+    this.name = 'OfflineError';
+  }
+}
+
 export const withTimeout = async <T>(
   promise: PromiseLike<T>,
   timeoutMs: number,
+  rejectWhenOffline = false,
 ): Promise<T> => {
   let timeoutId: number | undefined;
+  let removeOfflineListener: (() => void) | undefined;
 
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = window.setTimeout(
@@ -18,11 +27,29 @@ export const withTimeout = async <T>(
     );
   });
 
+  const offline = rejectWhenOffline
+    ? new Promise<never>((_, reject) => {
+        const rejectOffline = () => reject(new OfflineError());
+        if (!navigator.onLine) {
+          rejectOffline();
+          return;
+        }
+        window.addEventListener('offline', rejectOffline, { once: true });
+        removeOfflineListener = () =>
+          window.removeEventListener('offline', rejectOffline);
+      })
+    : null;
+
   try {
-    return await Promise.race([Promise.resolve(promise), timeout]);
-  } finally {
+    return await Promise.race([
+      Promise.resolve(promise),
+      timeout,
+      ...(offline ? [offline] : []),
+    ]);
+  }  finally {
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId);
     }
+    removeOfflineListener?.();
   }
 };

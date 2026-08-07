@@ -34,7 +34,7 @@ import {
   readCachedJuniorTicketCards,
   writeCachedJuniorTicketCards,
 } from "./offlineCache";
-import { withTimeout } from "../../../utils/withTimeout";
+import { OfflineError, withTimeout } from "../../../utils/withTimeout";
 import { clearAllUserCaches } from "../../../features/tickets/ticketDisplayCache";
 import Modal from "../../../components/ui/Modal";
 
@@ -78,7 +78,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const [ticketCacheNotice, setTicketCacheNotice] = useState<string | null>(
     null,
   );
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
@@ -450,6 +450,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
+    setIsOnline(navigator.onLine);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
@@ -476,7 +477,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         return;
       }
 
-      const fallbackToCachedTickets = (message: string) => {
+      const fallbackToCachedTickets = (
+        message: string,
+        notice = "チケット情報の取得が遅延しているため、前回の表示を使用しています。",
+      ) => {
         const cachedTickets = readCachedJuniorTicketCards(user.id);
         if (!cachedTickets) {
           setTicketError(message);
@@ -485,12 +489,19 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         }
 
         setTicketCards(cachedTickets);
-        setTicketCacheNotice(
-          "チケット情報の取得が遅延しているため、前回の表示を使用しています。",
-        );
+        setTicketCacheNotice(notice);
         setTicketLoading(false);
         return true;
       };
+
+      if (!navigator.onLine) {
+        setIsOnline(false);
+        fallbackToCachedTickets(
+          "オフラインのため、チケット情報を取得できません。",
+          "オフラインのため、前回の表示を使用しています。",
+        );
+        return;
+      }
 
       let ticketsData: Array<{
         code: string;
@@ -512,12 +523,24 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           const result = await withTimeout(
             supabase.rpc("get_junior_my_page"),
             SUPABASE_RESPONSE_TIMEOUT_MS,
+            true,
           );
           pageResponse = result.data;
           data = result.data as typeof data;
           ticketsError = result.error;
-        } catch {
-          fallbackToCachedTickets("チケット情報の取得がタイムアウトしました。");
+        } catch (error) {
+          const isOffline = error instanceof OfflineError;
+          if (isOffline) {
+            setIsOnline(false);
+          }
+          fallbackToCachedTickets(
+            isOffline
+              ? "オフラインのため、チケット情報を取得できません。"
+              : "チケット情報の取得がタイムアウトしました。",
+            isOffline
+              ? "オフラインのため、前回の表示を使用しています。"
+              : undefined,
+          );
           return;
         }
 

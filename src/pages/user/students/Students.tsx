@@ -21,7 +21,7 @@ import NotFound from '../../../shared/NotFound';
 import Login from './Login';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useTitle } from '../../../hooks/useTitle';
-import { withTimeout } from '../../../utils/withTimeout';
+import { OfflineError, withTimeout } from '../../../utils/withTimeout';
 
 type AuthState = Session | null | undefined;
 type UserDataState = UserData | null | undefined; // undefined: 読み込み前, null: ユーザーデータ無し
@@ -48,6 +48,7 @@ const Students = () => {
   const [userData, setUserData] = useState<UserDataState>(undefined);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   useTitle('生徒用ページ');
 
@@ -59,6 +60,10 @@ const Students = () => {
   };
 
   const loadUserProfile = async (userId: string) => {
+    if (!navigator.onLine) {
+      return { data: null, error: new OfflineError() };
+    }
+
     try {
       const { data, error }: { data: UserData; error: unknown } =
         await withTimeout(
@@ -68,6 +73,7 @@ const Students = () => {
             .eq('id', userId)
             .maybeSingle(),
           SUPABASE_RESPONSE_TIMEOUT_MS,
+          true,
         );
 
       return { data, error };
@@ -77,6 +83,12 @@ const Students = () => {
   };
 
   useEffect(() => {
+    const handleOffline = () => setIsOfflineMode(true);
+    window.addEventListener('offline', handleOffline);
+    return () => window.removeEventListener('offline', handleOffline);
+  }, []);
+
+  useEffect(() => {
     const loadProfile = async (nextSession: Session | null) => {
       setSession(nextSession);
       setProfileError(null);
@@ -84,6 +96,7 @@ const Students = () => {
 
       if (!nextSession) {
         setUserData(null);
+        setIsOfflineMode(false);
         setIsLoading(false);
         return;
       }
@@ -91,6 +104,7 @@ const Students = () => {
       const { data, error } = await loadUserProfile(nextSession.user.id);
 
       if (error) {
+        setIsOfflineMode(true);
         const cachedProfile = readCachedStudentProfile(nextSession.user.id);
         if (cachedProfile) {
           setUserData(cachedProfile);
@@ -104,19 +118,24 @@ const Students = () => {
       }
 
       setUserData(data ?? null);
+      setIsOfflineMode(false);
       if (data) {
         writeCachedStudentProfile(nextSession.user.id, data);
       }
       setIsLoading(false);
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      void loadProfile(session);
-    });
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (
+        event !== 'INITIAL_SESSION' &&
+        event !== 'SIGNED_IN' &&
+        event !== 'SIGNED_OUT' &&
+        event !== 'USER_UPDATED'
+      ) {
+        return;
+      }
       void loadProfile(nextSession);
     });
 
@@ -132,8 +151,14 @@ const Students = () => {
     for (let i = 0; i < 3; i++) {
       const { data, error } = await loadUserProfile(session.user.id);
 
-      if (!error && data) {
+      if (error) {
+        setIsOfflineMode(true);
+        return false;
+      }
+
+      if (data) {
         setUserData(data);
+        setIsOfflineMode(false);
         writeCachedStudentProfile(session.user.id, data);
         return true;
       }
@@ -210,6 +235,7 @@ const Students = () => {
     const { data, error } = await loadUserProfile(session.user.id);
 
     if (error) {
+      setIsOfflineMode(true);
       const cachedProfile = readCachedStudentProfile(session.user.id);
       if (cachedProfile) {
         setUserData(cachedProfile);
@@ -223,6 +249,7 @@ const Students = () => {
     }
 
     setUserData(data ?? null);
+    setIsOfflineMode(false);
     if (data) {
       writeCachedStudentProfile(session.user.id, data);
     }
@@ -296,15 +323,30 @@ const Students = () => {
         <Route path='/issue' component={Issue} />
         <Route
           path='/dashboard'
-          component={() => <Dashboard userData={registeredUserData} />}
+          component={() => (
+            <Dashboard
+              userData={registeredUserData}
+              isOfflineMode={isOfflineMode}
+            />
+          )}
         />
         <Route
           path='/initial-registration'
-          component={() => <Dashboard userData={registeredUserData} />}
+          component={() => (
+            <Dashboard
+              userData={registeredUserData}
+              isOfflineMode={isOfflineMode}
+            />
+          )}
         />
         <Route
           path='/'
-          component={() => <Dashboard userData={registeredUserData} />}
+          component={() => (
+            <Dashboard
+              userData={registeredUserData}
+              isOfflineMode={isOfflineMode}
+            />
+          )}
         />
         <Route default component={NotFound} />
       </Router>

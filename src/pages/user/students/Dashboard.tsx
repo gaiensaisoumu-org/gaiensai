@@ -34,7 +34,7 @@ import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useTicketStorage } from '../../../features/tickets/useTicketStorage';
 import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
 import { useTitle } from '../../../hooks/useTitle';
-import { withTimeout } from '../../../utils/withTimeout';
+import { OfflineError, withTimeout } from '../../../utils/withTimeout';
 import Modal from '../../../components/ui/Modal';
 
 const STUDENT_TICKETS_CACHE_PREFIX = 'ticket-display-cache:v1:';
@@ -70,6 +70,7 @@ const readAllLocalStorageTickets = (): Array<
 
 type DashboardProps = {
   userData: Exclude<UserData, null>;
+  isOfflineMode?: boolean;
 };
 
 type TicketSnapshot = {
@@ -92,7 +93,7 @@ type TicketSnapshot = {
 
 const ticketSnapshot = performancesSnapshot as TicketSnapshot;
 
-const Dashboard = ({ userData }: DashboardProps) => {
+const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   const { config } = useEventConfig();
   const { saveTicketToCache } = useTicketStorage();
   const [ticketCards, setTicketCards] = useState<
@@ -102,7 +103,9 @@ const Dashboard = ({ userData }: DashboardProps) => {
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketNotice, setTicketNotice] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(
+    () => navigator.onLine && !isOfflineMode,
+  );
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
@@ -164,6 +167,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
+    setIsOnline(navigator.onLine && !isOfflineMode);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
@@ -171,7 +175,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [isOfflineMode]);
 
   useEffect(() => {
     try {
@@ -226,13 +230,13 @@ const Dashboard = ({ userData }: DashboardProps) => {
         return;
       }
 
-      const fallbackToCachedTickets = () => {
+      const fallbackToCachedTickets = (
+        notice = 'チケット情報の取得に失敗したため、前回読み込んだ発券済みチケットを表示しています。',
+      ) => {
         const cachedTickets = readCachedTicketCards(user.id);
         if (cachedTickets) {
           setTicketCards(cachedTickets);
-          setTicketNotice(
-            'チケット情報の取得に失敗したため、前回読み込んだ発券済みチケットを表示しています。',
-          );
+          setTicketNotice(notice);
           setTicketError(null);
           setTicketLoading(false);
           setIsOnline(false);
@@ -241,20 +245,44 @@ const Dashboard = ({ userData }: DashboardProps) => {
         return false;
       };
 
+      if (isOfflineMode || !navigator.onLine) {
+        setIsOnline(false);
+        if (!fallbackToCachedTickets('オフラインのため、前回読み込んだ発券済みチケットを表示しています。')) {
+          setTicketError('オフラインのため、チケット情報を取得できません。');
+          setTicketLoading(false);
+        }
+        return;
+      }
+
       let ticketsData: unknown;
       let ticketsError: unknown;
       try {
         const result = await withTimeout(
           supabase.rpc('get_student_dashboard'),
           SUPABASE_RESPONSE_TIMEOUT_MS,
+          true,
         );
         ticketsData = result.data;
         ticketsError = result.error;
-      } catch {
-        if (fallbackToCachedTickets()) {
+      } catch (error) {
+        const isOffline = error instanceof OfflineError;
+        if (isOffline) {
+          setIsOnline(false);
+        }
+        if (
+          fallbackToCachedTickets(
+            isOffline
+              ? 'オフラインのため、前回読み込んだ発券済みチケットを表示しています。'
+              : undefined,
+          )
+        ) {
           return;
         }
-        setTicketError('チケット情報の取得がタイムアウトしました。');
+        setTicketError(
+          isOffline
+            ? 'オフラインのため、チケット情報を取得できません。'
+            : 'チケット情報の取得がタイムアウトしました。',
+        );
         setTicketLoading(false);
         return;
       }
@@ -665,7 +693,7 @@ const Dashboard = ({ userData }: DashboardProps) => {
     };
 
     void loadTickets();
-  }, []);
+  }, [isOfflineMode]);
 
   const ticketCardsWithLastOpenedAt = useMemo(() => {
     const lastOpenedAtByCode = new Map(
