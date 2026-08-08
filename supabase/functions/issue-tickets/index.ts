@@ -508,6 +508,35 @@ export const handleIssueTicketsRequest = async (
       admissionOnlyTicketTypeIds,
     );
     const issueUserId = user?.id ?? DAY_TICKET_GUEST_USER_ID;
+    const ensureNoOtherClassSelfTicketInSameRound = async () => {
+      const {
+        data: existingSelfTicket,
+        error: existingSelfTicketError,
+      } = await adminClient
+        .from('tickets')
+        .select('id, class_tickets!inner(class_id)')
+        .eq('user_id', issueUserId)
+        .eq('status', 'valid')
+        .eq('relationship', SELF_RELATIONSHIP_ID)
+        .eq('class_tickets.round_id', body.scheduleId)
+        .neq('class_tickets.class_id', body.performanceId)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingSelfTicketError) {
+        throw new HttpError(
+          500,
+          '同一公演回の発券状況の確認に失敗しました。時間をおいて再度お試しください。',
+        );
+      }
+
+      if (existingSelfTicket) {
+        throw new HttpError(
+          409,
+          '同じ公演回の別クラス公演について、本人分のチケットが既に発券されています。',
+        );
+      }
+    };
 
     let gymPerformanceRow: { id: number; group_name: string } | null = null;
     let gymPerformanceIdsForLimit: number[] = [];
@@ -648,6 +677,14 @@ export const handleIssueTicketsRequest = async (
       if (ticketIssueControls.classInvite === 'off') {
         throw new HttpError(409, 'クラス公演招待券の受付は停止中です。');
       }
+
+      if (
+        issueMode === 'class' &&
+        relationshipId === SELF_RELATIONSHIP_ID
+      ) {
+        await ensureNoOtherClassSelfTicketInSameRound();
+      }
+
       if (ticketIssueControls.classInvite === 'only-own') {
         const { grade, classNo } = getStudentGradeClass(affiliation);
         const ownClassName = `${grade}-${classNo}`;
@@ -795,6 +832,13 @@ export const handleIssueTicketsRequest = async (
           : ticketIssueControls.sameDayGym;
       if (mode === 'off') {
         throw new HttpError(409, '当日券受付は停止中です。');
+      }
+      if (
+        body.ticketTypeId === sameDayClassId &&
+        issueMode === 'class' &&
+        user !== null
+      ) {
+        await ensureNoOtherClassSelfTicketInSameRound();
       }
       if (mode === 'auto') {
         const todayKey = getJstDateKey(new Date());
