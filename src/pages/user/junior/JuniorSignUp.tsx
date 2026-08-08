@@ -63,6 +63,8 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
     string | null
   >(null);
   const [secretCode, setSecretCode] = useState('');
+  const [showSeparateTicketsConfirmation, setShowSeparateTicketsConfirmation] =
+    useState(false);
 
   const [session, setSession] = useState<Session>(null);
 
@@ -173,8 +175,11 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
     setJuniorUsageType(type);
   };
 
-  const handleSignUp = async (event: Event) => {
-    event.preventDefault();
+  const handleSignUp = async (
+    event?: Event,
+    confirmedSeparateTickets = false,
+  ) => {
+    event?.preventDefault();
     setErrorMessage(null);
 
     const applicationDayError = resolveJuniorApplicationDayError(
@@ -263,6 +268,11 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
         setErrorMessage(
           '保護者のIDと誕生日の両方を中学生の情報と同じにはできません。別のIDまたは誕生日を入力してください。',
         );
+        return;
+      }
+
+      if (!confirmedSeparateTickets) {
+        setShowSeparateTicketsConfirmation(true);
         return;
       }
     }
@@ -891,6 +901,25 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
           >
             <p className={styles.modalText}>
               申し込み日時の情報を取得できませんでした。当選メールに記載されているURLからもう一度アクセスをお願いします。
+            </p>
+          </Modal>
+        ) : null}
+
+        {showSeparateTicketsConfirmation ? (
+          <Modal
+            setIsOpen={setShowSeparateTicketsConfirmation}
+            handleAction={async () => {
+              setShowSeparateTicketsConfirmation(false);
+              await handleSignUp(undefined, true);
+            }}
+            headingText='登録後のログインについて'
+            buttonText='続行する'
+          >
+            <p>
+              中学生と保護者で別々のアカウントを発行します。
+            </p>
+            <p>
+              この後中学生のアカウントに遷移します。保護者アカウントは、ここで入力した保護者情報を用いて、保護者の端末でログインしてください。
             </p>
           </Modal>
         ) : null}
