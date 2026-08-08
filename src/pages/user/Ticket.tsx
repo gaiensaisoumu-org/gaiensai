@@ -267,7 +267,7 @@ const readFunctionErrorMessage = async (error: unknown): Promise<string> => {
 };
 
 const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
-  const { config } = useEventConfig();
+  const { config, loading: isEventConfigLoading } = useEventConfig();
   const { saveTicketToCache } = useTicketStorage();
   const [showCopySucceed, setShowCopySucceed] = useState(false);
   const [isShortUrlModalOpen, setIsShortUrlModalOpen] = useState(false);
@@ -358,6 +358,11 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
   const [code, signature] = token ? token.split('.') : ['', ''];
 
   useEffect(() => {
+    // 設定の初期値と取得後の設定で同じチケットを二重に読み込まない。
+    if (isEventConfigLoading) {
+      return;
+    }
+
     if (!token) {
       route('/');
       return;
@@ -887,7 +892,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
     };
 
     void loadTicket();
-  }, [code, signature, config.date, token]);
+  }, [code, signature, config.date, isEventConfigLoading, token]);
 
   useEffect(() => {
     if (!isRelationshipModalOpen) {
