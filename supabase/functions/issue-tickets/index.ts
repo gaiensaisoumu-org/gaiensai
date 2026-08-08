@@ -510,6 +510,7 @@ export const handleIssueTicketsRequest = async (
     const issueUserId = user?.id ?? DAY_TICKET_GUEST_USER_ID;
 
     let gymPerformanceRow: { id: number; group_name: string } | null = null;
+    let gymPerformanceIdsForLimit: number[] = [];
     if (issueMode === 'gym') {
       const { data, error } = await adminClient
         .from('gym_performances')
@@ -524,6 +525,11 @@ export const handleIssueTicketsRequest = async (
         );
       }
       gymPerformanceRow = data as { id: number; group_name: string };
+      const { data: sameClubPerformances } = await adminClient
+        .from('gym_performances')
+        .select('id')
+        .eq('group_name', gymPerformanceRow.group_name);
+      gymPerformanceIdsForLimit = (sameClubPerformances ?? []).map((row) => Number(row.id));
     }
 
     if (body.cancelCode && body.issueCount !== 1) {
@@ -538,7 +544,7 @@ export const handleIssueTicketsRequest = async (
     const { data: configRow, error: configError } = await adminClient
       .from('configs')
       .select(
-        'max_tickets_per_user, max_tickets_per_gym_user, max_tickets_per_junior_user, gym_ticket_limits_by_club, is_active, event_year',
+        'max_tickets_per_other_class_user, max_tickets_per_other_club_user, max_tickets_per_other_performance_user, max_tickets_per_junior_user, gym_ticket_limits_by_club, is_active, event_year',
       )
       .order('id', { ascending: true })
       .maybeSingle();
@@ -552,8 +558,9 @@ export const handleIssueTicketsRequest = async (
 
     if (
       !configRow ||
-      configRow.max_tickets_per_user === null ||
-      configRow.max_tickets_per_gym_user === null ||
+      configRow.max_tickets_per_other_class_user === null ||
+      configRow.max_tickets_per_other_club_user === null ||
+      configRow.max_tickets_per_other_performance_user === null ||
       configRow.max_tickets_per_junior_user === null ||
       configRow.event_year === null
     ) {
@@ -833,20 +840,42 @@ export const handleIssueTicketsRequest = async (
       !Array.isArray(configRow.gym_ticket_limits_by_club)
         ? configRow.gym_ticket_limits_by_club as Record<string, unknown>
         : {};
-    const defaultGymTicketLimit = Number(configRow.max_tickets_per_gym_user);
-    const gymTicketLimit = (userRow?.clubs?.length ?? 0) > 0
-      ? userRow!.clubs!.reduce((total, club) => {
-          const configuredLimit = Number(gymTicketLimitsByClub[club]);
-          return total + (Number.isInteger(configuredLimit) && configuredLimit >= 0
-            ? configuredLimit
-            : defaultGymTicketLimit);
-        }, 0)
-      : defaultGymTicketLimit;
+    const defaultOtherClubTicketLimit = Number(configRow.max_tickets_per_other_club_user);
+    const targetGymClub = gymPerformanceRow?.group_name ?? '';
+    const targetIsOwnClub = Boolean(userRow?.clubs?.includes(targetGymClub));
+    const ownClubLimit = Number(gymTicketLimitsByClub[targetGymClub]);
+    const gymTicketLimit = targetIsOwnClub && Number.isInteger(ownClubLimit) && ownClubLimit >= 0
+      ? ownClubLimit
+      : defaultOtherClubTicketLimit;
+    const selectedClassPerformance = issueMode === 'class'
+      ? await adminClient
+          .from('class_performances')
+          .select('class_name, max_tickets_per_user')
+          .eq('id', body.performanceId)
+          .maybeSingle()
+      : null;
+    if (issueMode === 'class' && (!selectedClassPerformance || selectedClassPerformance.error || !selectedClassPerformance.data)) {
+      throw new HttpError(500, 'クラス公演の発券設定が取得できませんでした。');
+    }
+    const ownClassName = !isJuniorUser
+      ? (() => {
+          const { grade, classNo } = getStudentGradeClass(affiliation);
+          return `${grade}-${classNo}`;
+        })()
+      : null;
+    const isOwnClass = Boolean(
+      selectedClassPerformance?.data &&
+      selectedClassPerformance.data.class_name === ownClassName,
+    );
     const maxTicketsPerUser = isJuniorUser
       ? Number(configRow.max_tickets_per_junior_user)
       : issueMode === 'gym'
         ? gymTicketLimit
-        : Number(configRow.max_tickets_per_user);
+        : issueMode === 'class'
+          ? isOwnClass
+            ? Number(selectedClassPerformance?.data?.max_tickets_per_user)
+            : Number(configRow.max_tickets_per_other_class_user)
+          : 0;
     const configuredYear = Number(configRow.event_year);
     if (!Number.isInteger(configuredYear) || configuredYear < 0) {
       throw new HttpError(
@@ -977,6 +1006,7 @@ export const handleIssueTicketsRequest = async (
             })
             .eq('user_id', issueUserId)
             .eq('status', 'valid')
+            .eq('class_tickets.class_id', body.performanceId)
         : !isJuniorUser && issueMode === 'gym'
           ? await adminClient
               .from('tickets')
@@ -986,6 +1016,7 @@ export const handleIssueTicketsRequest = async (
               })
               .eq('user_id', issueUserId)
               .eq('status', 'valid')
+              .in('gym_tickets.performance_id', gymPerformanceIdsForLimit)
           : await adminClient
               .from('tickets')
               .select('id', { count: 'exact', head: true })
@@ -1034,6 +1065,27 @@ export const handleIssueTicketsRequest = async (
       juniorUsageType === 0 || juniorUsageType === 1
         ? maxTicketsPerUser * 2
         : maxTicketsPerUser;
+    let otherPerformanceExisting = 0;
+    const isOtherPerformanceTarget = issueMode === 'class'
+      ? !isOwnClass
+      : issueMode === 'gym'
+        ? !targetIsOwnClub
+        : false;
+    if (!isJuniorUser && !isDayTicket && isOtherPerformanceTarget) {
+      const ownClassNameForTotal = ownClassName;
+      const [classIdsResult, gymIdsResult] = await Promise.all([
+        adminClient.from('class_performances').select('id').neq('class_name', ownClassNameForTotal ?? ''),
+        adminClient.from('gym_performances').select('id').not('group_name', 'in', `(${(userRow?.clubs ?? []).map((club) => `"${club.replaceAll('"', '\\"')}"`).join(',') || '""'})`),
+      ]);
+      const otherClassIds = (classIdsResult.data ?? []).map((row) => Number(row.id));
+      const otherGymIds = (gymIdsResult.data ?? []).map((row) => Number(row.id));
+      const [otherClassCount, otherGymCount] = await Promise.all([
+        otherClassIds.length === 0 ? Promise.resolve({ count: 0, error: null }) : adminClient.from('tickets').select('id, class_tickets!inner(id)', { count: 'exact', head: true }).eq('user_id', issueUserId).eq('status', 'valid').in('class_tickets.class_id', otherClassIds).not('ticket_type', 'in', `(${admissionOnlyTicketTypeIds.join(',')})`),
+        otherGymIds.length === 0 ? Promise.resolve({ count: 0, error: null }) : adminClient.from('tickets').select('id, gym_tickets!inner(id)', { count: 'exact', head: true }).eq('user_id', issueUserId).eq('status', 'valid').in('gym_tickets.performance_id', otherGymIds).not('ticket_type', 'in', `(${admissionOnlyTicketTypeIds.join(',')})`),
+      ]);
+      if (otherClassCount.error || otherGymCount.error) throw new HttpError(500, '他公演の発行枚数取得に失敗しました。');
+      otherPerformanceExisting = Number(otherClassCount.count ?? 0) + Number(otherGymCount.count ?? 0);
+    }
     // 入場専用券のリクエストまたは間柄の変更時は制限チェックをスキップする
     const isExemptLimit =
       isAdmissionOnlyTicket || body.targetRelationshipId !== undefined;
@@ -1048,6 +1100,10 @@ export const handleIssueTicketsRequest = async (
         `チケット発行上限を超えています（既に ${existing} 人分）。1ユーザあたり最大 ${maxTicketsPerUser} 人分までです。
         さらに必要な場合は、まだ発行可能枚数に余裕がある他の生徒に、招待券を分けてもらえないかと相談してください。`,
       );
+    }
+    if (!isJuniorUser && !isDayTicket && isOtherPerformanceTarget && !isExemptLimit &&
+      otherPerformanceExisting + totalPersonCount > Number(configRow.max_tickets_per_other_performance_user)) {
+      throw new HttpError(409, `他クラス・部活の合計発行可能枚数を超えています。（現在 ${otherPerformanceExisting} 枚、上限 ${Number(configRow.max_tickets_per_other_performance_user)} 枚）`);
     }
 
     // チケットコードのプレフィックスを生成（学年クラス番号 + チケット種別 + 間柄 + 公演ID + 回ID + 発行年をYEAR_BITSで割ったあまり）

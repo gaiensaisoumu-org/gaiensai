@@ -15,6 +15,9 @@ type IssueStepPerformanceProps = {
   classScheduleFilter?: (scheduleId: number, roundName: string) => boolean;
   gymScheduleFilter?: (scheduleId: number, roundName: string) => boolean;
   gymRemainingMode?: "general" | "total" | "junior";
+  nonInteractiveGymPerformanceIds?: Set<number>;
+  hiddenGymGroupNames?: Set<string>;
+  hiddenClassPerformanceIds?: Set<number>;
   showClassPerformances?: boolean;
   showGymPerformances?: boolean;
   allowClosedPerformances?: boolean;
@@ -31,6 +34,9 @@ const IssueStepPerformance = ({
   classScheduleFilter,
   gymScheduleFilter,
   gymRemainingMode = "general",
+  nonInteractiveGymPerformanceIds,
+  hiddenGymGroupNames,
+  hiddenClassPerformanceIds,
   showClassPerformances = true,
   showGymPerformances = true,
   allowClosedPerformances = false,
@@ -55,6 +61,8 @@ const IssueStepPerformance = ({
             filterAccepting={!allowClosedPerformances}
             scheduleFilter={gymScheduleFilter}
             remainingMode={gymRemainingMode}
+            nonInteractivePerformanceIds={nonInteractiveGymPerformanceIds}
+            hiddenGroupNames={hiddenGymGroupNames}
           />
         ) : (
           <p>この申込日時では体育館公演を選択できません。</p>
@@ -68,6 +76,7 @@ const IssueStepPerformance = ({
             filterAccepting={true}
             filterPerformanceAccepting={!allowClosedPerformances}
           scheduleFilter={classScheduleFilter}
+          hiddenPerformanceIds={hiddenClassPerformanceIds}
         />
       ) : (
         <p>この申込日時ではクラス公演を選択できません。</p>

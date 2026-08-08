@@ -185,6 +185,7 @@ const OrganizationAdmin = () => {
   const [isAccepting, setIsAccepting] = useState(false);
   const [capacity, setCapacity] = useState('');
   const [juniorCapacity, setJuniorCapacity] = useState('');
+  const [classTicketLimit, setClassTicketLimit] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -195,6 +196,7 @@ const OrganizationAdmin = () => {
   const [imageVersion, setImageVersion] = useState(0);
   const [draftCapacity, setDraftCapacity] = useState('');
   const [draftJuniorCapacity, setDraftJuniorCapacity] = useState('');
+  const [draftClassTicketLimit, setDraftClassTicketLimit] = useState('');
   const [draftGymTicketLimit, setDraftGymTicketLimit] = useState('');
   const [gymScheduleDrafts, setGymScheduleDrafts] = useState<
     GymScheduleDraft[]
@@ -288,6 +290,7 @@ const OrganizationAdmin = () => {
       ),
     );
     setJuniorCapacity(String(next.performance.junior_capacity ?? ''));
+    setClassTicketLimit(String(next.performance.max_tickets_per_user ?? ''));
     setGymScheduleDrafts(
       next.kind === 'gym'
         ? (next.performances ?? []).map((performance) => ({
@@ -499,6 +502,7 @@ const OrganizationAdmin = () => {
     nextIsAccepting: boolean,
     nextCapacity = capacity,
     nextJuniorCapacity = juniorCapacity,
+    nextClassTicketLimit = classTicketLimit,
   ) => {
     setBusy(true);
     setMessageScope('ticketSettings');
@@ -507,6 +511,7 @@ const OrganizationAdmin = () => {
     try {
       const capacityValue = Number(nextCapacity);
       const juniorCapacityValue = Number(nextJuniorCapacity);
+      const classTicketLimitValue = Number(nextClassTicketLimit);
       if (!Number.isInteger(capacityValue) || capacityValue < 1) {
         throw new Error('定員は1人以上の整数で入力してください。');
       }
@@ -517,6 +522,9 @@ const OrganizationAdmin = () => {
       ) {
         throw new Error('中学生枠は0〜定員の範囲で入力してください。');
       }
+      if (dashboard?.kind === 'class' && (!Number.isInteger(classTicketLimitValue) || classTicketLimitValue < 0 || classTicketLimitValue > 100)) {
+        throw new Error('自クラスの発行可能枚数は0〜100の整数で入力してください。');
+      }
       const { error: invokeError } = await supabase.functions.invoke(
         'organization-admin',
         {
@@ -525,6 +533,7 @@ const OrganizationAdmin = () => {
             isAccepting: nextIsAccepting,
             capacity: capacityValue,
             juniorCapacity: juniorCapacityValue,
+            ...(dashboard?.kind === 'class' ? { maxTicketsPerUser: classTicketLimitValue } : {}),
           },
           headers: sessionHeaders(),
         },
@@ -555,6 +564,7 @@ const OrganizationAdmin = () => {
   const openCapacityModal = () => {
     setDraftCapacity(capacity);
     setDraftJuniorCapacity(juniorCapacity);
+    setDraftClassTicketLimit(classTicketLimit);
     setShowCapacityModal(true);
   };
 
@@ -602,6 +612,7 @@ const OrganizationAdmin = () => {
       isAccepting,
       draftCapacity,
       draftJuniorCapacity,
+      draftClassTicketLimit,
     );
     if (saved) {
       setShowCapacityModal(false);
@@ -988,6 +999,17 @@ const OrganizationAdmin = () => {
                     変更する
                   </button>
                 </div>
+                {dashboard.kind === 'class' && (
+                  <div className={styles.settingRow}>
+                    <div>
+                      <span>自クラスの発行可能枚数</span>
+                      <p>{classTicketLimit}枚</p>
+                    </div>
+                    <button type='button' className={styles.inlineEditButton} onClick={openCapacityModal} disabled={busy}>
+                      変更する
+                    </button>
+                  </div>
+                )}
                 {dashboard.kind === 'gym' && (
                   <>
                     <div className={styles.settingRow}>
@@ -1276,6 +1298,19 @@ const OrganizationAdmin = () => {
                     required
                   />
                 </label>
+                {dashboard.kind === 'class' && (
+                  <label>
+                    自クラスの発行可能枚数
+                    <input
+                      type='number'
+                      min='0'
+                      max='100'
+                      value={draftClassTicketLimit}
+                      onInput={(event) => setDraftClassTicketLimit((event.target as HTMLInputElement).value)}
+                      required
+                    />
+                  </label>
+                )}
                 {messageScope === 'ticketSettings' && error && (
                   <Alert type='error'>{error}</Alert>
                 )}
@@ -1316,7 +1351,7 @@ const OrganizationAdmin = () => {
               <h3 id='gym-ticket-limit-modal-title'>発行上限数を変更</h3>
               <form onSubmit={saveGymTicketLimit} className={styles.form}>
                 <label>
-                  1人あたりの体育館公演チケット発行上限
+                  自部活の体育館公演チケット発行上限
                   <input
                     type='number'
                     min='0'

@@ -49,6 +49,8 @@ type PerformancesTableProps = {
   filterAccepting?: boolean;
   filterPerformanceAccepting?: boolean;
   scheduleFilter?: (scheduleId: number, roundName: string) => boolean;
+  hiddenPerformanceIds?: Set<number>;
+  nonInteractivePerformanceIds?: Set<number>;
 };
 
 const PerformancesTable = ({
@@ -62,6 +64,8 @@ const PerformancesTable = ({
   filterAccepting = false,
   filterPerformanceAccepting = filterAccepting,
   scheduleFilter,
+  hiddenPerformanceIds,
+  nonInteractivePerformanceIds,
 }: PerformancesTableProps) => {
   const autoSelectedCellKeyRef = useRef<string | null>(null);
   const [performances, setPerformances] = useState<PerformanceRow[]>([]);
@@ -369,10 +373,11 @@ const PerformancesTable = ({
     () =>
       performances.filter(
         (performance) =>
-          selectedPerformanceId === 'all' ||
-          performance.id === selectedPerformanceId,
+          !hiddenPerformanceIds?.has(performance.id) &&
+          (selectedPerformanceId === 'all' ||
+            performance.id === selectedPerformanceId),
       ),
-    [performances, selectedPerformanceId],
+    [performances, selectedPerformanceId, hiddenPerformanceIds],
   );
 
   const filteredSchedules = useMemo(
@@ -672,7 +677,8 @@ const PerformancesTable = ({
                   const key = `${performance.id}-${schedule.id}`;
                   const remaining = remainingSeatMap.get(key) ?? 0;
                   const status = statusByKey.get(key) ?? 'cross';
-                  const canIssue = remaining > 0;
+                  const canIssue =
+                    remaining > 0 && !nonInteractivePerformanceIds?.has(performance.id);
                   const isInteractive =
                     canIssue &&
                     (enableIssueJump || Boolean(onAvailableCellClick));

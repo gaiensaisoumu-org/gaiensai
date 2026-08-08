@@ -109,6 +109,10 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
+  const [classRemainingByPerformanceId, setClassRemainingByPerformanceId] =
+    useState<Map<number, number>>(new Map());
+  const [gymRemainingByPerformanceId, setGymRemainingByPerformanceId] =
+    useState<Map<number, number>>(new Map());
   const [myTicketSortMode, setMyTicketSortMode] = useState<TicketListSortMode>(
     () => {
       try {
@@ -162,6 +166,38 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   >(null);
 
   useTitle('ダッシュボード - 生徒用ページ');
+
+  useEffect(() => {
+    const loadRemaining = async () => {
+      const { data, error } = await supabase.rpc(
+        'get_student_performance_ticket_remaining',
+      );
+      if (error) {
+        return;
+      }
+      const result = data as {
+        class?: Record<string, number>;
+        gym?: Record<string, number>;
+      } | null;
+      setClassRemainingByPerformanceId(
+        new Map(
+          Object.entries(result?.class ?? {}).map(([id, remaining]) => [
+            Number(id),
+            Number(remaining),
+          ]),
+        ),
+      );
+      setGymRemainingByPerformanceId(
+        new Map(
+          Object.entries(result?.gym ?? {}).map(([id, remaining]) => [
+            Number(id),
+            Number(remaining),
+          ]),
+        ),
+      );
+    };
+    void loadRemaining();
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -247,7 +283,11 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
 
       if (isOfflineMode || !navigator.onLine) {
         setIsOnline(false);
-        if (!fallbackToCachedTickets('オフラインのため、前回読み込んだ発券済みチケットを表示しています。')) {
+        if (
+          !fallbackToCachedTickets(
+            'オフラインのため、前回読み込んだ発券済みチケットを表示しています。',
+          )
+        ) {
           setTicketError('オフラインのため、チケット情報を取得できません。');
           setTicketLoading(false);
         }
@@ -306,8 +346,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         config?: {
           is_active?: boolean | null;
           show_length?: number | null;
-          max_tickets_per_user?: number | null;
-          max_tickets_per_gym_user?: number | null;
+          max_tickets_per_other_club_user?: number | null;
           gym_ticket_limits_by_club?: Record<string, unknown> | null;
         };
         controls?: {
@@ -351,29 +390,14 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       const classNo = Math.floor((affiliation % 10000) / 100);
       if (
         affiliation >= 10000 &&
-        grade >= 1 && grade <= config.grade_number &&
-        classNo >= 1 && classNo <= config.class_number
+        grade >= 1 &&
+        grade <= config.grade_number &&
+        classNo >= 1 &&
+        classNo <= config.class_number
       ) {
         setOwnClassName(`${grade}-${classNo}`);
       }
-      const maxClassTickets = Number(dashboard.config?.max_tickets_per_user ?? -1);
-      const maxGymTickets = Number(dashboard.config?.max_tickets_per_gym_user ?? -1);
-      const clubs = dashboard.profile?.clubs ?? [];
-      const limitsByClub = dashboard.config?.gym_ticket_limits_by_club ?? {};
-      const gymTicketLimit = clubs.length > 0
-        ? clubs.reduce((total, club) => {
-            const configuredLimit = Number(limitsByClub[club]);
-            return total + (Number.isInteger(configuredLimit) && configuredLimit >= 0
-              ? configuredLimit
-              : maxGymTickets);
-          }, 0)
-        : maxGymTickets;
-      if (maxClassTickets >= 0 && maxGymTickets >= 0) {
-        setHasReachedIssueLimit(
-          Number(dashboard.class_ticket_count ?? 0) >= maxClassTickets &&
-            Number(dashboard.gym_ticket_count ?? 0) >= gymTicketLimit,
-        );
-      }
+      setHasReachedIssueLimit(false);
 
       // Load tickets from local storage (from all users)
       const localStorageTickets = readAllLocalStorageTickets();
@@ -539,7 +563,8 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
             snapshotPerformanceMap.get(decoded.performanceId))
           : undefined;
         const gymPerformance = decoded
-          ? gymPerformanceMap.get(decoded.performanceId)
+          ? (gymPerformanceMap.get(decoded.performanceId) ??
+            snapshotGymPerformanceMap.get(decoded.performanceId))
           : undefined;
         const schedule =
           !isGymPerformance && decoded
@@ -976,12 +1001,26 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         <PerformancesTable
           enableIssueJump={true}
           restrictedClassName={restrictedClassName}
+          nonInteractivePerformanceIds={
+            new Set(
+              [...classRemainingByPerformanceId]
+                .filter(([, remaining]) => remaining <= 0)
+                .map(([id]) => id),
+            )
+          }
           filterAccepting={true}
         />
         <h3>体育館公演</h3>
         <GymPerformancesTable
           enableIssueJump={true}
           restrictedGroupNames={restrictedGroupNames}
+          nonInteractivePerformanceIds={
+            new Set(
+              [...gymRemainingByPerformanceId]
+                .filter(([, remaining]) => remaining <= 0)
+                .map(([id]) => id),
+            )
+          }
           filterAccepting={true}
         />
       </NormalSection>

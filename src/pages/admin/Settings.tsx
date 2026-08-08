@@ -16,8 +16,10 @@ import {
 type ControlPanelSettings = {
   eventYear: number;
   showLength: number;
-  maxTicketsPerUser: number;
-  maxTicketsPerGymUser: number;
+  maxTicketsPerOtherClassUser: number;
+  maxTicketsPerOtherPerformanceUser: number;
+  classTicketLimits: { id: number; class_name: string; max_tickets_per_user: number }[];
+  maxTicketsPerOtherClubUser: number;
   gymTicketLimitsByClub: Record<string, number>;
   maxTicketsPerJuniorUser: number;
   maxAdmissionOnlyJuniorAccounts: number;
@@ -149,13 +151,18 @@ const isTicketTypeControlValue = (
 const NUMERIC_SETTING_META = {
   eventYear: { label: '年度', min: 2020, max: 2100 },
   showLength: { label: '1公演の長さ（分）', min: 1, max: 300 },
-  maxTicketsPerUser: {
-    label: '1人あたりのクラス公演チケット発行上限',
-    min: 1,
+  maxTicketsPerOtherClassUser: {
+    label: '他クラスの1クラスあたりの発行可能枚数',
+    min: 0,
     max: 100,
   },
-  maxTicketsPerGymUser: {
-    label: '1人あたりの体育館公演チケット発行上限',
+  maxTicketsPerOtherPerformanceUser: {
+    label: '他クラス・部活の合計発行可能枚数',
+    min: 0,
+    max: 500,
+  },
+  maxTicketsPerOtherClubUser: {
+    label: '他部活の1部活あたり発行上限',
     min: 1,
     max: 100,
   },
@@ -212,8 +219,10 @@ const SettingsContent = () => {
   const [settings, setSettings] = useState<ControlPanelSettings>({
     eventYear: 2026,
     showLength: 60,
-    maxTicketsPerUser: 20,
-    maxTicketsPerGymUser: 20,
+    maxTicketsPerOtherClassUser: 20,
+    maxTicketsPerOtherPerformanceUser: 40,
+    classTicketLimits: [],
+    maxTicketsPerOtherClubUser: 20,
     gymTicketLimitsByClub: {},
     maxTicketsPerJuniorUser: 2,
     maxAdmissionOnlyJuniorAccounts: 100,
@@ -259,6 +268,8 @@ const SettingsContent = () => {
   const [editingNumericValue, setEditingNumericValue] = useState('');
   const [editingGymClub, setEditingGymClub] = useState<string | null>(null);
   const [editingGymClubLimit, setEditingGymClubLimit] = useState('');
+  const [editingClassLimitId, setEditingClassLimitId] = useState<number | null>(null);
+  const [editingClassLimit, setEditingClassLimit] = useState('');
   const [activeDetailTab, setActiveDetailTab] = useState<
     'schedules' | 'relationships'
   >('schedules');
@@ -565,8 +576,10 @@ const SettingsContent = () => {
           !nextSettings ||
           typeof nextSettings.eventYear !== 'number' ||
           typeof nextSettings.showLength !== 'number' ||
-          typeof nextSettings.maxTicketsPerUser !== 'number' ||
-          typeof nextSettings.maxTicketsPerGymUser !== 'number' ||
+          typeof nextSettings.maxTicketsPerOtherClassUser !== 'number' ||
+          typeof nextSettings.maxTicketsPerOtherPerformanceUser !== 'number' ||
+          !Array.isArray(nextSettings.classTicketLimits) ||
+          typeof nextSettings.maxTicketsPerOtherClubUser !== 'number' ||
           !nextSettings.gymTicketLimitsByClub ||
           typeof nextSettings.gymTicketLimitsByClub !== 'object' ||
           Array.isArray(nextSettings.gymTicketLimitsByClub) ||
@@ -741,8 +754,12 @@ const SettingsContent = () => {
           action: 'updateSettings',
           eventYear: nextSettings.eventYear,
           showLength: nextSettings.showLength,
-          maxTicketsPerUser: nextSettings.maxTicketsPerUser,
-          maxTicketsPerGymUser: nextSettings.maxTicketsPerGymUser,
+          maxTicketsPerOtherClassUser: nextSettings.maxTicketsPerOtherClassUser,
+          maxTicketsPerOtherPerformanceUser: nextSettings.maxTicketsPerOtherPerformanceUser,
+          classTicketLimitsById: Object.fromEntries(
+            nextSettings.classTicketLimits.map((item) => [item.id, item.max_tickets_per_user]),
+          ),
+          maxTicketsPerOtherClubUser: nextSettings.maxTicketsPerOtherClubUser,
           gymTicketLimitsByClub: nextSettings.gymTicketLimitsByClub,
           maxTicketsPerJuniorUser: nextSettings.maxTicketsPerJuniorUser,
           maxAdmissionOnlyJuniorAccounts:
@@ -925,7 +942,7 @@ const SettingsContent = () => {
     setEditingGymClub(club);
     setEditingGymClubLimit(
       String(
-        settings.gymTicketLimitsByClub[club] ?? settings.maxTicketsPerGymUser,
+        settings.gymTicketLimitsByClub[club] ?? settings.maxTicketsPerOtherClubUser,
       ),
     );
     setSettingsMessageScope('modal');
@@ -969,6 +986,46 @@ const SettingsContent = () => {
     setIsModalSubmitting(false);
     if (success) {
       closeGymClubLimitEditModal();
+    }
+  };
+
+  const openClassLimitEditModal = (id: number, limit: number) => {
+    setEditingClassLimitId(id);
+    setEditingClassLimit(String(limit));
+    setSettingsMessageScope('modal');
+    setSettingsError(null);
+    setSettingsSuccess(null);
+  };
+
+  const closeClassLimitEditModal = () => {
+    setEditingClassLimitId(null);
+    setEditingClassLimit('');
+    setSettingsMessageScope(null);
+    setSettingsError(null);
+    setSettingsSuccess(null);
+  };
+
+  const handleConfirmClassLimitEdit = async () => {
+    if (editingClassLimitId === null) {
+      return;
+    }
+    const limit = Number(editingClassLimit);
+    if (!Number.isInteger(limit) || limit < 0 || limit > 100) {
+      setSettingsError('クラスごとの発行可能枚数は0〜100の範囲の整数で入力してください。');
+      return;
+    }
+    const nextSettings = {
+      ...settings,
+      classTicketLimits: settings.classTicketLimits.map((item) =>
+        item.id === editingClassLimitId ? { ...item, max_tickets_per_user: limit } : item,
+      ),
+    };
+    setIsModalSubmitting(true);
+    const className = settings.classTicketLimits.find((item) => item.id === editingClassLimitId)?.class_name ?? 'クラス';
+    const success = await syncSettings(nextSettings, `${className}の発行可能枚数を更新しました。`);
+    setIsModalSubmitting(false);
+    if (success) {
+      closeClassLimitEditModal();
     }
   };
 
@@ -1802,36 +1859,37 @@ const SettingsContent = () => {
             {gymClubs.length > 0 ? (
               <div>
                 <p className={styles.settingHint}>
-                  未設定の場合は共通上限（{settings.maxTicketsPerGymUser}
+                  未設定の場合は他部活共通上限（
+                  {settings.maxTicketsPerOtherClubUser}
                   枚）を使用します。複数の部活に所属する生徒は、所属部活分を合算します。
                 </p>
-                  {gymClubs.map((club) => (
-                    <div key={club} className={styles.field}>
-                      <label
-                        className={styles.settingLabel}
-                        htmlFor={`ticket-limit-${club}`}
+                {gymClubs.map((club) => (
+                  <div key={club} className={styles.field}>
+                    <label
+                      className={styles.settingLabel}
+                      htmlFor={`ticket-limit-${club}`}
+                    >
+                      {club}
+                    </label>
+                    <div className={styles.settingControlGroup}>
+                      <span
+                        id={`ticket-limit-${club}`}
+                        className={styles.fieldValue}
                       >
-                        {club}
-                      </label>
-                      <div className={styles.settingControlGroup}>
-                        <span
-                          id={`ticket-limit-${club}`}
-                          className={styles.fieldValue}
-                        >
-                          {settings.gymTicketLimitsByClub[club] ??
-                            settings.maxTicketsPerGymUser}
-                        </span>
-                        <button
-                          type='button'
-                          className={styles.inlineEditButton}
-                          onClick={() => openGymClubLimitEditModal(club)}
-                          disabled={isSettingsLoading || isSyncingSetting}
-                        >
-                          変更する
-                        </button>
-                      </div>
+                        {settings.gymTicketLimitsByClub[club] ??
+                          settings.maxTicketsPerOtherClubUser}
+                      </span>
+                      <button
+                        type='button'
+                        className={styles.inlineEditButton}
+                        onClick={() => openGymClubLimitEditModal(club)}
+                        disabled={isSettingsLoading || isSyncingSetting}
+                      >
+                        変更する
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             ) : (
               <p className={styles.settingHint}>
@@ -1840,22 +1898,127 @@ const SettingsContent = () => {
             )}
           </div>
           <div>
+            <h3>クラスごとの発行可能枚数</h3>
+            <p className={styles.settingHint}>
+              各クラスの生徒が自クラス公演を発行できる枚数です。
+            </p>
+            {settings.classTicketLimits.map((item) => (
+              <div className={styles.field} key={item.id}>
+                <label
+                  className={styles.settingLabel}
+                  htmlFor={`class-ticket-limit-${item.id}`}
+                >
+                  {item.class_name}
+                </label>
+                <div className={styles.settingControlGroup}>
+                  <span
+                    id={`class-ticket-limit-${item.id}`}
+                    className={styles.fieldValue}
+                  >
+                    {item.max_tickets_per_user}
+                  </span>
+                  <button
+                    type='button'
+                    className={styles.inlineEditButton}
+                    onClick={() =>
+                      openClassLimitEditModal(
+                        item.id,
+                        item.max_tickets_per_user,
+                      )
+                    }
+                    disabled={isSettingsLoading || isSyncingSetting}
+                  >
+                    変更する
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className={styles.settingControlGroup}>
+              <button
+                type='button'
+                className={styles.inlineEditButton}
+                disabled={isSyncingSetting}
+                onClick={() => {
+                  const raw = window.prompt(
+                    '全クラスに設定する発行可能枚数（0〜100）を入力してください。',
+                  );
+                  if (raw === null) {
+                    return;
+                  }
+                  const value = Number(raw);
+                  if (!Number.isInteger(value) || value < 0 || value > 100) {
+                    setSettingsError('0〜100の整数を入力してください。');
+                    return;
+                  }
+                  const next = {
+                    ...settings,
+                    classTicketLimits: settings.classTicketLimits.map(
+                      (item) => ({
+                        ...item,
+                        max_tickets_per_user: value,
+                      }),
+                    ),
+                  };
+                  setSettings(next);
+                  void syncSettings(
+                    next,
+                    '全クラスの発行可能枚数を一括更新しました。',
+                  );
+                }}
+              >
+                全クラスを一括変更
+              </button>
+            </div>
+          </div>
+          <div>
             <h3>1人あたりのチケット発行上限</h3>
+
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
-                htmlFor='ticket-max-per-user'
+                htmlFor='ticket-max-per-other-performance-user'
               >
-                1人あたりのチケット発行上限
+                他クラス・部活の合計発行可能枚数
               </label>
               <div className={styles.settingControlGroup}>
-                <span id='ticket-max-per-user' className={styles.fieldValue}>
-                  {settings.maxTicketsPerUser}
+                <span
+                  id='ticket-max-per-other-performance-user'
+                  className={styles.fieldValue}
+                >
+                  {settings.maxTicketsPerOtherPerformanceUser}
                 </span>
                 <button
                   type='button'
                   className={styles.inlineEditButton}
-                  onClick={() => openNumericEditModal('maxTicketsPerUser')}
+                  onClick={() =>
+                    openNumericEditModal('maxTicketsPerOtherPerformanceUser')
+                  }
+                  disabled={isSettingsLoading || isSyncingSetting}
+                >
+                  変更する
+                </button>
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label
+                className={styles.settingLabel}
+                htmlFor='ticket-max-per-other-class-user'
+              >
+                他クラスの1クラスあたりの発行可能枚数
+              </label>
+              <div className={styles.settingControlGroup}>
+                <span
+                  id='ticket-max-per-other-class-user'
+                  className={styles.fieldValue}
+                >
+                  {settings.maxTicketsPerOtherClassUser}
+                </span>
+                <button
+                  type='button'
+                  className={styles.inlineEditButton}
+                  onClick={() =>
+                    openNumericEditModal('maxTicketsPerOtherClassUser')
+                  }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する
@@ -1867,19 +2030,21 @@ const SettingsContent = () => {
                 className={styles.settingLabel}
                 htmlFor='ticket-max-per-gym-user'
               >
-                1人あたりの体育館公演チケット発行上限
+                他部活の1部活あたり発行上限
               </label>
               <div className={styles.settingControlGroup}>
                 <span
                   id='ticket-max-per-gym-user'
                   className={styles.fieldValue}
                 >
-                  {settings.maxTicketsPerGymUser}
+                  {settings.maxTicketsPerOtherClubUser}
                 </span>
                 <button
                   type='button'
                   className={styles.inlineEditButton}
-                  onClick={() => openNumericEditModal('maxTicketsPerGymUser')}
+                  onClick={() =>
+                    openNumericEditModal('maxTicketsPerOtherClubUser')
+                  }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
                   変更する
@@ -1905,32 +2070,6 @@ const SettingsContent = () => {
                   className={styles.inlineEditButton}
                   onClick={() =>
                     openNumericEditModal('maxTicketsPerJuniorUser')
-                  }
-                  disabled={isSettingsLoading || isSyncingSetting}
-                >
-                  変更する
-                </button>
-              </div>
-            </div>
-            <div className={styles.field}>
-              <label
-                className={styles.settingLabel}
-                htmlFor='ticket-admission-only-max-junior'
-              >
-                入場専用券のみ登録可能な中学生アカウント上限
-              </label>
-              <div className={styles.settingControlGroup}>
-                <span
-                  id='ticket-admission-only-max-junior'
-                  className={styles.fieldValue}
-                >
-                  {settings.maxAdmissionOnlyJuniorAccounts}
-                </span>
-                <button
-                  type='button'
-                  className={styles.inlineEditButton}
-                  onClick={() =>
-                    openNumericEditModal('maxAdmissionOnlyJuniorAccounts')
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >
@@ -1973,6 +2112,32 @@ const SettingsContent = () => {
                   checked={settings.juniorReleaseOpen}
                 />
               </label>
+            </div>
+            <div className={styles.field}>
+              <label
+                className={styles.settingLabel}
+                htmlFor='ticket-admission-only-max-junior'
+              >
+                入場専用券のみ登録可能な中学生アカウント上限
+              </label>
+              <div className={styles.settingControlGroup}>
+                <span
+                  id='ticket-admission-only-max-junior'
+                  className={styles.fieldValue}
+                >
+                  {settings.maxAdmissionOnlyJuniorAccounts}
+                </span>
+                <button
+                  type='button'
+                  className={styles.inlineEditButton}
+                  onClick={() =>
+                    openNumericEditModal('maxAdmissionOnlyJuniorAccounts')
+                  }
+                  disabled={isSettingsLoading || isSyncingSetting}
+                >
+                  変更する
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2364,6 +2529,67 @@ const SettingsContent = () => {
                 type='button'
                 className={styles.settingModalConfirm}
                 onClick={handleConfirmGymClubLimitEdit}
+                disabled={isModalSubmitting}
+              >
+                {isModalSubmitting ? '同期中...' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingClassLimitId !== null && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeClassLimitEditModal();
+            }
+          }}
+        >
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='class-limit-edit-title'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='class-limit-edit-title'
+              className={styles.settingModalTitle}
+            >
+              {settings.classTicketLimits.find(
+                (item) => item.id === editingClassLimitId,
+              )?.class_name ?? 'クラス'}
+              の発行可能枚数を変更
+            </h3>
+            <input
+              className={styles.fieldControl}
+              type='number'
+              min='0'
+              max='100'
+              value={editingClassLimit}
+              onInput={(event) =>
+                setEditingClassLimit((event.target as HTMLInputElement).value)
+              }
+            />
+            {settingsMessageScope === 'modal' && settingsError && (
+              <p className={styles.authError}>{settingsError}</p>
+            )}
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={closeClassLimitEditModal}
+                disabled={isModalSubmitting}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={styles.settingModalConfirm}
+                onClick={handleConfirmClassLimitEdit}
                 disabled={isModalSubmitting}
               >
                 {isModalSubmitting ? '同期中...' : 'OK'}

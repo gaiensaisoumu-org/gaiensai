@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT plan(22);
+SELECT plan(36);
 
 INSERT INTO public.configs (
   id,
@@ -11,7 +11,7 @@ INSERT INTO public.configs (
   admin_password,
   show_length,
   junior_release_open,
-  max_tickets_per_user,
+  max_tickets_per_other_class_user,
   max_tickets_per_junior_user
 )
 VALUES (1, 2026, true, 'test-password', 60, false, 20, 2)
@@ -19,7 +19,7 @@ ON CONFLICT (id) DO UPDATE
 SET
   junior_release_open = false,
   is_active = true,
-  max_tickets_per_user = 20,
+  max_tickets_per_other_class_user = 20,
   max_tickets_per_junior_user = 2;
 
 INSERT INTO public.relationships (id, name, is_accepting)
@@ -469,6 +469,79 @@ SELECT is(
   ),
   2,
   'failed gym over-issue does not increment the counter'
+);
+
+SELECT has_column(
+  'public', 'class_performances', 'max_tickets_per_user',
+  'class performances have a per-class student issuance limit'
+);
+
+SELECT has_column(
+  'public', 'configs', 'max_tickets_per_other_class_user',
+  'configs have an other-class per-class issuance limit'
+);
+
+SELECT has_column(
+  'public', 'configs', 'max_tickets_per_other_club_user',
+  'configs have an other-club per-club issuance limit'
+);
+
+SELECT has_column(
+  'public', 'configs', 'max_tickets_per_other_performance_user',
+  'configs have an aggregate other-performance issuance limit'
+);
+
+SELECT col_not_null(
+  'public', 'class_performances', 'max_tickets_per_user',
+  'class issuance limit is not nullable'
+);
+
+SELECT col_not_null(
+  'public', 'configs', 'max_tickets_per_other_performance_user',
+  'aggregate other-performance limit is not nullable'
+);
+
+SELECT has_function(
+  'public', 'get_student_class_ticket_remaining', ARRAY['smallint'::text],
+  'student class remaining RPC exists'
+);
+
+SELECT is(
+  (SELECT count(*) FROM information_schema.columns
+   WHERE table_schema = 'public' AND table_name = 'configs'
+     AND column_name = 'max_tickets_per_gym_user'),
+  0::bigint,
+  'legacy gym per-user limit column has been removed'
+);
+
+SELECT has_column(
+  'public', 'configs', 'max_tickets_per_other_club_user',
+  'configs have a per-other-club issuance limit'
+);
+
+SELECT has_column(
+  'public', 'configs', 'max_tickets_per_other_performance_user',
+  'configs have a cross-performance issuance limit'
+);
+
+SELECT has_column(
+  'public', 'configs', 'gym_ticket_limits_by_club',
+  'configs retain per-club issuance limits'
+);
+
+SELECT has_function(
+  'public', 'get_student_gym_ticket_remaining', ARRAY['smallint'::text],
+  'student gym remaining RPC exists'
+);
+
+SELECT col_not_null(
+  'public', 'configs', 'max_tickets_per_other_club_user',
+  'other-club issuance limit is not nullable'
+);
+
+SELECT col_not_null(
+  'public', 'configs', 'max_tickets_per_other_performance_user',
+  'cross-performance issuance limit is not nullable'
 );
 
 SELECT finish();

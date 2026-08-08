@@ -95,7 +95,7 @@ const requireAdmin = async (client: SupabaseClient, req: Request) => {
 const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
   if (admin.class_performance_id) {
     const { data, error } = await client.from('class_performances')
-      .select('id, class_name, title, description, image_path, is_accepting, total_capacity, junior_capacity')
+      .select('id, class_name, title, description, image_path, is_accepting, total_capacity, junior_capacity, max_tickets_per_user')
       .eq('id', admin.class_performance_id).maybeSingle();
     if (error) {throw error;}
     if (!data) {throw new HttpError(404, '担当公演が見つかりません。');}
@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
       if (own.kind === 'gym') {
         const { data: config, error: configError } = await client
           .from('configs')
-          .select('max_tickets_per_gym_user, gym_ticket_limits_by_club')
+          .select('max_tickets_per_other_club_user, gym_ticket_limits_by_club')
           .order('id')
           .limit(1)
           .maybeSingle();
@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
         const configuredLimit = Number(limitsByClub[own.performance.group_name]);
         const gymTicketLimit = Number.isInteger(configuredLimit) && configuredLimit >= 0
           ? configuredLimit
-          : Number(config?.max_tickets_per_gym_user ?? 0);
+          : Number(config?.max_tickets_per_other_club_user ?? 0);
         const roundNames = new Map(
           own.performances.map((performance) => [
             performance.id,
@@ -347,12 +347,16 @@ Deno.serve(async (req) => {
       const isAccepting = body.isAccepting;
       const capacity = body.capacity;
       const juniorCapacity = body.juniorCapacity;
+      const maxTicketsPerUser = body.maxTicketsPerUser;
       if (typeof isAccepting !== 'boolean') {throw new HttpError(400, '受付状態が不正です。');}
       if (!Number.isInteger(capacity) || typeof capacity !== 'number' || capacity < 1 || capacity > 10000) {
         throw new HttpError(400, '定員は1〜10,000人の整数で指定してください。');
       }
       if (!Number.isInteger(juniorCapacity) || typeof juniorCapacity !== 'number' || juniorCapacity < 0 || juniorCapacity > capacity) {
         throw new HttpError(400, '中学生枠は0〜定員の範囲で指定してください。');
+      }
+      if (own.kind === 'class' && (!Number.isInteger(maxTicketsPerUser) || typeof maxTicketsPerUser !== 'number' || maxTicketsPerUser < 0 || maxTicketsPerUser > 100)) {
+        throw new HttpError(400, '自クラスの発行可能枚数は0〜100の整数で指定してください。');
       }
       const ticketQuery = own.kind === 'class'
         ? client.from('class_tickets').select('tickets!inner(person_count)').eq('class_id', own.performance.id).eq('tickets.status', 'valid')
@@ -368,7 +372,7 @@ Deno.serve(async (req) => {
       }
       const year = await eventYear(client);
       const update = own.kind === 'class'
-        ? { total_capacity: capacity, junior_capacity: juniorCapacity, is_accepting: isAccepting, year }
+        ? { total_capacity: capacity, junior_capacity: juniorCapacity, max_tickets_per_user: maxTicketsPerUser, is_accepting: isAccepting, year }
         : { capacity, junior_capacity: juniorCapacity, is_accepting: isAccepting, year };
       const updateQuery = client
         .from(own.kind === 'class' ? 'class_performances' : 'gym_performances')

@@ -157,7 +157,25 @@ const Issue = () => {
     class: number;
     gym: number;
   } | null>(null);
+  const [classRemainingPerformanceId, setClassRemainingPerformanceId] =
+    useState<number | null>(null);
+  const [classRemainingByPerformanceId, setClassRemainingByPerformanceId] =
+    useState<Map<number, number>>(new Map());
+  const [classPerformanceNames, setClassPerformanceNames] = useState<
+    Map<number, string>
+  >(new Map());
+  const [gymRemainingByPerformanceId, setGymRemainingByPerformanceId] =
+    useState<Map<number, number>>(new Map());
+  const [gymPerformanceNames, setGymPerformanceNames] = useState<
+    Map<number, string>
+  >(new Map());
   const [isIssuing, setIsIssuing] = useState(false);
+  const [
+    hasOtherPerformanceTotalLimitError,
+    setHasOtherPerformanceTotalLimitError,
+  ] = useState(false);
+  const [otherPerformanceTotalRemaining, setOtherPerformanceTotalRemaining] =
+    useState<number | null>(null);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
   const [classInviteMode, setClassInviteMode] = useState<
     'open' | 'only-own' | 'outside-own-self-only' | 'off'
@@ -178,6 +196,60 @@ const Issue = () => {
   useTitle('チケット発券 - 生徒用ページ');
 
   useEffect(() => {
+    const loadPerformanceRemaining = async () => {
+      const { data, error } = await supabase.rpc(
+        'get_student_performance_ticket_remaining',
+      );
+      if (error) {
+        return;
+      }
+      const result = data as {
+        class?: Record<string, number>;
+        gym?: Record<string, number>;
+        class_names?: Record<string, string>;
+        gym_names?: Record<string, string>;
+        other_total_remaining?: number;
+      } | null;
+      if (typeof result?.other_total_remaining === 'number') {
+        setOtherPerformanceTotalRemaining(result.other_total_remaining);
+      }
+      setClassPerformanceNames(
+        new Map(
+          Object.entries(result?.class_names ?? {}).map(([id, name]) => [
+            Number(id),
+            name,
+          ]),
+        ),
+      );
+      setGymPerformanceNames(
+        new Map(
+          Object.entries(result?.gym_names ?? {}).map(([id, name]) => [
+            Number(id),
+            name,
+          ]),
+        ),
+      );
+      setClassRemainingByPerformanceId(
+        new Map(
+          Object.entries(result?.class ?? {}).map(([id, remaining]) => [
+            Number(id),
+            Number(remaining),
+          ]),
+        ),
+      );
+      setGymRemainingByPerformanceId(
+        new Map(
+          Object.entries(result?.gym ?? {}).map(([id, remaining]) => [
+            Number(id),
+            Number(remaining),
+          ]),
+        ),
+      );
+    };
+    void loadPerformanceRemaining();
+  }, []);
+
+  useEffect(() => {
     const loadIssuingState = async () => {
       const { data } = await getStudentIssueBootstrap();
       const configData = (data as { config?: { is_active?: boolean | null } })
@@ -196,49 +268,47 @@ const Issue = () => {
       const { data } = await getStudentIssueBootstrap();
       const bootstrap = data as {
         config?: {
-          max_tickets_per_user?: number | null;
-          max_tickets_per_gym_user?: number | null;
+          max_tickets_per_other_club_user?: number | null;
           gym_ticket_limits_by_club?: Record<string, unknown> | null;
         };
         profile?: { clubs?: string[] | null };
-        class_ticket_count?: number;
         gym_ticket_count?: number;
       } | null;
       if (!bootstrap) {
         return;
       }
 
-      const maxTicketsPerUser = Number(bootstrap.config?.max_tickets_per_user ?? -1);
-      const maxTicketsPerGymUser = Number(
-        bootstrap.config?.max_tickets_per_gym_user ?? -1,
+      const maxTicketsPerOtherClubUser = Number(
+        bootstrap.config?.max_tickets_per_other_club_user ?? -1,
       );
       const clubs = Array.isArray(bootstrap.profile?.clubs)
         ? bootstrap.profile.clubs
         : [];
       const limitsByClub = bootstrap.config?.gym_ticket_limits_by_club ?? {};
-      const gymTicketLimit = clubs.length > 0
-        ? clubs.reduce((total, club) => {
-            const configuredLimit = Number(limitsByClub[club]);
-            return total + (Number.isInteger(configuredLimit) && configuredLimit >= 0
-              ? configuredLimit
-              : maxTicketsPerGymUser);
-          }, 0)
-        : maxTicketsPerGymUser;
+      const gymTicketLimit =
+        clubs.length > 0
+          ? clubs.reduce((total, club) => {
+              const configuredLimit = Number(limitsByClub[club]);
+              return (
+                total +
+                (Number.isInteger(configuredLimit) && configuredLimit >= 0
+                  ? configuredLimit
+                  : maxTicketsPerOtherClubUser)
+              );
+            }, 0)
+          : maxTicketsPerOtherClubUser;
       if (
-        !Number.isInteger(maxTicketsPerUser) ||
-        !Number.isInteger(maxTicketsPerGymUser) ||
-        maxTicketsPerUser < 0 ||
-        maxTicketsPerGymUser < 0
+        !Number.isInteger(maxTicketsPerOtherClubUser) ||
+        maxTicketsPerOtherClubUser < 0
       ) {
         return;
       }
 
       setRemainingIssueCapacity({
-        class: Math.max(0, maxTicketsPerUser - Number(bootstrap.class_ticket_count ?? 0)),
+        class: 100,
         gym: Math.max(
           0,
-          gymTicketLimit -
-            Number(bootstrap.gym_ticket_count ?? 0),
+          gymTicketLimit - Number(bootstrap.gym_ticket_count ?? 0),
         ),
       });
     };
@@ -247,11 +317,41 @@ const Issue = () => {
   }, []);
 
   useEffect(() => {
+    if (!selectedPerformance || selectedPerformance.performanceId <= 0) {
+      return;
+    }
+    const remaining =
+      selectedPerformance.scheduleId === 0
+        ? gymRemainingByPerformanceId.get(selectedPerformance.performanceId)
+        : classRemainingByPerformanceId.get(selectedPerformance.performanceId);
+    if (remaining === undefined) {
+      return;
+    }
+    setRemainingIssueCapacity((current) =>
+      current
+        ? {
+            ...current,
+            [selectedPerformance.scheduleId === 0 ? 'gym' : 'class']: remaining,
+          }
+        : current,
+    );
+    if (selectedPerformance.scheduleId > 0) {
+      setClassRemainingPerformanceId(selectedPerformance.performanceId);
+    }
+  }, [
+    selectedPerformance,
+    classRemainingByPerformanceId,
+    gymRemainingByPerformanceId,
+  ]);
+
+  useEffect(() => {
     const loadOwnProfile = async () => {
       const { data: bootstrapData } = await getStudentIssueBootstrap();
-      const data = (bootstrapData as {
-        profile?: { affiliation?: number | null; clubs?: string[] | null };
-      } | null)?.profile;
+      const data = (
+        bootstrapData as {
+          profile?: { affiliation?: number | null; clubs?: string[] | null };
+        } | null
+      )?.profile;
       if (!data) {
         return;
       }
@@ -284,14 +384,18 @@ const Issue = () => {
     const loadIssueControls = async () => {
       try {
         const { data: bootstrapData } = await getStudentIssueBootstrap();
-        const data = (bootstrapData as {
-          controls?: {
-            class_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
-            rehearsal_invite_mode: 'open' | 'only-own' | 'off';
-            gym_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
-            entry_only_mode: 'open' | 'only-own' | 'off';
-          } | null;
-        } | null)?.controls;
+        const data = (
+          bootstrapData as {
+            controls?: {
+              class_invite_mode:
+                'open' | 'only-own' | 'outside-own-self-only' | 'off';
+              rehearsal_invite_mode: 'open' | 'only-own' | 'off';
+              gym_invite_mode:
+                'open' | 'only-own' | 'outside-own-self-only' | 'off';
+              entry_only_mode: 'open' | 'only-own' | 'off';
+            } | null;
+          } | null
+        )?.controls;
 
         if (data) {
           setIssueControls(data);
@@ -308,8 +412,9 @@ const Issue = () => {
   useEffect(() => {
     const loadTicketTypes = async () => {
       const { data: bootstrapData, error } = await getStudentIssueBootstrap();
-      const data = (bootstrapData as { ticket_types?: TicketTypeOption[] } | null)
-        ?.ticket_types;
+      const data = (
+        bootstrapData as { ticket_types?: TicketTypeOption[] } | null
+      )?.ticket_types;
       if (error) {
         alert('チケット種別の読み込みに失敗しました。');
         return;
@@ -327,10 +432,8 @@ const Issue = () => {
     if (!issueControls) {
       return [];
     }
-    const hasReachedClassCapacity =
-      remainingIssueCapacity !== null && remainingIssueCapacity.class <= 0;
-    const hasReachedGymCapacity =
-      remainingIssueCapacity !== null && remainingIssueCapacity.gym <= 0;
+    // クラス上限は対象クラスごとなので、券種全体は無効化しない。
+    const hasReachedClassCapacity = false;
     return ticketTypes.map((t) => {
       let isActive = false;
       if (t.id === 1) {
@@ -343,7 +446,6 @@ const Issue = () => {
       } else if (t.id === 3) {
         isActive =
           issueControls.gym_invite_mode !== 'off' &&
-          !hasReachedGymCapacity &&
           (issueControls.gym_invite_mode !== 'only-own' ||
             (ownClubs !== null && ownClubs.length > 0));
       } else if (t.id === 4) {
@@ -371,8 +473,9 @@ const Issue = () => {
       setRelationshipLoading(true);
 
       const { data: bootstrapData, error } = await getStudentIssueBootstrap();
-      const data = (bootstrapData as { relationships?: RelationshipRow[] } | null)
-        ?.relationships;
+      const data = (
+        bootstrapData as { relationships?: RelationshipRow[] } | null
+      )?.relationships;
 
       if (error) {
         setRelationshipError('間柄の読み込みに失敗しました。');
@@ -696,15 +799,15 @@ const Issue = () => {
         )?.name ?? `間柄${selectedRelationshipId}`);
   const isOtherClassSelection = Boolean(
     selectedTicketType?.id === CLASS_INVITE_TICKET_ID &&
-      selectedPerformance &&
-      ownClassName !== null &&
-      selectedPerformance.performanceName !== ownClassName,
+    selectedPerformance &&
+    ownClassName !== null &&
+    selectedPerformance.performanceName !== ownClassName,
   );
   const isOtherGymSelection = Boolean(
     selectedTicketType?.id === GYM_INVITE_TICKET_ID &&
-      selectedPerformance &&
-      ownClubs !== null &&
-      !ownClubs.includes(selectedPerformance.performanceName),
+    selectedPerformance &&
+    ownClubs !== null &&
+    !ownClubs.includes(selectedPerformance.performanceName),
   );
   const isRelationshipRestrictedToSelf =
     (classInviteMode === 'outside-own-self-only' && isOtherClassSelection) ||
@@ -738,13 +841,38 @@ const Issue = () => {
     remainingIssueCapacity === null
       ? null
       : isGymPerformanceTicket
-        ? remainingIssueCapacity.gym
-        : remainingIssueCapacity.class;
+        ? selectedPerformance?.performanceId &&
+          gymRemainingByPerformanceId.has(selectedPerformance.performanceId)
+          ? (gymRemainingByPerformanceId.get(
+              selectedPerformance.performanceId,
+            ) ?? null)
+          : null
+        : selectedPerformance?.performanceId === classRemainingPerformanceId
+          ? remainingIssueCapacity.class
+          : null;
   const isAtClassIssueLimit =
-    remainingIssueCapacity !== null && remainingIssueCapacity.class <= 0;
+    remainingIssueCapacity !== null &&
+    selectedPerformance?.performanceId === classRemainingPerformanceId &&
+    remainingIssueCapacity.class <= 0;
   const isAtGymIssueLimit =
-    remainingIssueCapacity !== null && remainingIssueCapacity.gym <= 0;
+    isGymPerformanceTicket &&
+    selectedPerformance?.performanceId !== undefined &&
+    (gymRemainingByPerformanceId.get(selectedPerformance.performanceId) ?? 1) <=
+      0;
   const isAtAllIssueLimits = isAtClassIssueLimit && isAtGymIssueLimit;
+  const reachedClassNames = [...classRemainingByPerformanceId]
+    .filter(([, remaining]) => remaining <= 0)
+    .map(([id]) => classPerformanceNames.get(id))
+    .filter((name): name is string => Boolean(name));
+  const reachedPerformanceNames = [
+    ...new Set([
+      ...reachedClassNames,
+      ...[...gymRemainingByPerformanceId]
+        .filter(([, remaining]) => remaining <= 0)
+        .map(([id]) => gymPerformanceNames.get(id))
+        .filter((name): name is string => Boolean(name)),
+    ]),
+  ];
   const isAtIssueLimit =
     !isSelectedEntryOnlyTicket &&
     selectedRemainingIssueCapacity !== null &&
@@ -906,6 +1034,7 @@ const Issue = () => {
     }
 
     setIsIssuing(true);
+    setHasOtherPerformanceTotalLimitError(false);
 
     const isGymSelection =
       selectedPerformance.performanceId > 0 &&
@@ -1031,6 +1160,9 @@ const Issue = () => {
 
     if (error) {
       const detailedMessage = await readFunctionErrorMessage(error);
+      setHasOtherPerformanceTotalLimitError(
+        detailedMessage.includes('他クラス・部活の合計発行可能枚数'),
+      );
       alert(`発券に失敗しました: ${detailedMessage}`);
       setIsIssuing(false);
       return;
@@ -1121,6 +1253,23 @@ const Issue = () => {
           </p>
         </Alert>
       ) : null}
+      {hasOtherPerformanceTotalLimitError ||
+      otherPerformanceTotalRemaining === 0 ? (
+        <Alert type='warning' className={styles.onlyOwnClassAlert}>
+          <p>他クラス・部活の合計発行可能枚数に達しています。</p>
+        </Alert>
+      ) : (
+        reachedPerformanceNames.length > 0 && (
+          <Alert type='info' className={styles.onlyOwnClassAlert}>
+            <p>発行上限に達している公演：</p>
+            <ul>
+              {reachedPerformanceNames.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </Alert>
+        )
+      )}
       {isAtClassIssueLimit && !isAtAllIssueLimits && (
         <Alert type='info' className={styles.onlyOwnClassAlert}>
           <p>
@@ -1135,6 +1284,32 @@ const Issue = () => {
           </p>
         </Alert>
       )}
+      {selectedPerformance &&
+        selectedPerformance.performanceId > 0 &&
+        selectedPerformance.scheduleId > 0 &&
+        selectedPerformance.performanceId === classRemainingPerformanceId &&
+        remainingIssueCapacity !== null && (
+          <Alert type='info' className={styles.onlyOwnClassAlert}>
+            <p>
+              このクラスのチケットは、あと{remainingIssueCapacity.class}
+              枚発行できます。
+            </p>
+          </Alert>
+        )}
+      {selectedPerformance &&
+        selectedPerformance.performanceId > 0 &&
+        selectedPerformance.scheduleId === 0 &&
+        gymRemainingByPerformanceId.has(selectedPerformance.performanceId) && (
+          <Alert type='info' className={styles.onlyOwnClassAlert}>
+            <p>
+              この部活のチケットは、あと
+              {gymRemainingByPerformanceId.get(
+                selectedPerformance.performanceId,
+              ) ?? 0}
+              枚発行できます。
+            </p>
+          </Alert>
+        )}
 
       <div className={styles.sliderViewport}>
         <div className={getPanelClassName(1)}>
@@ -1152,6 +1327,28 @@ const Issue = () => {
             selectedCellKey={selectedCellKey}
             restrictedClassName={restrictedClassName}
             restrictedGroupNames={restrictedGroupNames}
+            hiddenClassPerformanceIds={
+              new Set(
+                [...classRemainingByPerformanceId]
+                  .filter(([, remaining]) => remaining <= 0)
+                  .map(([id]) => id),
+              )
+            }
+            nonInteractiveGymPerformanceIds={
+              new Set(
+                [...gymRemainingByPerformanceId]
+                  .filter(([, remaining]) => remaining <= 0)
+                  .map(([id]) => id),
+              )
+            }
+            hiddenGymGroupNames={
+              new Set(
+                [...gymRemainingByPerformanceId]
+                  .filter(([, remaining]) => remaining <= 0)
+                  .map(([id]) => gymPerformanceNames.get(id))
+                  .filter((name): name is string => Boolean(name)),
+              )
+            }
             onSelectPerformance={setSelectedPerformance}
           />
         </div>

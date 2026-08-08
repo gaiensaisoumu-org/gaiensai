@@ -46,6 +46,8 @@ type GymPerformancesTableProps = {
   scheduleFilter?: (scheduleId: number, roundName: string) => boolean;
   remainingMode?: 'general' | 'total' | 'junior';
   showToggleRemainingMode?: boolean;
+  nonInteractivePerformanceIds?: Set<number>;
+  hiddenGroupNames?: Set<string>;
 };
 
 const GymPerformancesTable = ({
@@ -58,6 +60,8 @@ const GymPerformancesTable = ({
   scheduleFilter,
   remainingMode = 'general',
   showToggleRemainingMode = false,
+  nonInteractivePerformanceIds,
+  hiddenGroupNames,
 }: GymPerformancesTableProps) => {
   const [performances, setPerformances] = useState<GymPerformanceRow[]>([]);
   const [selectedGroupName, setSelectedGroupName] = useState<string | 'all'>(
@@ -306,9 +310,10 @@ const GymPerformancesTable = ({
     () =>
       groupNames.filter(
         (groupName) =>
-          selectedGroupName === 'all' || groupName === selectedGroupName,
+          !hiddenGroupNames?.has(groupName) &&
+          (selectedGroupName === 'all' || groupName === selectedGroupName),
       ),
-    [groupNames, selectedGroupName],
+    [groupNames, selectedGroupName, hiddenGroupNames],
   );
 
   const filteredRoundNames = useMemo(
@@ -450,7 +455,7 @@ const GymPerformancesTable = ({
               }}
             >
               <option value='all'>すべて</option>
-              {groupNames.map((groupName) => (
+              {filteredGroupNames.map((groupName) => (
                 <option key={groupName} value={groupName}>
                   {groupName}
                 </option>
@@ -498,7 +503,7 @@ const GymPerformancesTable = ({
             }}
           >
             <option value='all'>すべて</option>
-            {groupNames.map((groupName) => (
+              {filteredGroupNames.map((groupName) => (
               <option key={groupName} value={groupName}>
                 {groupName}
               </option>
@@ -592,6 +597,7 @@ const GymPerformancesTable = ({
 
                   const isInteractive =
                     cell.remaining > 0 &&
+                    !nonInteractivePerformanceIds?.has(cell.performanceId) &&
                     (enableIssueJump || Boolean(onAvailableCellClick));
                   const selectedKey = `${cell.performanceId}-0`;
                   const isSelected = selectedCellKey === selectedKey;
@@ -606,7 +612,7 @@ const GymPerformancesTable = ({
                       } ${isSelected ? styles.selectedCell : ''}`}
                       key={key}
                       onClick={() => {
-                        if (cell.remaining <= 0) {
+                        if (cell.remaining <= 0 || nonInteractivePerformanceIds?.has(cell.performanceId)) {
                           return;
                         }
                         handleAvailableCellClick({
