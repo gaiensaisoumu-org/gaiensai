@@ -29,6 +29,14 @@ type Performance = {
 const PASSWORD_ALPHABET =
   '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
+const tokyoDate = () =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
 const createPassword = (length = 10) => {
   const bytes = new Uint32Array(length);
   crypto.getRandomValues(bytes);
@@ -53,7 +61,7 @@ const downloadCredentials = (
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `organization-admin-accounts-${new Date().toISOString().slice(0, 10)}.csv`;
+  anchor.download = `organization-admin-accounts-${tokyoDate()}.csv`;
   anchor.click();
   URL.revokeObjectURL(url);
 };
@@ -71,7 +79,7 @@ const defaultUsername = (kind: Kind, performance: Performance) => {
     '軽音楽部 3年': 'keion-3',
     青フィル: 'aophil',
   };
-  return `${known[performance.group_name ?? ''] ?? 'club'}-${performance.id}`;
+  return known[performance.group_name ?? ''] ?? 'club';
 };
 
 const OrganizationAccountsContent = () => {
@@ -145,7 +153,7 @@ const OrganizationAccountsContent = () => {
         .filter((name): name is string => Boolean(name)),
     );
     const includedGymGroups = new Set<string>();
-    const admins = [
+    const candidates = [
       ...classes
         .filter((item) => !classIds.has(item.id))
         .map((item) => ({
@@ -169,7 +177,7 @@ const OrganizationAccountsContent = () => {
           performanceId: item.id,
           username: defaultUsername('gym', item),
           password: createPassword(),
-          group: `${item.group_name ?? '不明'}：${item.round_name ?? ''}`,
+          group: item.group_name ?? '不明',
         })),
       ...exhibitions
         .filter((item) => !exhibitionIds.has(item.id))
@@ -181,6 +189,21 @@ const OrganizationAccountsContent = () => {
           group: item.group_name ?? '不明',
         })),
     ];
+    const usedUsernames = new Set(accounts.map((account) => account.username));
+    const admins = candidates.map((admin) => {
+      let username = admin.username;
+      if (usedUsernames.has(username)) {
+        const usernameWithId = `${username}-${admin.performanceId}`;
+        username = usernameWithId;
+        let suffix = 2;
+        while (usedUsernames.has(username)) {
+          username = `${usernameWithId}-${suffix}`;
+          suffix += 1;
+        }
+      }
+      usedUsernames.add(username);
+      return { ...admin, username };
+    });
     if (!admins.length) {
       setMessage({ type: 'success', text: '未作成のアカウントはありません。' });
       setBusy(false);

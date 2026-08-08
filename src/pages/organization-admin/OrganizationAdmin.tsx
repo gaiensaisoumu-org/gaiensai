@@ -966,10 +966,7 @@ const OrganizationAdmin = () => {
                       定員はむやみに変更しないでください。変更があった場合は総務から理由の確認が入ることがあります。
                     </li>
                     <li>
-                      チケット発行上限設定は部員だけに適用されます。また、他部活と兼部している部員は、
-                      各部活のチケット発行上限を合算した枚数まで発行できますが、発行枚数のカウントは体育館公演全体で行われるので、
-                      設定値より多く発行できる場合があります。例えば、A部の発行上限を5枚、B部の発行上限を5枚に設定している場合、
-                      兼部している部員はA部で10枚、B部で0枚の合計10枚で発行することも出来ます。ご注意ください。
+                      チケット発行上限設定は自クラス・自部活の発行分だけに適用されます。他クラス・部活からの取得には影響しません。兼部している場合も部活ごとにカウントされるように変更しました。
                     </li>
                   </ul>
                 </Alert>
@@ -1002,7 +999,7 @@ const OrganizationAdmin = () => {
                 {dashboard.kind === 'class' && (
                   <div className={styles.settingRow}>
                     <div>
-                      <span>自クラスの発行可能枚数</span>
+                      <span>自クラス・部活の最大発行可能枚数</span>
                       <p>{classTicketLimit}枚</p>
                     </div>
                     <button type='button' className={styles.inlineEditButton} onClick={openCapacityModal} disabled={busy}>
