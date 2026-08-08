@@ -68,6 +68,19 @@
   color: var(--settings-hint-color);
 }
 
+.settingHeadingRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.settingHeadingRow h3 {
+  margin: 0;
+}
+
 .fieldControl {
   max-width: 100%;
   min-height: 2.6rem;

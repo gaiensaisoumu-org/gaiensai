@@ -270,6 +270,9 @@ const SettingsContent = () => {
   const [editingGymClubLimit, setEditingGymClubLimit] = useState('');
   const [editingClassLimitId, setEditingClassLimitId] = useState<number | null>(null);
   const [editingClassLimit, setEditingClassLimit] = useState('');
+  const [isBulkClassLimitModalOpen, setIsBulkClassLimitModalOpen] =
+    useState(false);
+  const [bulkClassLimit, setBulkClassLimit] = useState('');
   const [activeDetailTab, setActiveDetailTab] = useState<
     'schedules' | 'relationships'
   >('schedules');
@@ -1026,6 +1029,47 @@ const SettingsContent = () => {
     setIsModalSubmitting(false);
     if (success) {
       closeClassLimitEditModal();
+    }
+  };
+
+  const openBulkClassLimitEditModal = () => {
+    setIsBulkClassLimitModalOpen(true);
+    setBulkClassLimit('');
+    setSettingsMessageScope('modal');
+    setSettingsError(null);
+    setSettingsSuccess(null);
+  };
+
+  const closeBulkClassLimitEditModal = () => {
+    setIsBulkClassLimitModalOpen(false);
+    setBulkClassLimit('');
+    setSettingsMessageScope(null);
+    setSettingsError(null);
+    setSettingsSuccess(null);
+  };
+
+  const handleConfirmBulkClassLimitEdit = async () => {
+    const limit = Number(bulkClassLimit);
+    if (!Number.isInteger(limit) || limit < 0 || limit > 100) {
+      setSettingsError('クラスごとの発行可能枚数は0〜100の範囲の整数で入力してください。');
+      return;
+    }
+
+    const nextSettings = {
+      ...settings,
+      classTicketLimits: settings.classTicketLimits.map((item) => ({
+        ...item,
+        max_tickets_per_user: limit,
+      })),
+    };
+    setIsModalSubmitting(true);
+    const success = await syncSettings(
+      nextSettings,
+      '全クラスの発行可能枚数を一括更新しました。',
+    );
+    setIsModalSubmitting(false);
+    if (success) {
+      closeBulkClassLimitEditModal();
     }
   };
 
@@ -1898,10 +1942,21 @@ const SettingsContent = () => {
             )}
           </div>
           <div>
-            <h3>クラスごとの発行可能枚数</h3>
-            <p className={styles.settingHint}>
-              各クラスの生徒が自クラス公演を発行できる枚数です。
-            </p>
+            <div className={styles.settingHeadingRow}>
+              <div>
+                <h3>クラスごとの発行可能枚数</h3>
+                <p className={styles.settingHint}>
+                  各クラスの生徒が自クラス公演を発行できる枚数です。
+                </p>
+              </div>
+              <button
+                type='button'
+                disabled={isSettingsLoading || isSyncingSetting}
+                onClick={openBulkClassLimitEditModal}
+              >
+                全クラスを一括変更
+              </button>
+            </div>
             {settings.classTicketLimits.map((item) => (
               <div className={styles.field} key={item.id}>
                 <label
@@ -1933,42 +1988,6 @@ const SettingsContent = () => {
                 </div>
               </div>
             ))}
-            <div className={styles.settingControlGroup}>
-              <button
-                type='button'
-                className={styles.inlineEditButton}
-                disabled={isSyncingSetting}
-                onClick={() => {
-                  const raw = window.prompt(
-                    '全クラスに設定する発行可能枚数（0〜100）を入力してください。',
-                  );
-                  if (raw === null) {
-                    return;
-                  }
-                  const value = Number(raw);
-                  if (!Number.isInteger(value) || value < 0 || value > 100) {
-                    setSettingsError('0〜100の整数を入力してください。');
-                    return;
-                  }
-                  const next = {
-                    ...settings,
-                    classTicketLimits: settings.classTicketLimits.map(
-                      (item) => ({
-                        ...item,
-                        max_tickets_per_user: value,
-                      }),
-                    ),
-                  };
-                  setSettings(next);
-                  void syncSettings(
-                    next,
-                    '全クラスの発行可能枚数を一括更新しました。',
-                  );
-                }}
-              >
-                全クラスを一括変更
-              </button>
-            </div>
           </div>
           <div>
             <h3>1人あたりのチケット発行上限</h3>
@@ -2590,6 +2609,68 @@ const SettingsContent = () => {
                 type='button'
                 className={styles.settingModalConfirm}
                 onClick={handleConfirmClassLimitEdit}
+                disabled={isModalSubmitting}
+              >
+                {isModalSubmitting ? '同期中...' : 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isBulkClassLimitModalOpen && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeBulkClassLimitEditModal();
+            }
+          }}
+        >
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='bulk-class-limit-edit-title'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='bulk-class-limit-edit-title'
+              className={styles.settingModalTitle}
+            >
+              全クラスの発行可能枚数を変更
+            </h3>
+            <label className={styles.authLabel} htmlFor='bulk-class-limit'>
+              発行可能枚数（0〜100）
+            </label>
+            <input
+              id='bulk-class-limit'
+              className={styles.fieldControl}
+              type='number'
+              min='0'
+              max='100'
+              value={bulkClassLimit}
+              onInput={(event) =>
+                setBulkClassLimit((event.target as HTMLInputElement).value)
+              }
+            />
+            {settingsMessageScope === 'modal' && settingsError && (
+              <p className={styles.authError}>{settingsError}</p>
+            )}
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={closeBulkClassLimitEditModal}
+                disabled={isModalSubmitting}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={styles.settingModalConfirm}
+                onClick={handleConfirmBulkClassLimitEdit}
                 disabled={isModalSubmitting}
               >
                 {isModalSubmitting ? '同期中...' : 'OK'}
