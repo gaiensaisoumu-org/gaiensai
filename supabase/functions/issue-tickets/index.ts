@@ -851,11 +851,15 @@ export const handleIssueTicketsRequest = async (
           if (scheduleError || !scheduleRow?.start_at) {
             throw new HttpError(409, '公演日時の取得に失敗しました。');
           }
-          const scheduleKey = getJstDateKey(new Date(scheduleRow.start_at));
-          if (scheduleKey !== todayKey) {
+          const startAt = new Date(scheduleRow.start_at);
+          if (
+            Number.isNaN(startAt.getTime()) ||
+            getJstDateKey(startAt) !== todayKey ||
+            startAt.getTime() <= Date.now()
+          ) {
             throw new HttpError(
               403,
-              'この設定では当日分の当日券のみ発券できます。',
+              'この設定では当日かつ開始前の公演の当日券のみ発券できます。',
             );
           }
         } else {
@@ -867,11 +871,15 @@ export const handleIssueTicketsRequest = async (
           if (gymError || !gymRow?.start_at) {
             throw new HttpError(409, '公演日時の取得に失敗しました。');
           }
-          const scheduleKey = getJstDateKey(new Date(gymRow.start_at));
-          if (scheduleKey !== todayKey) {
+          const startAt = new Date(gymRow.start_at);
+          if (
+            Number.isNaN(startAt.getTime()) ||
+            getJstDateKey(startAt) !== todayKey ||
+            startAt.getTime() <= Date.now()
+          ) {
             throw new HttpError(
               403,
-              'この設定では当日分の当日券のみ発券できます。',
+              'この設定では当日かつ開始前の公演の当日券のみ発券できます。',
             );
           }
         }

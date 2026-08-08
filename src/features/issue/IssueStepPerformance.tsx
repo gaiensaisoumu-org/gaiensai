@@ -12,8 +12,16 @@ type IssueStepPerformanceProps = {
   classRemainingMode?: "general" | "total" | "junior";
   restrictedClassName?: string | null;
   restrictedGroupNames?: string[] | null;
-  classScheduleFilter?: (scheduleId: number, roundName: string) => boolean;
-  gymScheduleFilter?: (scheduleId: number, roundName: string) => boolean;
+  classScheduleFilter?: (
+    scheduleId: number,
+    roundName: string,
+    startAt?: string | null,
+  ) => boolean;
+  gymScheduleFilter?: (
+    performanceId: number,
+    roundName: string,
+    startAt?: string | null,
+  ) => boolean;
   gymRemainingMode?: "general" | "total" | "junior";
   nonInteractiveGymPerformanceIds?: Set<number>;
   hiddenGymGroupNames?: Set<string>;

@@ -18,6 +18,7 @@ type PerformanceRow = {
 type PerformanceSchedule = {
   id: number;
   round_name: string;
+  start_at?: string | null;
 };
 
 type ClassTicketCounterRow = {
@@ -48,7 +49,11 @@ type PerformancesTableProps = {
   restrictedClassName?: string | null;
   filterAccepting?: boolean;
   filterPerformanceAccepting?: boolean;
-  scheduleFilter?: (scheduleId: number, roundName: string) => boolean;
+  scheduleFilter?: (
+    scheduleId: number,
+    roundName: string,
+    startAt?: string | null,
+  ) => boolean;
   hiddenPerformanceIds?: Set<number>;
   nonInteractivePerformanceIds?: Set<number>;
 };
@@ -248,7 +253,12 @@ const PerformancesTable = ({
       ).filter(
         (schedule) =>
           (!filterAccepting || schedule.is_active === true) &&
-          (!scheduleFilter || scheduleFilter(schedule.id, schedule.round_name)),
+          (!scheduleFilter ||
+            scheduleFilter(
+              schedule.id,
+              schedule.round_name,
+              schedule.start_at,
+            )),
       );
       const counterData = availabilityData?.class_counters ?? [];
       const configData = availabilityData?.config ?? null;

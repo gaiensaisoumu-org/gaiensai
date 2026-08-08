@@ -43,7 +43,11 @@ type GymPerformancesTableProps = {
   selectedCellKey?: string;
   restrictedGroupNames?: string[] | null;
   filterAccepting?: boolean;
-  scheduleFilter?: (scheduleId: number, roundName: string) => boolean;
+  scheduleFilter?: (
+    performanceId: number,
+    roundName: string,
+    startAt?: string | null,
+  ) => boolean;
   remainingMode?: 'general' | 'total' | 'junior';
   showToggleRemainingMode?: boolean;
   nonInteractivePerformanceIds?: Set<number>;
@@ -164,7 +168,12 @@ const GymPerformancesTable = ({
           (!filterAccepting || performance.is_accepting === true) &&
           (!restrictedGroupNames ||
             restrictedGroupNames.includes(performance.group_name)) &&
-          (!scheduleFilter || scheduleFilter(0, performance.round_name)),
+          (!scheduleFilter ||
+            scheduleFilter(
+              performance.id,
+              performance.round_name,
+              performance.start_at,
+            )),
       );
       setPerformances(loadedPerformances);
 

@@ -32,6 +32,9 @@ const SELF_RELATIONSHIP_NAME = '本人';
 const CLASS_DAY_TICKET_ID = 8;
 const GYM_DAY_TICKET_ID = 9;
 
+const getJstDateKey = (date: Date): string =>
+  date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
+
 const gymPerformanceSnapshot = performancesSnapshot as {
   gymPerformances?: Array<{
     id: number;
@@ -107,6 +110,7 @@ const DayTicketIssue = () => {
   const [issueCount, setIssueCount] = useState(1);
   const [isIssuing, setIsIssuing] = useState(false);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [leavingStep, setLeavingStep] = useState<Step | null>(null);
   const [isForward, setIsForward] = useState(true);
   const animationTimerRef = useRef<number | null>(null);
@@ -115,6 +119,14 @@ const DayTicketIssue = () => {
   const { config } = useEventConfig();
 
   useTitle('当日券');
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30_000);
+
+    return () => window.clearInterval(timerId);
+  }, []);
 
   useEffect(() => {
     const loadIssuingState = async () => {
@@ -238,6 +250,37 @@ const DayTicketIssue = () => {
     !isTicketIssuingEnabled || !hasAnyActiveTicketType;
 
   const isGymPerformanceTicket = selectedTicketTypeId === GYM_DAY_TICKET_ID;
+  const isSelectableTodayBeforeStart = (startAt?: string | null): boolean => {
+    if (!startAt) {
+      return false;
+    }
+
+    const start = new Date(startAt);
+    return (
+      !Number.isNaN(start.getTime()) &&
+      getJstDateKey(start) === getJstDateKey(currentTime) &&
+      start.getTime() > currentTime.getTime()
+    );
+  };
+  const classScheduleFilter = useMemo(
+    () =>
+      issueControls?.same_day_class_mode === 'auto'
+        ? (_scheduleId: number, _roundName: string, startAt?: string | null) =>
+            isSelectableTodayBeforeStart(startAt)
+        : undefined,
+    [issueControls?.same_day_class_mode, currentTime],
+  );
+  const gymScheduleFilter = useMemo(
+    () =>
+      issueControls?.same_day_gym_mode === 'auto'
+        ? (
+            _performanceId: number,
+            _roundName: string,
+            startAt?: string | null,
+          ) => isSelectableTodayBeforeStart(startAt)
+        : undefined,
+    [issueControls?.same_day_gym_mode, currentTime],
+  );
 
   useEffect(() => {
     if (!selectedPerformance) {
@@ -529,6 +572,8 @@ const DayTicketIssue = () => {
               selectedPerformance={selectedPerformance}
               selectedCellKey={selectedCellKey}
               onSelectPerformance={setSelectedPerformance}
+              classScheduleFilter={classScheduleFilter}
+              gymScheduleFilter={gymScheduleFilter}
             />
           </div>
 
