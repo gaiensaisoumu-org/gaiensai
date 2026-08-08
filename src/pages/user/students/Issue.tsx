@@ -1330,21 +1330,21 @@ const Issue = () => {
             hiddenClassPerformanceIds={
               new Set(
                 [...classRemainingByPerformanceId]
-                  .filter(([, remaining]) => remaining <= 0)
+                  .filter(([id, remaining]) => remaining <= 0 || (otherPerformanceTotalRemaining === 0 && classPerformanceNames.get(id) !== ownClassName))
                   .map(([id]) => id),
               )
             }
             nonInteractiveGymPerformanceIds={
               new Set(
                 [...gymRemainingByPerformanceId]
-                  .filter(([, remaining]) => remaining <= 0)
+                  .filter(([id, remaining]) => remaining <= 0 || (otherPerformanceTotalRemaining === 0 && !ownClubs?.includes(gymPerformanceNames.get(id) ?? '')))
                   .map(([id]) => id),
               )
             }
             hiddenGymGroupNames={
               new Set(
                 [...gymRemainingByPerformanceId]
-                  .filter(([, remaining]) => remaining <= 0)
+                  .filter(([id, remaining]) => remaining <= 0 || (otherPerformanceTotalRemaining === 0 && !ownClubs?.includes(gymPerformanceNames.get(id) ?? '')))
                   .map(([id]) => gymPerformanceNames.get(id))
                   .filter((name): name is string => Boolean(name)),
               )

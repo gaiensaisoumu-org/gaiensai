@@ -111,8 +111,16 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     useState(true);
   const [classRemainingByPerformanceId, setClassRemainingByPerformanceId] =
     useState<Map<number, number>>(new Map());
+  const [classPerformanceNames, setClassPerformanceNames] = useState<
+    Map<number, string>
+  >(new Map());
+  const [gymPerformanceNames, setGymPerformanceNames] = useState<
+    Map<number, string>
+  >(new Map());
   const [gymRemainingByPerformanceId, setGymRemainingByPerformanceId] =
     useState<Map<number, number>>(new Map());
+  const [otherPerformanceTotalRemaining, setOtherPerformanceTotalRemaining] =
+    useState<number | null>(null);
   const [myTicketSortMode, setMyTicketSortMode] = useState<TicketListSortMode>(
     () => {
       try {
@@ -178,7 +186,29 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       const result = data as {
         class?: Record<string, number>;
         gym?: Record<string, number>;
+        class_names?: Record<string, string>;
+        gym_names?: Record<string, string>;
+        other_total_remaining?: number;
       } | null;
+      if (typeof result?.other_total_remaining === 'number') {
+        setOtherPerformanceTotalRemaining(result.other_total_remaining);
+      }
+      setClassPerformanceNames(
+        new Map(
+          Object.entries(result?.class_names ?? {}).map(([id, name]) => [
+            Number(id),
+            name,
+          ]),
+        ),
+      );
+      setGymPerformanceNames(
+        new Map(
+          Object.entries(result?.gym_names ?? {}).map(([id, name]) => [
+            Number(id),
+            name,
+          ]),
+        ),
+      );
       setClassRemainingByPerformanceId(
         new Map(
           Object.entries(result?.class ?? {}).map(([id, remaining]) => [
@@ -1004,7 +1034,12 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           nonInteractivePerformanceIds={
             new Set(
               [...classRemainingByPerformanceId]
-                .filter(([, remaining]) => remaining <= 0)
+                .filter(
+                  ([id, remaining]) =>
+                    remaining <= 0 ||
+                    (otherPerformanceTotalRemaining === 0 &&
+                      classPerformanceNames.get(id) !== ownClassName),
+                )
                 .map(([id]) => id),
             )
           }
@@ -1017,7 +1052,14 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           nonInteractivePerformanceIds={
             new Set(
               [...gymRemainingByPerformanceId]
-                .filter(([, remaining]) => remaining <= 0)
+                .filter(
+                  ([id, remaining]) =>
+                    remaining <= 0 ||
+                    (otherPerformanceTotalRemaining === 0 &&
+                      !(
+                        (userData as { clubs?: string[] | null }).clubs ?? []
+                      ).includes(gymPerformanceNames.get(id) ?? '')),
+                )
                 .map(([id]) => id),
             )
           }
