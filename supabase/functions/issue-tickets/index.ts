@@ -884,7 +884,7 @@ export const handleIssueTicketsRequest = async (
       );
     }
 
-    if (!isDayTicket && body.issueCount > maxTicketsPerUser) {
+    if (!isDayTicket && !isAdmissionOnlyTicket && body.issueCount > maxTicketsPerUser) {
       throw new HttpError(
         409,
         `1回の発行枚数がユーザ上限を超えています。最大 ${maxTicketsPerUser} 枚までです。

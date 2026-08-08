@@ -1219,7 +1219,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             </span>
             {ticket.scheduleName && (
               <span className={styles.performanceRound}>
-                {ticket.scheduleName}
+                {ticket.scheduleName === '-' ? '' : ` ${ticket.scheduleName}`}
               </span>
             )}
           </h2>
