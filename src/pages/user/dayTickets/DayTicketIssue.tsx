@@ -343,7 +343,7 @@ const DayTicketIssue = () => {
       selectedPerformance.scheduleId > 0
         ? supabase
             .from('performances_schedule')
-            .select('start_at, end_at')
+            .select('start_at')
             .eq('id', selectedPerformance.scheduleId)
             .maybeSingle()
         : { data: null },
