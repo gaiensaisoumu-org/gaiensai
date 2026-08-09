@@ -1126,7 +1126,7 @@ const StudentAccountsContent = () => {
             </table>
           </div>
           <p className={styles.noteText}>
-            ※登録済みの全生徒アカウント（最大1000件）を表示しています。
+            ※登録済みの全生徒アカウントを表示しています。
           </p>
         </NormalSection>
       )}

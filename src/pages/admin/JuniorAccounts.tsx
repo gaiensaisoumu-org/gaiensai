@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useTitle } from '../../hooks/useTitle';
 import { supabase } from '../../lib/supabase';
 import {
@@ -223,6 +223,7 @@ const JuniorAccountContent = () => {
     ExistingJuniorAccount[]
   >([]);
   const [isLoadingExistingUsers, setIsLoadingExistingUsers] = useState(false);
+  const [existingSearch, setExistingSearch] = useState('');
   const [accountActionEmail, setAccountActionEmail] = useState<string | null>(
     null,
   );
@@ -277,6 +278,22 @@ const JuniorAccountContent = () => {
   useEffect(() => {
     void fetchExistingJuniorAccounts();
   }, []);
+
+  const filteredExistingJuniorAccounts = useMemo(() => {
+    const query = existingSearch.trim().toLowerCase();
+    if (!query) {
+      return existingJuniorAccounts;
+    }
+    return existingJuniorAccounts.filter((account) =>
+      [
+        account.id,
+        account.birthday,
+        account.email,
+        formatJuniorUsageType(account.juniorUsageType),
+        formatApplicationDay(account.applicationDay),
+      ].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [existingJuniorAccounts, existingSearch]);
 
   const handleAccountAction = async (
     account: ExistingJuniorAccount,
@@ -830,6 +847,32 @@ const JuniorAccountContent = () => {
         <p className={styles.noteText}>
           既存扱い（スキップ）になったアカウントもここに表示されます。
         </p>
+        <div className={styles.filterArea}>
+          <div className={`${styles.field} ${styles.filterField}`}>
+            <label className={`${styles.settingLabel} ${styles.filterLabel}`}>
+              検索:
+            </label>
+            <input
+              type='search'
+              placeholder='ID、誕生日、メールアドレスなど'
+              className={styles.fieldControl}
+              value={existingSearch}
+              onInput={(event) =>
+                setExistingSearch((event.target as HTMLInputElement).value)
+              }
+            />
+          </div>
+          <button
+            type='button'
+            className={styles.inlineEditButton}
+            onClick={() => setExistingSearch('')}
+          >
+            リセット
+          </button>
+          <span className={styles.filterCount}>
+            該当: {filteredExistingJuniorAccounts.length} / {existingJuniorAccounts.length} 件
+          </span>
+        </div>
         <p className={styles.tableScrollHint}>
           ← 横にスクロールできます →
         </p>
@@ -846,14 +889,16 @@ const JuniorAccountContent = () => {
               </tr>
             </thead>
             <tbody>
-              {existingJuniorAccounts.length === 0 ? (
+              {filteredExistingJuniorAccounts.length === 0 ? (
                 <tr>
                   <td colSpan={6} className={styles.info}>
-                    登録済みの中学生アカウントはありません。
+                    {existingJuniorAccounts.length === 0
+                      ? '登録済みの中学生アカウントはありません。'
+                      : '検索条件に一致するアカウントはありません。'}
                   </td>
                 </tr>
               ) : (
-                existingJuniorAccounts.map((account) => (
+                filteredExistingJuniorAccounts.map((account) => (
                   <tr key={account.email}>
                     <td>{account.id}</td>
                     <td>{account.birthday}</td>

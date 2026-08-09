@@ -23,6 +23,31 @@ import {
 const ADMIN_CONTROL_PANEL_SESSION_DURATION_MS = 1000 * 60 * 60 * 8;
 const ADMIN_AUTH_MAX_FAILED_ATTEMPTS = 5;
 const ADMIN_AUTH_LOCK_DURATION_MS = 1000 * 60 * 10; // 10分
+const ADMIN_LIST_PAGE_SIZE = 1000;
+
+/** PostgREST の既定上限を越える管理画面用一覧を、ページ単位で取得する。 */
+const fetchAllRows = async <T>(
+  fetchPage: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: unknown;
+  }>,
+): Promise<T[]> => {
+  const rows: T[] = [];
+  for (let from = 0; ; from += ADMIN_LIST_PAGE_SIZE) {
+    const { data, error } = await fetchPage(
+      from,
+      from + ADMIN_LIST_PAGE_SIZE - 1,
+    );
+    if (error) {
+      throw error;
+    }
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < ADMIN_LIST_PAGE_SIZE) {
+      return rows;
+    }
+  }
+};
 
 type AdminAuthRequest = {
   action?: unknown;
@@ -2062,16 +2087,23 @@ Deno.serve(async (req) => {
     if (body.mode === 'getStudentUsers') {
       const session = await requireValidSession(adminClient, req);
 
-      // 生徒アカウントを最大1000件取得
-      const {
-        data: { users },
-        error,
-      } = await adminClient.auth.admin.listUsers({
-        perPage: 1000,
-      });
-
-      if (error) {
-        throw error;
+      // Auth API は1回につき最大1000件のため、全ページを取得する。
+      const users = [];
+      for (let page = 1; ; page++) {
+        const {
+          data: { users: pageUsers },
+          error,
+        } = await adminClient.auth.admin.listUsers({
+          page,
+          perPage: ADMIN_LIST_PAGE_SIZE,
+        });
+        if (error) {
+          throw error;
+        }
+        users.push(...pageUsers);
+        if (pageUsers.length < ADMIN_LIST_PAGE_SIZE) {
+          break;
+        }
       }
 
       const authUserEmails = users.flatMap((user) =>
@@ -2217,53 +2249,59 @@ Deno.serve(async (req) => {
     if (body.mode === 'getTicketManagementData') {
       const session = await requireValidSession(adminClient, req);
       const [
-        ticketsResult,
-        usersResult,
-        relationshipsResult,
-        typesResult,
-        classTicketsResult,
-        gymTicketsResult,
-        classesResult,
-        schedulesResult,
-        gymsResult,
+        tickets,
+        ticketUsers,
+        relationships,
+        ticketTypes,
+        classTickets,
+        gymTickets,
+        classes,
+        schedules,
+        gyms,
       ] = await Promise.all([
-        adminClient
-          .from('tickets')
-          .select(
-            'id, code, signature, status, created_at, user_id, relationship, ticket_type, person_count, ticket_name',
-          )
-          .order('created_at', { ascending: false })
-          .limit(1000),
-        adminClient.from('users').select('id, email, affiliation'),
-        adminClient.from('relationships').select('id, name'),
-        adminClient.from('ticket_types').select('id, name, type'),
-        adminClient.from('class_tickets').select('id, class_id, round_id'),
-        adminClient.from('gym_tickets').select('id, performance_id'),
-        adminClient
-          .from('class_performances')
-          .select('id, class_name, title, total_capacity, junior_capacity'),
-        adminClient
-          .from('performances_schedule')
-          .select('id, round_name, start_at'),
-        adminClient
-          .from('gym_performances')
-          .select('id, group_name, round_name, start_at, capacity, junior_capacity'),
+        fetchAllRows((from, to) =>
+          adminClient
+            .from('tickets')
+            .select(
+              'id, code, signature, status, created_at, user_id, relationship, ticket_type, person_count, ticket_name',
+            )
+            .order('created_at', { ascending: false })
+            .range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient.from('users').select('id, email, affiliation').range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient.from('relationships').select('id, name').range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient.from('ticket_types').select('id, name, type').range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient.from('class_tickets').select('id, class_id, round_id').range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient.from('gym_tickets').select('id, performance_id').range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient
+            .from('class_performances')
+            .select('id, class_name, title, total_capacity, junior_capacity')
+            .range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient
+            .from('performances_schedule')
+            .select('id, round_name, start_at')
+            .range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient
+            .from('gym_performances')
+            .select('id, group_name, round_name, start_at, capacity, junior_capacity')
+            .range(from, to),
+        ),
       ]);
-      const results = [
-        ticketsResult,
-        usersResult,
-        relationshipsResult,
-        typesResult,
-        classTicketsResult,
-        gymTicketsResult,
-        classesResult,
-        schedulesResult,
-        gymsResult,
-      ];
-      const failed = results.find((result) => result.error);
-      if (failed?.error) {
-        throw failed.error;
-      }
 
       await adminClient
         .from('admin_sessions')
@@ -2271,15 +2309,15 @@ Deno.serve(async (req) => {
         .eq('id', session.id);
       return new Response(
         JSON.stringify({
-          tickets: ticketsResult.data ?? [],
-          users: usersResult.data ?? [],
-          relationships: relationshipsResult.data ?? [],
-          ticketTypes: typesResult.data ?? [],
-          classTickets: classTicketsResult.data ?? [],
-          gymTickets: gymTicketsResult.data ?? [],
-          classes: classesResult.data ?? [],
-          schedules: schedulesResult.data ?? [],
-          gyms: gymsResult.data ?? [],
+          tickets,
+          users: ticketUsers,
+          relationships,
+          ticketTypes,
+          classTickets,
+          gymTickets,
+          classes,
+          schedules,
+          gyms,
         }),
         {
           status: 200,
