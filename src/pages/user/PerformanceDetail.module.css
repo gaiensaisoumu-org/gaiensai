@@ -17,7 +17,18 @@
   max-height: 28rem;
   object-fit: contain;
 }
-.likeAction { display: flex; justify-content: flex-end; margin-top: .75rem; }
+
+.likeAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: .75rem;
+}
+
+.likeAction > :only-child {
+  margin-left: auto;
+}
 
 .description {
   white-space: pre-wrap;
