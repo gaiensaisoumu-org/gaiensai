@@ -103,7 +103,7 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
   }
   if (admin.exhibition_club_id) {
     const { data, error } = await client.from('exhibition_clubs')
-      .select('id, group_name, description, image_path')
+      .select('id, group_name, description, image_path, location')
       .eq('id', admin.exhibition_club_id).maybeSingle();
     if (error) {throw error;}
     if (!data) {throw new HttpError(404, '担当展示部活が見つかりません。');}
@@ -273,8 +273,9 @@ Deno.serve(async (req) => {
       const description = text(body.description, '公演説明');
       const year = await eventYear(client);
       if (own.kind === 'exhibition') {
+        const location = text(body.location, '場所', 200);
         const { error } = await client.from('exhibition_clubs')
-          .update({ description, year, updated_at: new Date().toISOString() })
+          .update({ description, location, year, updated_at: new Date().toISOString() })
           .eq('id', own.performance.id);
         if (error) {throw error;}
         return json({ updated: true }, corsHeaders);

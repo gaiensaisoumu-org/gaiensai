@@ -20,6 +20,7 @@ type PerformancesManagement = {
   class_name: string | null;
   title: string | null;
   description: string | null;
+  location?: string | null;
   image_path: string | null;
   total_capacity: number | null;
   junior_capacity: number | null;
@@ -82,6 +83,7 @@ const PerformancesManagementContent = () => {
   const [className, setClassName] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
   const [totalCapacity, setTotalCapacity] = useState('');
   const [juniorCapacity, setJuniorCapacity] = useState('');
   const [isAccepting, setIsAccepting] = useState(true);
@@ -132,6 +134,7 @@ const PerformancesManagementContent = () => {
     setClassName(performance.class_name ?? '');
     setTitle(performance.title ?? '');
     setDescription(performance.description ?? '');
+    setLocation(performance.location ?? '');
     setTotalCapacity(String(performance.total_capacity ?? 0));
     setJuniorCapacity(String(performance.junior_capacity ?? 0));
     setIsAccepting(performance.is_accepting ?? false);
@@ -239,6 +242,7 @@ const PerformancesManagementContent = () => {
             className,
             title,
             description,
+            location,
             totalCapacity: parsedTotalCapacity,
             juniorCapacity: parsedJuniorCapacity,
             isAccepting,
@@ -462,6 +466,7 @@ const PerformancesManagementContent = () => {
                 <th>{performanceType === 'class' ? 'クラス' : '団体名'}</th>
                 {performanceType !== 'exhibition' && <th>公演タイトル</th>}
                 <th>説明</th>
+                {performanceType === 'exhibition' && <th>場所</th>}
                 {performanceType !== 'exhibition' && <th>総定員</th>}
                 {performanceType !== 'exhibition' && <th>中学生枠</th>}
                 {performanceType !== 'exhibition' && <th>受付</th>}
@@ -471,7 +476,7 @@ const PerformancesManagementContent = () => {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={performanceType === 'exhibition' ? 4 : 9} className={styles.empty}>
+                  <td colSpan={performanceType === 'exhibition' ? 5 : 9} className={styles.empty}>
                     {title}は登録されていません。
                   </td>
                 </tr>
@@ -485,6 +490,7 @@ const PerformancesManagementContent = () => {
                     <td className={styles.description}>
                       {performance.description || '-'}
                     </td>
+                    {performanceType === 'exhibition' && <td>{performance.location || '-'}</td>}
                     {performanceType !== 'exhibition' && <td>
                       {performance.total_capacity === null
                         ? '-'
@@ -641,6 +647,16 @@ const PerformancesManagementContent = () => {
                 }
                 maxLength={5000}
                 rows={5}
+              />
+            </label>}
+            {editingGymGroup.length === 0 && editingPerformance.performance_type === 'exhibition' && <label>
+              場所
+              <input
+                value={location}
+                onInput={(event) =>
+                  setLocation((event.target as HTMLInputElement).value)
+                }
+                maxLength={200}
               />
             </label>}
             {editingGymGroup.length === 0 && <div className={styles.imageSettings}>

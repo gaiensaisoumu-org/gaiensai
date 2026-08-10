@@ -101,6 +101,7 @@ type AdminAuthRequest = {
   className?: unknown;
   title?: unknown;
   description?: unknown;
+  location?: unknown;
   totalCapacity?: unknown;
   juniorCapacity?: unknown;
   isAccepting?: unknown;
@@ -157,6 +158,7 @@ type AdminAuthBody =
     }
   | { mode: 'deleteAllTicketsAndResetCounters' }
   | { mode: 'deleteAllFlappyLeaderboardEntries' }
+  | { mode: 'resetAllPerformanceLikes' }
   | { mode: 'getStatusDashboard' }
   | { mode: 'getTicketManagementData' }
   | { mode: 'cancelTicket'; code: string }
@@ -222,6 +224,7 @@ type AdminAuthBody =
       className: string;
       title: string;
       description: string;
+      location: string;
       totalCapacity: number;
       juniorCapacity: number;
       isAccepting: boolean;
@@ -592,6 +595,10 @@ const parseBody = (body: unknown): AdminAuthBody => {
     return { mode: 'deleteAllFlappyLeaderboardEntries' };
   }
 
+  if (action === 'resetAllPerformanceLikes') {
+    return { mode: 'resetAllPerformanceLikes' };
+  }
+
   if (action === 'getStudentUsers') {
     return { mode: 'getStudentUsers' };
   }
@@ -782,11 +789,12 @@ const parseBody = (body: unknown): AdminAuthBody => {
     const className = typeof values.className === 'string' ? values.className.trim() : '';
     const title = typeof values.title === 'string' ? values.title.trim() : '';
     const description = typeof values.description === 'string' ? values.description.trim() : '';
+    const location = typeof values.location === 'string' ? values.location.trim() : '';
     if (className.length === 0 || className.length > 100) {
       throw new HttpError(400, 'クラス名は1〜100文字で入力してください。');
     }
-    if (title.length > 200 || description.length > 5000) {
-      throw new HttpError(400, '公演タイトルまたは説明が長すぎます。');
+    if (title.length > 200 || description.length > 5000 || location.length > 200) {
+      throw new HttpError(400, '公演タイトル、説明、または場所が長すぎます。');
     }
     const totalCapacity = values.performanceType === 'exhibition'
       ? 1
@@ -810,6 +818,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
       className,
       title,
       description,
+      location,
       totalCapacity,
       juniorCapacity,
       isAccepting: values.isAccepting,
@@ -1955,6 +1964,9 @@ Deno.serve(async (req) => {
         .from('gym_ticket_counters')
         .update({
           issued_count: 0,
+          issued_general: 0,
+          issued_junior: 0,
+          issued_other: 0,
           updated_at: new Date().toISOString(),
         })
         .gte('issued_count', 0);
@@ -2028,6 +2040,33 @@ Deno.serve(async (req) => {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
+      );
+    }
+
+    if (body.mode === 'resetAllPerformanceLikes') {
+      const session = await requireValidSession(adminClient, req);
+      const tables = ['class_performances', 'gym_performances', 'exhibition_clubs'];
+      const results = await Promise.all(
+        tables.map((table) =>
+          adminClient
+            .from(table)
+            .update({ like: 0 })
+            .gt('like', 0),
+        ),
+      );
+      const error = results.find((result) => result.error)?.error;
+      if (error) {
+        throw error;
+      }
+
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      return new Response(
+        JSON.stringify({ reset: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -2885,7 +2924,7 @@ Deno.serve(async (req) => {
         .select('id, year, class_name, title, description, image_path, total_capacity, junior_capacity, is_accepting')
         .order('class_name'),
         adminClient.from('gym_performances').select('id, year, group_name, round_name, start_at, end_at, description, image_path, capacity, junior_capacity, is_accepting').order('start_at'),
-        adminClient.from('exhibition_clubs').select('id, group_name, description, image_path').order('id'),
+        adminClient.from('exhibition_clubs').select('id, group_name, description, image_path, location').order('id'),
       ]);
       const error = classResult.error ?? gymResult.error ?? exhibitionResult.error;
       if (error) {
@@ -2894,7 +2933,7 @@ Deno.serve(async (req) => {
       const performances = [
         ...(classResult.data ?? []).map((item) => ({ ...item, performance_type: 'class' })),
         ...(gymResult.data ?? []).map((item) => ({ id: item.id, year: item.year, class_name: item.group_name, title: item.round_name, start_at: item.start_at, end_at: item.end_at, description: item.description, image_path: item.image_path, total_capacity: item.capacity, junior_capacity: item.junior_capacity, is_accepting: item.is_accepting, performance_type: 'gym' })),
-        ...(exhibitionResult.data ?? []).map((item) => ({ id: item.id, year: null, class_name: item.group_name, title: '', description: item.description, image_path: item.image_path, total_capacity: null, junior_capacity: null, is_accepting: null, performance_type: 'exhibition' })),
+        ...(exhibitionResult.data ?? []).map((item) => ({ id: item.id, year: null, class_name: item.group_name, title: '', description: item.description, image_path: item.image_path, location: item.location, total_capacity: null, junior_capacity: null, is_accepting: null, performance_type: 'exhibition' })),
       ];
       await adminClient
         .from('admin_sessions')
@@ -2925,7 +2964,7 @@ Deno.serve(async (req) => {
           description: body.description, capacity: body.totalCapacity,
           junior_capacity: body.juniorCapacity, is_accepting: body.isAccepting,
           start_at: body.startAt, end_at: body.endAt,
-        } : { group_name: body.className, description: body.description };
+        } : { group_name: body.className, description: body.description, location: body.location };
       const { data: rawPerformance, error } = await adminClient
         .from(table)
         .update(update)
@@ -2948,6 +2987,7 @@ Deno.serve(async (req) => {
     start_at: body.performanceType === 'gym' ? item.start_at : null,
     end_at: body.performanceType === 'gym' ? item.end_at : null,
     description: item.description, image_path: item.image_path,
+        location: body.performanceType === 'exhibition' ? item.location : null,
         total_capacity: body.performanceType === 'gym' ? item.capacity : null,
         junior_capacity: body.performanceType === 'gym' ? item.junior_capacity : null,
         is_accepting: body.performanceType === 'gym' ? item.is_accepting : null,

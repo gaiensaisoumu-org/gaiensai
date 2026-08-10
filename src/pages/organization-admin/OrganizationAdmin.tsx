@@ -182,6 +182,7 @@ const OrganizationAdmin = () => {
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
   const [isAccepting, setIsAccepting] = useState(false);
   const [capacity, setCapacity] = useState('');
   const [juniorCapacity, setJuniorCapacity] = useState('');
@@ -281,6 +282,7 @@ const OrganizationAdmin = () => {
     setDashboard(next);
     setTitle(String(next.performance.title ?? ''));
     setDescription(String(next.performance.description ?? ''));
+    setLocation(String(next.performance.location ?? ''));
     setIsAccepting(Boolean(next.performance.is_accepting));
     setCapacity(
       String(
@@ -389,6 +391,7 @@ const OrganizationAdmin = () => {
             action: 'updatePerformance',
             title,
             description,
+            location,
             ...(dashboard?.kind === 'exhibition' ? {} : { isAccepting }),
             ...(dashboard?.kind === 'gym'
               ? {
@@ -860,6 +863,18 @@ const OrganizationAdmin = () => {
                 }
               />
             </label>
+            {dashboard.kind === 'exhibition' && (
+              <label>
+                場所
+                <input
+                  value={location}
+                  maxLength={200}
+                  onInput={(event) =>
+                    setLocation((event.target as HTMLInputElement).value)
+                  }
+                />
+              </label>
+            )}
             {dashboard.kind === 'gym' && (
               <fieldset className={styles.scheduleTimes}>
                 <legend>公演時間</legend>

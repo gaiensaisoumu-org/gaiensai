@@ -353,6 +353,7 @@ const SettingsContent = () => {
     useState(false);
   const [showDeleteAllLeaderboardModal, setShowDeleteAllLeaderboardModal] =
     useState(false);
+  const [showResetAllLikesModal, setShowResetAllLikesModal] = useState(false);
   const [
     showDeleteAllOrganizationAdminsModal,
     setShowDeleteAllOrganizationAdminsModal,
@@ -363,6 +364,7 @@ const SettingsContent = () => {
   const [isDeletingAllTickets, setIsDeletingAllTickets] = useState(false);
   const [isDeletingAllLeaderboard, setIsDeletingAllLeaderboard] =
     useState(false);
+  const [isResettingAllLikes, setIsResettingAllLikes] = useState(false);
   const [isDeletingAllOrganizationAdmins, setIsDeletingAllOrganizationAdmins] =
     useState(false);
 
@@ -510,6 +512,37 @@ const SettingsContent = () => {
       setSettingsError(`ランキングの削除に失敗しました。${message}`);
     } finally {
       setIsDeletingAllLeaderboard(false);
+    }
+  };
+
+  const handleResetAllLikes = async () => {
+    setSettingsMessageScope('deletionTool');
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    setIsResettingAllLikes(true);
+    setShowResetAllLikesModal(false);
+
+    try {
+      const token = getSessionToken();
+      if (!token) {
+        throw new Error('セッションがありません。再ログインしてください。');
+      }
+      const { data, error } = await supabase.functions.invoke('admin-auth', {
+        body: { action: 'resetAllPerformanceLikes' },
+        headers: { 'x-admin-session-token': token },
+      });
+      if (error) {
+        throw error;
+      }
+      if (!data?.reset) {
+        throw new Error('いいねの消去に失敗しました。');
+      }
+      setSettingsSuccess('全ての公演・展示のいいねを消去しました。');
+    } catch (error) {
+      const message = await readErrorMessage(error);
+      setSettingsError(`いいねの消去に失敗しました。${message}`);
+    } finally {
+      setIsResettingAllLikes(false);
     }
   };
 
@@ -2286,10 +2319,29 @@ const SettingsContent = () => {
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
               isDeletingAllLeaderboard ||
-              isDeletingAllOrganizationAdmins
+              isDeletingAllOrganizationAdmins ||
+              isResettingAllLikes
             }
           >
             全てのチケットを削除してカウンターをリセット
+          </button>
+          <h3>いいねの消去</h3>
+          <p className={styles.noteText}>
+            全てのクラス公演・体育館公演・展示公演のいいね数をゼロに戻します。
+          </p>
+          <button
+            type='button'
+            className={`${styles.authButton} ${styles.settingModalConfirmDanger}`}
+            onClick={() => setShowResetAllLikesModal(true)}
+            disabled={
+              isDeletingAllAccounts ||
+              isDeletingAllTickets ||
+              isDeletingAllLeaderboard ||
+              isDeletingAllOrganizationAdmins ||
+              isResettingAllLikes
+            }
+          >
+            全てのいいねを消去
           </button>
           <h3>隠しミニゲームのランキング削除</h3>
           <p className={styles.noteText}>
@@ -2303,7 +2355,8 @@ const SettingsContent = () => {
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
               isDeletingAllLeaderboard ||
-              isDeletingAllOrganizationAdmins
+              isDeletingAllOrganizationAdmins ||
+              isResettingAllLikes
             }
           >
             隠しミニゲームのランキングを全消去
@@ -2320,7 +2373,8 @@ const SettingsContent = () => {
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
               isDeletingAllLeaderboard ||
-              isDeletingAllOrganizationAdmins
+              isDeletingAllOrganizationAdmins ||
+              isResettingAllLikes
             }
           >
             全ての生徒アカウントを削除
@@ -2337,7 +2391,8 @@ const SettingsContent = () => {
               isDeletingAllAccounts ||
               isDeletingAllTickets ||
               isDeletingAllLeaderboard ||
-              isDeletingAllOrganizationAdmins
+              isDeletingAllOrganizationAdmins ||
+              isResettingAllLikes
             }
           >
             全ての中学生アカウントを削除
@@ -2923,6 +2978,54 @@ const SettingsContent = () => {
         </div>
       )}
 
+      {showResetAllLikesModal && (
+        <div
+          className={styles.settingModalOverlay}
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowResetAllLikesModal(false);
+            }
+          }}
+        >
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='reset-all-likes-title'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id='reset-all-likes-title'
+              className={styles.settingModalTitle}
+            >
+              全てのいいねを消去しますか？
+            </h3>
+            <p>
+              この操作は取り消せません。全てのクラス公演・体育館公演・展示公演のいいね数がゼロになります。本当に実行しますか？
+            </p>
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={() => setShowResetAllLikesModal(false)}
+                disabled={isResettingAllLikes}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={`${styles.settingModalConfirm} ${styles.settingModalConfirmDanger}`}
+                onClick={handleResetAllLikes}
+                disabled={isResettingAllLikes}
+              >
+                {isResettingAllLikes ? '消去中...' : '全消去'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeleteAllOrganizationAdminsModal && (
         <div
           className={styles.settingModalOverlay}
@@ -2992,6 +3095,12 @@ const SettingsContent = () => {
       {isDeletingAllLeaderboard && (
         <div className={styles.settingModalOverlay}>
           <LoadingSpinner message='隠しミニゲームのランキングを全消去中です...' />
+        </div>
+      )}
+
+      {isResettingAllLikes && (
+        <div className={styles.settingModalOverlay}>
+          <LoadingSpinner message='全てのいいねを消去中です...' />
         </div>
       )}
 
