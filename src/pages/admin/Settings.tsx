@@ -465,7 +465,7 @@ const SettingsContent = () => {
           ? data.deletedTicketCount
           : 0;
       setSettingsSuccess(
-        `合計 ${deletedTicketCount} 件のチケットを削除し、カウンターをリセットしました。`,
+        `合計 ${deletedTicketCount} 件のチケットを削除し、各種カウンターをリセットしました。`,
       );
     } catch (error) {
       const message = await readErrorMessage(error);
@@ -2276,7 +2276,7 @@ const SettingsContent = () => {
         <div className={styles.deleteButtonContainer}>
           <h3>チケットの削除</h3>
           <p className={styles.noteText}>
-            全ての発券済みチケットを削除し、残席カウンターとチケット採番カウンターをリセットします。
+            全ての発券済みチケットを削除し、残席・チケット採番・生徒別発券数のカウンターをリセットします。
           </p>
           <button
             type='button'
@@ -2851,7 +2851,7 @@ const SettingsContent = () => {
               全てのチケットを削除してカウンターをリセットしますか？
             </h3>
             <p>
-              この操作は取り消せません。全ての発券済みチケットが削除され、残席カウンターとチケット採番カウンターがリセットされます。本当に実行しますか？
+              この操作は取り消せません。全ての発券済みチケットが削除され、残席・チケット採番・生徒別発券数のカウンターがリセットされます。本当に実行しますか？
             </p>
             <div className={styles.settingModalActions}>
               <button

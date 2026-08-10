@@ -1927,6 +1927,16 @@ Deno.serve(async (req) => {
         throw deleteTicketsError;
       }
 
+      // 生徒ごとの発券上限カウンターも、チケット削除後に残さない。
+      const { error: deleteStudentIssueCountersError } = await adminClient
+        .from('student_ticket_issue_counters')
+        .delete()
+        .gte('issued_count', 0);
+
+      if (deleteStudentIssueCountersError) {
+        throw deleteStudentIssueCountersError;
+      }
+
       const { error: resetClassCountersError } = await adminClient
         .from('class_ticket_counters')
         .update({
