@@ -1,0 +1,10 @@
+.introduction {
+  line-height: 1.6;
+  margin-left: 1rem;
+}
+
+.description {
+  color: var(--sub-text-color);
+  font-size: .9rem;
+  line-height: 1.6;
+}

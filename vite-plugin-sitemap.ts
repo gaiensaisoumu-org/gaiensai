@@ -14,6 +14,7 @@ export const PUBLIC_ROUTES = [
   '/performances',
   '/timetable',
   '/pamphlet',
+  '/availability',
   '/students/login',
   '/junior/login',
   '/t',

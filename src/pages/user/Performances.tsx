@@ -266,6 +266,14 @@ const Performances = () => {
     <>
       <Modal2 />
       <h1 className={baseStyles.pageTitle}>公演一覧</h1>
+      <nav className={baseStyles.pageNavigation} aria-label='関連ページ'>
+        <a className={baseStyles.openButton} href='/availability'>
+          公演空き状況を見る
+        </a>
+        <a className={baseStyles.openButton} href='/timetable'>
+          タイムテーブルを見る
+        </a>
+      </nav>
       {likedCards.length > 0 && (
         <section>
           <h2 className={baseStyles.linedH2}>いいねした公演</h2>

@@ -27,6 +27,7 @@ import {
   OrganizationAdmin,
   OrganizationAccounts,
   PerformancesManagement,
+  Availability,
 } from './routes';
 import LineCallback from './features/auth/Line';
 import NotFound from './shared/NotFound';
@@ -104,6 +105,7 @@ const userPageLayout = () => (
         <Route path='/day-tickets/result' component={DayTicketIssueResult} />
         <Route path='/day-tickets' component={DayTicketIssue} />
         <Route path='/performances' component={Performances} />
+        <Route path='/availability' component={Availability} />
         <Route
           path='/performances/class/:id'
           component={({ id }: { id?: string }) => (
@@ -187,6 +189,8 @@ const InnerApp = () => {
       preload(DayTicketIssue, DayTicketIssueResult);
     } else if (path.startsWith('/performances')) {
       preload(Performances, PerformanceDetail);
+    } else if (path.startsWith('/availability')) {
+      preload(Availability);
     } else if (path.startsWith('/faq')) {
       preload(FAQ);
     } else if (path.startsWith('/timetable')) {

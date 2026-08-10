@@ -75,17 +75,23 @@
   padding-left: 1rem;
 }
 
+.pageNavigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin: 0 1rem 1.5rem;
+}
+
 /* ボタン風の見た目にするスタイル */
 .openButton {
   display: inline-block;
   padding: 10px 20px;
-  background-color: var(--brighter-primary-color);
+  background-color: var(--primary-color);
   color: var(--main-text-color);
   text-decoration: none;
   /* 下線を消す */
   border-radius: 10px;
   /* 角丸 */
-  font-weight: bold;
   transition: background-color 0.2s ease;
 }
 

@@ -1,4 +1,4 @@
-import { preload, Home, Students, Performances, Junior, TimeTable, Pamphlet, Info, Map, FAQ } from '../routes';
+import { preload, Home, Students, Performances, Availability, Junior, TimeTable, Pamphlet, Info, Map, FAQ } from '../routes';
 
 const GlobalNav = () => {
   const isSecretBaseUnlocked = localStorage.getItem('secretBaseUnlocked') === 'true';
@@ -26,6 +26,11 @@ const GlobalNav = () => {
         <li>
           <a href='/performances' onMouseEnter={() => preload(Performances)}>
             公演一覧
+          </a>
+        </li>
+        <li>
+          <a href='/availability' onMouseEnter={() => preload(Availability)}>
+            公演空き状況
           </a>
         </li>
         <li>

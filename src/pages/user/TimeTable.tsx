@@ -50,6 +50,14 @@ const TimeTable = () => {
     <>
       <Modal2 />
       <h1 className={styles.pageTitle}>タイムテーブル</h1>
+      <nav className={styles.pageNavigation} aria-label='関連ページ'>
+        <a className={styles.openButton} href='/performances'>
+          公演一覧を見る
+        </a>
+        <a className={styles.openButton} href='/availability'>
+          公演空き状況を見る
+        </a>
+      </nav>
       {/* ─── タイムテーブルの呼び出し ─── */}
       <TimeTableContent
         classSchedules={classSchedules}
