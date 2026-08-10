@@ -658,6 +658,16 @@ const Issue = () => {
     }
 
     if (isAdmissionOnlyTicket) {
+      // 発券上限に達した状態で空き状況から遷移した場合は、選択した
+      // 公演を確認できるようにする。入場専用券の選択に合わせて公演を
+      // 上書きすると、発券できるように見えてしまう。
+      if (
+        isAtJuniorIssueLimit &&
+        Number(selectedPerformance?.performanceId) > 0
+      ) {
+        return;
+      }
+
       if (
         !selectedPerformance ||
         selectedPerformance.performanceId !== 0 ||
@@ -681,7 +691,12 @@ const Issue = () => {
     ) {
       setSelectedPerformance(null);
     }
-  }, [isAdmissionOnlyTicket, selectedPerformance, selectedTicketType]);
+  }, [
+    isAdmissionOnlyTicket,
+    isAtJuniorIssueLimit,
+    selectedPerformance,
+    selectedTicketType,
+  ]);
 
   const selectedCellKey = selectedPerformance
     ? selectedPerformance.performanceId > 0
@@ -689,7 +704,12 @@ const Issue = () => {
       : undefined
     : undefined;
 
-  const canSubmit = Boolean(selectedTicketType) && Boolean(selectedPerformance);
+  const isLimitBlockedPerformanceSelection =
+    isAtJuniorIssueLimit && Number(selectedPerformance?.performanceId) > 0;
+  const canSubmit =
+    Boolean(selectedTicketType) &&
+    Boolean(selectedPerformance) &&
+    !isLimitBlockedPerformanceSelection;
 
   const transitionToStep = (nextStep: Step) => {
     if (nextStep === step) {
