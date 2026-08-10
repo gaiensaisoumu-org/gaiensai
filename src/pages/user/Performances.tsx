@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 import { useTitle } from '../../hooks/useTitle';
 import performancesSnapshot from '../../generated/performances-static.json';
@@ -108,12 +114,30 @@ const DescriptionPreview = ({
 const Performances = () => {
   const { route } = useLocation();
   const { likes, acceptance } = useLikedPerformances();
-  const [classSortMode, setClassSortMode] = useState<'class' | 'likes'>(() => window.localStorage.getItem('performances.classSortMode') === 'likes' ? 'likes' : 'class');
-  const [gymSortMode, setGymSortMode] = useState<'name' | 'likes'>(() => window.localStorage.getItem('performances.gymSortMode') === 'likes' ? 'likes' : 'name');
-  const [clubSortMode, setClubSortMode] = useState<'name' | 'likes'>(() => window.localStorage.getItem('performances.clubSortMode') === 'likes' ? 'likes' : 'name');
-  useEffect(() => { window.localStorage.setItem('performances.classSortMode', classSortMode); }, [classSortMode]);
-  useEffect(() => { window.localStorage.setItem('performances.gymSortMode', gymSortMode); }, [gymSortMode]);
-  useEffect(() => { window.localStorage.setItem('performances.clubSortMode', clubSortMode); }, [clubSortMode]);
+  const [classSortMode, setClassSortMode] = useState<'class' | 'likes'>(() =>
+    window.localStorage.getItem('performances.classSortMode') === 'likes'
+      ? 'likes'
+      : 'class',
+  );
+  const [gymSortMode, setGymSortMode] = useState<'name' | 'likes'>(() =>
+    window.localStorage.getItem('performances.gymSortMode') === 'likes'
+      ? 'likes'
+      : 'name',
+  );
+  const [clubSortMode, setClubSortMode] = useState<'name' | 'likes'>(() =>
+    window.localStorage.getItem('performances.clubSortMode') === 'likes'
+      ? 'likes'
+      : 'name',
+  );
+  useEffect(() => {
+    window.localStorage.setItem('performances.classSortMode', classSortMode);
+  }, [classSortMode]);
+  useEffect(() => {
+    window.localStorage.setItem('performances.gymSortMode', gymSortMode);
+  }, [gymSortMode]);
+  useEffect(() => {
+    window.localStorage.setItem('performances.clubSortMode', clubSortMode);
+  }, [clubSortMode]);
   useTitle('公演一覧');
   const classData = useMemo(() => snapshot.performances ?? [], []);
   const gymData = useMemo(() => {
@@ -215,8 +239,28 @@ const Performances = () => {
       }),
     [classData, classSortMode, likes],
   );
-  const sortedGymData = useMemo(() => [...gymData].sort((a, b) => gymSortMode === 'name' ? a.group_name.localeCompare(b.group_name, 'ja') : getKnownLikeCount('gym', b.id, b.like ?? 0) - getKnownLikeCount('gym', a.id, a.like ?? 0) || a.group_name.localeCompare(b.group_name, 'ja')), [gymData, gymSortMode, likes]);
-  const sortedExhibitionData = useMemo(() => [...exhibitionData].sort((a, b) => clubSortMode === 'name' ? a.group_name.localeCompare(b.group_name, 'ja') : getKnownLikeCount('club', b.id, b.like ?? 0) - getKnownLikeCount('club', a.id, a.like ?? 0) || a.group_name.localeCompare(b.group_name, 'ja')), [exhibitionData, clubSortMode, likes]);
+  const sortedGymData = useMemo(
+    () =>
+      [...gymData].sort((a, b) =>
+        gymSortMode === 'name'
+          ? a.group_name.localeCompare(b.group_name, 'ja')
+          : getKnownLikeCount('gym', b.id, b.like ?? 0) -
+              getKnownLikeCount('gym', a.id, a.like ?? 0) ||
+            a.group_name.localeCompare(b.group_name, 'ja'),
+      ),
+    [gymData, gymSortMode, likes],
+  );
+  const sortedExhibitionData = useMemo(
+    () =>
+      [...exhibitionData].sort((a, b) =>
+        clubSortMode === 'name'
+          ? a.group_name.localeCompare(b.group_name, 'ja')
+          : getKnownLikeCount('club', b.id, b.like ?? 0) -
+              getKnownLikeCount('club', a.id, a.like ?? 0) ||
+            a.group_name.localeCompare(b.group_name, 'ja'),
+      ),
+    [exhibitionData, clubSortMode, likes],
+  );
 
   return (
     <>
@@ -261,9 +305,10 @@ const Performances = () => {
       )}
       <section>
         <h2 className={baseStyles.linedH2}>クラス公演</h2>
-        <div className={ticketStyles.sortControlRow}><label className={ticketStyles.sortLabel}>
-          並び順
-          <select className={ticketStyles.sortSelect}
+        <div className={ticketStyles.sortControlRow}>
+          <label className={ticketStyles.sortLabel}>並び順</label>
+          <select
+            className={ticketStyles.sortSelect}
             value={classSortMode}
             onChange={(event) =>
               setClassSortMode(
@@ -274,7 +319,7 @@ const Performances = () => {
             <option value='class'>クラス順</option>
             <option value='likes'>いいね順</option>
           </select>
-        </label></div>
+        </div>
         <div className={styles.grid}>
           {sortedClassData.length === 0 ? (
             <div className={styles.stateMessage}>
@@ -374,7 +419,23 @@ const Performances = () => {
       </section>
       <section>
         <h2 className={baseStyles.linedH2}>体育館公演</h2>
-        <div className={ticketStyles.sortControlRow}><label className={ticketStyles.sortLabel}>並び順 <select className={ticketStyles.sortSelect} value={gymSortMode} onChange={(event) => setGymSortMode(event.currentTarget.value === 'likes' ? 'likes' : 'name')}><option value='name'>団体名順</option><option value='likes'>いいね順</option></select></label></div>
+        <div className={ticketStyles.sortControlRow}>
+          <label className={ticketStyles.sortLabel}>
+            並び順{' '}
+            <select
+              className={ticketStyles.sortSelect}
+              value={gymSortMode}
+              onChange={(event) =>
+                setGymSortMode(
+                  event.currentTarget.value === 'likes' ? 'likes' : 'name',
+                )
+              }
+            >
+              <option value='name'>団体名順</option>
+              <option value='likes'>いいね順</option>
+            </select>
+          </label>
+        </div>
         <div className={styles.grid}>
           {sortedGymData.length === 0 ? (
             <div className={styles.stateMessage}>
@@ -467,7 +528,23 @@ const Performances = () => {
       </section>
       <section>
         <h2 className={baseStyles.linedH2}>展示部活</h2>
-        <div className={ticketStyles.sortControlRow}><label className={ticketStyles.sortLabel}>並び順 <select className={ticketStyles.sortSelect} value={clubSortMode} onChange={(event) => setClubSortMode(event.currentTarget.value === 'likes' ? 'likes' : 'name')}><option value='name'>団体名順</option><option value='likes'>いいね順</option></select></label></div>
+        <div className={ticketStyles.sortControlRow}>
+          <label className={ticketStyles.sortLabel}>
+            並び順{' '}
+            <select
+              className={ticketStyles.sortSelect}
+              value={clubSortMode}
+              onChange={(event) =>
+                setClubSortMode(
+                  event.currentTarget.value === 'likes' ? 'likes' : 'name',
+                )
+              }
+            >
+              <option value='name'>団体名順</option>
+              <option value='likes'>いいね順</option>
+            </select>
+          </label>
+        </div>
         <div className={styles.grid}>
           {sortedExhibitionData.length === 0 ? (
             <div className={styles.stateMessage}>

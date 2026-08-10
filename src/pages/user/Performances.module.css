@@ -5,8 +5,18 @@
   align-items: stretch;
 }
 
-.sortControl { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; margin: -.5rem 0 .75rem; font-size: .9rem; }
-.sortControl select { font: inherit; }
+.sortControl {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .5rem;
+  margin: -.5rem 0 .75rem;
+  font-size: .9rem;
+}
+
+.sortControl select {
+  font: inherit;
+}
 
 /* タブレット〜PC向け（横幅 768px 以上） */
 @media (min-width: 48em) {
