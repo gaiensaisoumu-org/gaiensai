@@ -5,6 +5,9 @@
   align-items: stretch;
 }
 
+.sortControl { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; margin: -.5rem 0 .75rem; font-size: .9rem; }
+.sortControl select { font: inherit; }
+
 /* タブレット〜PC向け（横幅 768px 以上） */
 @media (min-width: 48em) {
 
@@ -203,6 +206,24 @@
   flex-grow: 1;
   color: var(--bright-sub-text-color);
   /* カード内の余白を埋めて、フッターの位置を揃える */
+}
+
+.clampedDescription {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.readMore {
+  align-self: flex-start;
+  margin: -1rem 0 1.25rem;
+  color: var(--link-text-color);
+}
+
+.cardLink {
+  cursor: pointer;
 }
 
 /* 定員情報エリア */

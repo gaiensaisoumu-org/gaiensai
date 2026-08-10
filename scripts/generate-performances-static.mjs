@@ -82,13 +82,13 @@ const buildSnapshot = async () => {
     supabase
       .from('class_performances')
       .select(
-        'id, year, class_name, title, description, created_at, junior_capacity, total_capacity, is_accepting, image_path',
+        'id, year, class_name, title, description, created_at, junior_capacity, total_capacity, is_accepting, image_path, like',
       )
       .order('id', { ascending: true }),
     supabase
       .from('gym_performances')
       .select(
-        'id, group_name, round_name, start_at, end_at, capacity, junior_capacity, year, is_accepting, description, image_path',
+        'id, group_name, round_name, start_at, end_at, capacity, junior_capacity, year, is_accepting, description, image_path, like',
       )
       .order('group_name', { ascending: true })
       .order('id', { ascending: true }),
@@ -109,7 +109,7 @@ const buildSnapshot = async () => {
       .maybeSingle(),
     supabase
       .from('exhibition_clubs')
-      .select('id, year, group_name, description, image_path, created_at')
+      .select('id, year, group_name, description, image_path, created_at, like, location')
       .order('id', { ascending: true }),
   ]);
 

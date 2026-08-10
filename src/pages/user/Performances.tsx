@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useLocation } from 'preact-iso';
 import { useTitle } from '../../hooks/useTitle';
 import performancesSnapshot from '../../generated/performances-static.json';
-import { getPerformanceImageUrl, supabase } from '../../lib/supabase';
+import { getPerformanceImageUrl } from '../../lib/supabase';
 import baseStyles from '../../styles/sub-pages.module.css';
 import styles from './Performances.module.css';
+import ticketStyles from '../../features/tickets/IssuedTicketCardList.module.css';
 import NormalSection from '../../components/ui/NormalSection';
 import Modal2 from '../../components/ui/Modal2';
+import LikeButton from '../../features/performances/LikeButton';
+import {
+  getKnownLikeCount,
+  useLikedPerformances,
+} from '../../features/performances/likes';
 
 interface ClassPerformance {
   id: number; // smallint
@@ -18,6 +25,7 @@ interface ClassPerformance {
   total_capacity: number | null; // smallint
   is_accepting: boolean | null; // boolean
   image_path: string | null;
+  like?: number;
 }
 
 interface GymPerformance {
@@ -32,6 +40,7 @@ interface GymPerformance {
   is_accepting: boolean | null;
   description: string | null;
   image_path: string | null;
+  like?: number;
 }
 
 interface ExhibitionClub {
@@ -41,6 +50,8 @@ interface ExhibitionClub {
   description: string | null;
   image_path: string | null;
   created_at: string;
+  like?: number;
+  location?: string | null;
 }
 
 type PerformanceSnapshot = {
@@ -52,36 +63,58 @@ type PerformanceSnapshot = {
 
 const snapshot = performancesSnapshot as unknown as PerformanceSnapshot;
 
-type AcceptanceRow = {
-  performance_type: 'class' | 'gym';
-  performance_id: number;
-  is_accepting: boolean;
+const DescriptionPreview = ({
+  description,
+  href,
+}: {
+  description: string;
+  href: string;
+}) => {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+    const check = () =>
+      setIsTruncated(element.scrollHeight > element.clientHeight + 1);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [description]);
+  return (
+    <>
+      <p
+        ref={ref}
+        className={`${styles.description} ${styles.clampedDescription}`}
+      >
+        {description}
+      </p>
+      {isTruncated && (
+        <a
+          className={styles.readMore}
+          href={href}
+          onClick={(event) => event.stopPropagation()}
+        >
+          続きを読む
+        </a>
+      )}
+    </>
+  );
 };
 
 const Performances = () => {
+  const { route } = useLocation();
+  const { likes, acceptance } = useLikedPerformances();
+  const [classSortMode, setClassSortMode] = useState<'class' | 'likes'>(() => window.localStorage.getItem('performances.classSortMode') === 'likes' ? 'likes' : 'class');
+  const [gymSortMode, setGymSortMode] = useState<'name' | 'likes'>(() => window.localStorage.getItem('performances.gymSortMode') === 'likes' ? 'likes' : 'name');
+  const [clubSortMode, setClubSortMode] = useState<'name' | 'likes'>(() => window.localStorage.getItem('performances.clubSortMode') === 'likes' ? 'likes' : 'name');
+  useEffect(() => { window.localStorage.setItem('performances.classSortMode', classSortMode); }, [classSortMode]);
+  useEffect(() => { window.localStorage.setItem('performances.gymSortMode', gymSortMode); }, [gymSortMode]);
+  useEffect(() => { window.localStorage.setItem('performances.clubSortMode', clubSortMode); }, [clubSortMode]);
   useTitle('公演一覧');
-  const [acceptance, setAcceptance] = useState<Map<string, boolean> | null>(
-    null,
-  );
-  useEffect(() => {
-    const loadAcceptance = async () => {
-      const { data, error } = await supabase.rpc(
-        'get_public_performance_acceptance',
-      );
-      if (error) {
-        return;
-      }
-      setAcceptance(
-        new Map(
-          ((data ?? []) as AcceptanceRow[]).map((row) => [
-            `${row.performance_type}:${row.performance_id}`,
-            row.is_accepting,
-          ]),
-        ),
-      );
-    };
-    void loadAcceptance();
-  }, []);
   const classData = useMemo(() => snapshot.performances ?? [], []);
   const gymData = useMemo(() => {
     // 【重複除去ロジック】
@@ -101,27 +134,159 @@ const Performances = () => {
     return uniqueGroupPerformances;
   }, []);
   const exhibitionData = useMemo(() => snapshot.exhibitionClubs ?? [], []);
+  const likedCards = useMemo(
+    () =>
+      likes
+        .map((like) => {
+          if (like.type === 'class') {
+            const item = classData.find(
+              (performance) => performance.id === like.id,
+            );
+            return item
+              ? {
+                  ...like,
+                  title: item.title || item.class_name || '無題の公演',
+                  imagePath: item.image_path,
+                  count: item.like ?? 0,
+                  href: `/performances/class/${item.id}`,
+                }
+              : null;
+          }
+          if (like.type === 'gym') {
+            const item = gymData.find(
+              (performance) => performance.id === like.id,
+            );
+            return item
+              ? {
+                  ...like,
+                  title: item.group_name,
+                  imagePath: item.image_path,
+                  count: item.like ?? 0,
+                  href: `/performances/gym/${item.id}`,
+                }
+              : null;
+          }
+          const item = exhibitionData.find((club) => club.id === like.id);
+          return item
+            ? {
+                ...like,
+                title: item.group_name,
+                imagePath: item.image_path,
+                count: item.like ?? 0,
+                href: `/performances/club/${item.id}`,
+              }
+            : null;
+        })
+        .filter(
+          (
+            item,
+          ): item is {
+            type: 'class' | 'gym' | 'club';
+            id: number;
+            title: string;
+            imagePath: string | null;
+            count: number;
+            href: string;
+          } => item !== null,
+        ),
+    [likes, classData, gymData, exhibitionData],
+  );
   const isGymGroupAccepting = (groupName: string) =>
     (snapshot.gymPerformances ?? []).some(
       (performance) =>
         performance.group_name === groupName &&
         acceptance?.get(`gym:${performance.id}`) === true,
     );
+  const sortedClassData = useMemo(
+    () =>
+      [...classData].sort((a, b) => {
+        const classOrder = (a.class_name ?? '').localeCompare(
+          b.class_name ?? '',
+          'ja',
+          { numeric: true },
+        );
+        if (classSortMode === 'class') {
+          return classOrder;
+        }
+        return (
+          getKnownLikeCount('class', b.id, b.like ?? 0) -
+            getKnownLikeCount('class', a.id, a.like ?? 0) || classOrder
+        );
+      }),
+    [classData, classSortMode, likes],
+  );
+  const sortedGymData = useMemo(() => [...gymData].sort((a, b) => gymSortMode === 'name' ? a.group_name.localeCompare(b.group_name, 'ja') : getKnownLikeCount('gym', b.id, b.like ?? 0) - getKnownLikeCount('gym', a.id, a.like ?? 0) || a.group_name.localeCompare(b.group_name, 'ja')), [gymData, gymSortMode, likes]);
+  const sortedExhibitionData = useMemo(() => [...exhibitionData].sort((a, b) => clubSortMode === 'name' ? a.group_name.localeCompare(b.group_name, 'ja') : getKnownLikeCount('club', b.id, b.like ?? 0) - getKnownLikeCount('club', a.id, a.like ?? 0) || a.group_name.localeCompare(b.group_name, 'ja')), [exhibitionData, clubSortMode, likes]);
 
   return (
     <>
       <Modal2 />
       <h1 className={baseStyles.pageTitle}>公演一覧</h1>
+      {likedCards.length > 0 && (
+        <section>
+          <h2 className={baseStyles.linedH2}>いいねした公演</h2>
+          <div className={styles.grid}>
+            {likedCards.map((performance) => (
+              <NormalSection
+                key={`${performance.type}:${performance.id}`}
+                className={`${styles.card} ${performance.href ? styles.cardLink : ''}`}
+                onClick={() => performance.href && route(performance.href)}
+              >
+                <div className={styles.cardHeader}>
+                  {performance.imagePath && (
+                    <img
+                      src={getPerformanceImageUrl(
+                        performance.imagePath,
+                        snapshot.generatedAt,
+                      )}
+                      alt={performance.title}
+                      className={styles.cardBgImage}
+                      loading='lazy'
+                    />
+                  )}
+                  <div className={styles.overlay} />
+                  <div className={styles.headerContent}>
+                    <h3 className={styles.cardTitle}>{performance.title}</h3>
+                  </div>
+                  <LikeButton
+                    type={performance.type}
+                    id={performance.id}
+                    likeCount={performance.count}
+                  />
+                </div>
+              </NormalSection>
+            ))}
+          </div>
+        </section>
+      )}
       <section>
         <h2 className={baseStyles.linedH2}>クラス公演</h2>
+        <div className={ticketStyles.sortControlRow}><label className={ticketStyles.sortLabel}>
+          並び順
+          <select className={ticketStyles.sortSelect}
+            value={classSortMode}
+            onChange={(event) =>
+              setClassSortMode(
+                event.currentTarget.value === 'likes' ? 'likes' : 'class',
+              )
+            }
+          >
+            <option value='class'>クラス順</option>
+            <option value='likes'>いいね順</option>
+          </select>
+        </label></div>
         <div className={styles.grid}>
-          {classData.length === 0 ? (
+          {sortedClassData.length === 0 ? (
             <div className={styles.stateMessage}>
               公開中のクラス公演はありません。
             </div>
           ) : (
-            classData.map((perf) => (
-              <NormalSection key={perf.id} className={styles.card}>
+            sortedClassData.map((perf) => (
+              <NormalSection
+                key={perf.id}
+                className={`${styles.card} ${styles.cardLink}`}
+                onClick={() => route(`/performances/class/${perf.id}`)}
+              >
                 <div className={styles.cardHeader}>
                   {perf.image_path && (
                     <>
@@ -170,6 +335,11 @@ const Performances = () => {
                       {perf.title || '無題の公演'}
                     </h3>
                   </div>
+                  <LikeButton
+                    type='class'
+                    id={perf.id}
+                    likeCount={perf.like ?? 0}
+                  />
                 </div>
 
                 {/* ─── 2. 画像が一切かぶらない「ボディエリア」（白背景） ─── */}
@@ -177,9 +347,10 @@ const Performances = () => {
                   {/* 体育館公演などの場合はここに timeBox を配置できます */}
                   {/* {perf.start_at && <div className={styles.timeBox}>...</div>} */}
 
-                  <p className={styles.description}>
-                    {perf.description || '説明はありません。'}
-                  </p>
+                  <DescriptionPreview
+                    description={perf.description || '説明はありません。'}
+                    href={`/performances/class/${perf.id}`}
+                  />
 
                   <div className={styles.footer}>
                     <div>
@@ -203,14 +374,19 @@ const Performances = () => {
       </section>
       <section>
         <h2 className={baseStyles.linedH2}>体育館公演</h2>
+        <div className={ticketStyles.sortControlRow}><label className={ticketStyles.sortLabel}>並び順 <select className={ticketStyles.sortSelect} value={gymSortMode} onChange={(event) => setGymSortMode(event.currentTarget.value === 'likes' ? 'likes' : 'name')}><option value='name'>団体名順</option><option value='likes'>いいね順</option></select></label></div>
         <div className={styles.grid}>
-          {gymData.length === 0 ? (
+          {sortedGymData.length === 0 ? (
             <div className={styles.stateMessage}>
               公開中の体育館公演はありません。
             </div>
           ) : (
-            gymData.map((perf) => (
-              <NormalSection key={perf.id} className={styles.card}>
+            sortedGymData.map((perf) => (
+              <NormalSection
+                key={perf.id}
+                className={`${styles.card} ${styles.cardLink}`}
+                onClick={() => route(`/performances/gym/${perf.id}`)}
+              >
                 {/* 📸 体育館用：背景画像を敷くヘッダーエリア（画像の高さで可変） */}
                 <div className={styles.cardHeader}>
                   {perf.image_path && (
@@ -255,13 +431,19 @@ const Performances = () => {
                     </div>
                     <h3 className={styles.cardTitle}>{perf.group_name}</h3>
                   </div>
+                  <LikeButton
+                    type='gym'
+                    id={perf.id}
+                    likeCount={perf.like ?? 0}
+                  />
                 </div>
 
                 {/* 📄 体育館用：画像がかぶらない白背景エリア（高さ自動調整） */}
                 <div className={styles.cardBody}>
-                  <p className={styles.description}>
-                    {perf.description || '公演説明はありません。'}
-                  </p>
+                  <DescriptionPreview
+                    description={perf.description || '公演説明はありません。'}
+                    href={`/performances/gym/${perf.id}`}
+                  />
 
                   <div className={styles.footer}>
                     <div>
@@ -285,14 +467,19 @@ const Performances = () => {
       </section>
       <section>
         <h2 className={baseStyles.linedH2}>展示部活</h2>
+        <div className={ticketStyles.sortControlRow}><label className={ticketStyles.sortLabel}>並び順 <select className={ticketStyles.sortSelect} value={clubSortMode} onChange={(event) => setClubSortMode(event.currentTarget.value === 'likes' ? 'likes' : 'name')}><option value='name'>団体名順</option><option value='likes'>いいね順</option></select></label></div>
         <div className={styles.grid}>
-          {exhibitionData.length === 0 ? (
+          {sortedExhibitionData.length === 0 ? (
             <div className={styles.stateMessage}>
               公開中の展示部活はありません。
             </div>
           ) : (
-            exhibitionData.map((club) => (
-              <NormalSection key={club.id} className={styles.card}>
+            sortedExhibitionData.map((club) => (
+              <NormalSection
+                key={club.id}
+                className={`${styles.card} ${styles.cardLink}`}
+                onClick={() => route(`/performances/club/${club.id}`)}
+              >
                 <div className={styles.cardHeader}>
                   {club.image_path && (
                     <>
@@ -313,16 +500,24 @@ const Performances = () => {
                   >
                     <div className={styles.meta}>
                       {club.year !== null && (
-                        <span className={styles.yearBadge}>{club.year}年度</span>
+                        <span className={styles.yearBadge}>
+                          {club.year}年度
+                        </span>
                       )}
                     </div>
                     <h3 className={styles.cardTitle}>{club.group_name}</h3>
                   </div>
+                  <LikeButton
+                    type='club'
+                    id={club.id}
+                    likeCount={club.like ?? 0}
+                  />
                 </div>
                 <div className={styles.cardBody}>
-                  <p className={styles.description}>
-                    {club.description || '展示説明はありません。'}
-                  </p>
+                  <DescriptionPreview
+                    description={club.description || '展示説明はありません。'}
+                    href={`/performances/club/${club.id}`}
+                  />
                 </div>
               </NormalSection>
             ))

@@ -6,6 +6,11 @@ import type { AvailableSeatSelection } from '../../types/types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { withTimeout } from '../../utils/withTimeout';
 import { getPerformanceAvailability } from './performanceAvailability';
+import {
+  getAvailabilityStatus,
+  getCapacityForMode,
+  getGymRemaining,
+} from './availabilityHelpers';
 
 type GymPerformanceRow = {
   id: number;
@@ -206,22 +211,18 @@ const GymPerformancesTable = ({
           junior: 0,
           other: 0,
         };
-        const generalRemainingRaw =
-          performance.capacity -
-          performance.junior_capacity -
-          issued.general -
-          issued.other;
-        const totalRemaining =
-          performance.capacity - issued.general - issued.junior - issued.other;
-        const remaining =
-          currentRemainingMode === 'total' || isJuniorReleased
-            ? totalRemaining
-            : currentRemainingMode === 'junior'
-              ? performance.junior_capacity -
-                issued.junior -
-                Math.max(-generalRemainingRaw, 0)
-              : generalRemainingRaw;
-        remainingMap.set(performance.id, Math.max(remaining, 0));
+        remainingMap.set(
+          performance.id,
+          getGymRemaining({
+            totalCapacity: performance.capacity,
+            juniorCapacity: performance.junior_capacity,
+            issuedGeneral: issued.general,
+            issuedJunior: issued.junior,
+            issuedOther: issued.other,
+            mode: currentRemainingMode,
+            isJuniorReleased,
+          }),
+        );
       }
 
       setRemainingByPerformanceId(remainingMap);
@@ -294,12 +295,11 @@ const GymPerformancesTable = ({
         roundName: performance.round_name,
         groupName: performance.group_name,
       };
-      const capacity =
-        currentRemainingMode === 'general'
-          ? Math.max(performance.capacity - performance.junior_capacity, 0)
-          : currentRemainingMode === 'junior'
-            ? performance.junior_capacity
-            : performance.capacity;
+      const capacity = getCapacityForMode(
+        performance.capacity,
+        performance.junior_capacity,
+        currentRemainingMode,
+      );
       const remaining =
         remainingByPerformanceId.get(performance.id) ?? capacity;
 
@@ -390,12 +390,11 @@ const GymPerformancesTable = ({
   ]);
 
   const getMark = (remaining: number, capacity: number) => {
-    if (remaining <= 0) {
+    const status = getAvailabilityStatus(remaining, capacity);
+    if (status === 'cross') {
       return <RiCloseLargeLine />;
     }
-
-    const lowStockThreshold = Math.max(1, Math.ceil(capacity * 0.1));
-    if (capacity > 0 && remaining <= lowStockThreshold) {
+    if (status === 'triangle') {
       return <RiTriangleLine />;
     }
 
@@ -403,12 +402,11 @@ const GymPerformancesTable = ({
   };
 
   const getStatusClass = (remaining: number, capacity: number) => {
-    if (remaining <= 0) {
+    const status = getAvailabilityStatus(remaining, capacity);
+    if (status === 'cross') {
       return styles.statusCross;
     }
-
-    const lowStockThreshold = Math.max(1, Math.ceil(capacity * 0.1));
-    if (capacity > 0 && remaining <= lowStockThreshold) {
+    if (status === 'triangle') {
       return styles.statusTriangle;
     }
 
@@ -512,7 +510,7 @@ const GymPerformancesTable = ({
             }}
           >
             <option value='all'>すべて</option>
-              {filteredGroupNames.map((groupName) => (
+            {filteredGroupNames.map((groupName) => (
               <option key={groupName} value={groupName}>
                 {groupName}
               </option>
@@ -621,7 +619,10 @@ const GymPerformancesTable = ({
                       } ${isSelected ? styles.selectedCell : ''}`}
                       key={key}
                       onClick={() => {
-                        if (cell.remaining <= 0 || nonInteractivePerformanceIds?.has(cell.performanceId)) {
+                        if (
+                          cell.remaining <= 0 ||
+                          nonInteractivePerformanceIds?.has(cell.performanceId)
+                        ) {
                           return;
                         }
                         handleAvailableCellClick({

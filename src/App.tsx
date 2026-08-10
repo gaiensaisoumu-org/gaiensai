@@ -38,6 +38,7 @@ import {
   ScanLayout,
   Home,
   Performances,
+  PerformanceDetail,
   DayTicketIssue,
   DayTicketIssueResult,
   Students,
@@ -103,6 +104,24 @@ const userPageLayout = () => (
         <Route path='/day-tickets/result' component={DayTicketIssueResult} />
         <Route path='/day-tickets' component={DayTicketIssue} />
         <Route path='/performances' component={Performances} />
+        <Route
+          path='/performances/class/:id'
+          component={({ id }: { id?: string }) => (
+            <PerformanceDetail type='class' id={id} />
+          )}
+        />
+        <Route
+          path='/performances/gym/:id'
+          component={({ id }: { id?: string }) => (
+            <PerformanceDetail type='gym' id={id} />
+          )}
+        />
+        <Route
+          path='/performances/club/:id'
+          component={({ id }: { id?: string }) => (
+            <PerformanceDetail type='club' id={id} />
+          )}
+        />
         <Route path='/faq' component={FAQ} />
         <Route path='/timetable' component={TimeTable} />
         <Route path='/map' component={Map} />
@@ -167,7 +186,7 @@ const InnerApp = () => {
     } else if (path.startsWith('/day-tickets')) {
       preload(DayTicketIssue, DayTicketIssueResult);
     } else if (path.startsWith('/performances')) {
-      preload(Performances);
+      preload(Performances, PerformanceDetail);
     } else if (path.startsWith('/faq')) {
       preload(FAQ);
     } else if (path.startsWith('/timetable')) {

@@ -12,6 +12,9 @@ export const JuniorLayout = lazy(() => import('./layout/JuniorLayout'));
 
 export const Home = lazy(() => import('./pages/user/Home'));
 export const Performances = lazy(() => import('./pages/user/Performances'));
+export const PerformanceDetail = lazy(
+  () => import('./pages/user/PerformanceDetail'),
+);
 export const FAQ = lazy(() => import('./pages/user/FAQ'));
 export const TimeTable = lazy(() => import('./pages/user/TimeTable'));
 export const Map = lazy(() => import('./pages/user/Map'));

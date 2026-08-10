@@ -3,6 +3,7 @@ import styles from './NormalSection.module.css';
 type NormalSectionProps = {
   children: preact.ComponentChildren;
   className?: string;
+  onClick?: () => void;
 };
 
 const NormalSection = ({

@@ -7,6 +7,7 @@ import type { AvailableSeatSelection } from '../../types/types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { withTimeout } from '../../utils/withTimeout';
 import { getPerformanceAvailability } from './performanceAvailability';
+import { getAvailabilityStatus, getCapacityForMode, getClassRemaining } from './availabilityHelpers';
 
 type PerformanceRow = {
   id: number;
@@ -287,25 +288,7 @@ const PerformancesTable = ({
             other: 0,
           };
 
-          const totalCap = p.total_capacity ?? 0;
-          const juniorCap = p.junior_capacity ?? 0;
-          const generalCap = Math.max(totalCap - juniorCap, 0);
-          const totalIssued = stat.general + stat.junior + stat.other;
-          const generalRemainingRaw = generalCap - stat.general - stat.other;
-
-          let remaining = 0;
-          if (currentRemainingMode === 'total') {
-            remaining = totalCap - totalIssued;
-          } else if (currentRemainingMode === 'junior') {
-            remaining = isJuniorReleased
-              ? totalCap - totalIssued
-              : juniorCap - stat.junior - Math.max(-generalRemainingRaw, 0);
-          } else {
-            remaining = isJuniorReleased
-              ? totalCap - totalIssued
-              : generalRemainingRaw;
-          }
-          seatMap.set(key, Math.max(remaining, 0));
+          seatMap.set(key, getClassRemaining({ totalCapacity: p.total_capacity ?? 0, juniorCapacity: p.junior_capacity ?? 0, issuedGeneral: stat.general, issuedJunior: stat.junior, issuedOther: stat.other, mode: currentRemainingMode, isJuniorReleased }));
         });
       });
 
@@ -354,25 +337,7 @@ const PerformancesTable = ({
         const remaining = Number(remainingSeatMap.get(key) ?? 0);
         const totalCapacity = Number(performance.total_capacity ?? 0);
         const juniorCapacity = Number(performance.junior_capacity ?? 0);
-        const baseCapacity =
-          currentRemainingMode === 'total'
-            ? totalCapacity
-            : currentRemainingMode === 'junior'
-              ? juniorCapacity
-              : Math.max(totalCapacity - juniorCapacity, 0);
-        const lowStockThreshold = Math.max(1, Math.ceil(baseCapacity * 0.1));
-
-        if (remaining <= 0) {
-          map.set(key, 'cross');
-          return;
-        }
-
-        if (baseCapacity > 0 && remaining <= lowStockThreshold) {
-          map.set(key, 'triangle');
-          return;
-        }
-
-        map.set(key, 'circle');
+        map.set(key, getAvailabilityStatus(remaining, getCapacityForMode(totalCapacity, juniorCapacity, currentRemainingMode)));
       });
     });
 

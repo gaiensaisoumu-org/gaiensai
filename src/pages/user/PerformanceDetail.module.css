@@ -1,0 +1,97 @@
+.title {
+  margin: -1rem 0 1.5rem;
+  font-size: 1.35rem;
+}
+
+.detail,
+.timetable {
+  background: var(--main-bg-color);
+  border-radius: .75rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  max-height: 28rem;
+  object-fit: contain;
+}
+.likeAction { display: flex; justify-content: flex-end; margin-top: .75rem; }
+
+.description {
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+
+.mapLink {
+  color: var(--link-text-color);
+}
+
+.timetable h3 {
+  border-bottom: 1px solid var(--table-border-color);
+  padding-bottom: .4rem;
+}
+
+.row {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .9rem .25rem;
+  text-align: left;
+  border-bottom: 1px solid var(--table-border-color);
+  font: inherit;
+  color: inherit;
+}
+
+.scheduleTime {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  min-width: 0;
+}
+
+.timeRange {
+  white-space: nowrap;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background: var(--translucent-w-bg-color);
+}
+
+.row:disabled,
+.row:disabled:hover {
+  cursor: default;
+  background: transparent;
+  border-bottom: 1px solid var(--table-border-color);
+}
+
+.inactive {
+  color: var(--sub-text-color);
+}
+
+.circle {
+  color: var(--success-text-color);
+}
+
+.triangle {
+  color: #b7791f;
+}
+
+.cross {
+  color: var(--error-text-color);
+}
+
+.remaining {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}

@@ -1,0 +1,7 @@
+.button { display: inline-flex; align-items: center; gap: .2rem; border: 0; border-radius: 999px; padding: .35rem .55rem; background: rgba(0,0,0,.68); color: white; font: inherit; cursor: pointer; }
+.overlay { position: absolute; right: .65rem; bottom: .65rem; z-index: 4; }
+.button svg { font-size: 1.1rem; }.button:disabled { cursor: wait; opacity: .7; }
+.liked { color: #ff6b9a; }
+.pop svg { animation: heart-pop .42s cubic-bezier(.2, 1.6, .45, 1); }
+@keyframes heart-pop { 0% { transform: scale(1); } 45% { transform: scale(1.55) rotate(-10deg); } 70% { transform: scale(.9) rotate(5deg); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .pop svg { animation: none; } }
