@@ -21,7 +21,7 @@ const GlobalNav = () => {
           </a>
         </li>
         <li>
-          <a href='/t'>チケット</a>
+          <a href='/t'>チケット表示履歴</a>
         </li>
         <li>
           <a href='/performances' onMouseEnter={() => preload(Performances)}>
