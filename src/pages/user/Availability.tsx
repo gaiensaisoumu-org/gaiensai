@@ -4,12 +4,14 @@ import { useTitle } from '../../hooks/useTitle';
 import styles from '../../styles/sub-pages.module.css';
 import NormalSection from '../../components/ui/NormalSection';
 import pageStyles from './Availability.module.css';
+import Modal2 from '../../components/ui/Modal2';
 
 const Availability = () => {
   useTitle('公演空き状況');
 
   return (
     <>
+      <Modal2 />
       <h1 className={styles.pageTitle}>公演空き状況</h1>
       <p className={pageStyles.introduction}>
         残席はキャンセルなどにより変動します。最新の状況をご確認ください。
