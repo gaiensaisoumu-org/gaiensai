@@ -174,7 +174,7 @@ const NUMERIC_SETTING_META = {
   maxAdmissionOnlyJuniorAccounts: {
     label: '入場専用券のみ登録可能な中学生アカウント上限',
     min: 0,
-    max: 150,
+    max: 800,
   },
   defaultClassTotalCapacity: {
     label: 'クラス公演の定員(合計)',

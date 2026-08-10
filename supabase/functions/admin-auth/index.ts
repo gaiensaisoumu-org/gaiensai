@@ -1085,7 +1085,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
         maxAdmissionOnlyJuniorAccounts,
         'maxAdmissionOnlyJuniorAccounts',
         0,
-        100,
+        800,
       ),
     };
   }
