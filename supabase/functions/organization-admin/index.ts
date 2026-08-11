@@ -359,17 +359,31 @@ Deno.serve(async (req) => {
       if (own.kind === 'class' && (!Number.isInteger(maxTicketsPerUser) || typeof maxTicketsPerUser !== 'number' || maxTicketsPerUser < 0 || maxTicketsPerUser > 100)) {
         throw new HttpError(400, '自クラスの発行可能枚数は0〜100の整数で指定してください。');
       }
+      // 定員は各公演回ごとの値なので、有効チケットも公演回ごとに集計して
+      // 検証する。全回分を合算すると、定員を超えていない回でも変更できなくなる。
       const ticketQuery = own.kind === 'class'
-        ? client.from('class_tickets').select('tickets!inner(person_count)').eq('class_id', own.performance.id).eq('tickets.status', 'valid')
-        : client.from('gym_tickets').select('tickets!inner(person_count)').in('performance_id', own.performances.map((performance) => performance.id)).eq('tickets.status', 'valid');
+        ? client.from('class_tickets').select('round_id, tickets!inner(person_count)').eq('class_id', own.performance.id).eq('tickets.status', 'valid')
+        : client.from('gym_tickets').select('performance_id, tickets!inner(person_count)').in('performance_id', own.performances.map((performance) => performance.id)).eq('tickets.status', 'valid');
       const { data: ticketLinks, error: ticketError } = await ticketQuery;
       if (ticketError) {throw ticketError;}
-      const issuedCount = (ticketLinks ?? []).reduce((total, item) => {
+      const issuedCountsByRound = new Map<number, number>();
+      for (const item of ticketLinks ?? []) {
         const ticket = item.tickets as unknown as { person_count?: number } | null;
-        return total + (ticket?.person_count ?? 0);
-      }, 0);
-      if (capacity < issuedCount) {
-        throw new HttpError(400, `現在${issuedCount}人分の有効チケットがあるため、それ未満には変更できません。`);
+        const roundId = Number(
+          own.kind === 'class'
+            ? (item as { round_id?: number }).round_id
+            : (item as { performance_id?: number }).performance_id,
+        );
+        if (Number.isInteger(roundId)) {
+          issuedCountsByRound.set(
+            roundId,
+            (issuedCountsByRound.get(roundId) ?? 0) + (ticket?.person_count ?? 0),
+          );
+        }
+      }
+      const largestIssuedCount = Math.max(0, ...issuedCountsByRound.values());
+      if (capacity < largestIssuedCount) {
+        throw new HttpError(400, `現在${largestIssuedCount}人分の有効チケットがある公演回があるため、それ未満には変更できません。`);
       }
       const year = await eventYear(client);
       const update = own.kind === 'class'
