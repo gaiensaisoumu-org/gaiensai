@@ -479,7 +479,8 @@
     filter 0.9s ease;
 }
 
-.scrollSection :is(h2, h3, p, li, a) {
+.scrollSection :is(h2, h3, p, li),
+.scrollSection > a {
   clip-path: inset(0 0 100% 0);
   transform: translateY(18px);
   opacity: 0;
@@ -495,7 +496,8 @@
   filter: blur(0);
 }
 
-.scrollSection.isVisible :is(h2, h3, p, li, a) {
+.scrollSection.isVisible :is(h2, h3, p, li),
+.scrollSection.isVisible > a {
   clip-path: inset(0 0 0 0);
   transform: translateY(0);
   opacity: 1;
@@ -544,7 +546,8 @@
     transition: none;
   }
 
-  .scrollSection :is(h2, h3, p, li, a) {
+  .scrollSection :is(h2, h3, p, li),
+  .scrollSection > a {
     clip-path: none;
     transform: none;
     opacity: 1;
