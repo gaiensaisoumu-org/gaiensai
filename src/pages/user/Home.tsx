@@ -223,6 +223,31 @@ const Home = () => {
         </p>
       </Alert>
       <NormalSection className={styles.scrollSection} data-scroll-section=''>
+        <h2>中学生の皆様へ</h2>
+        <p>
+          現在、抽選結果のメールが届かないというお問い合わせを多数いただいております。まずは迷惑メールフォルダに振り分けられていないかご確認ください。メールが届かない場合は、
+          <a href='https://docs.google.com/forms/d/e/1FAIpQLSfGsEXv2e1IoDbF2RjhrCyK5myHU0Dq-YJ4_3dHMhNeLAvjUg/viewform?usp=dialog'>
+            お問い合わせ
+          </a>
+          より、受付番号と申し込んだ公演についてご連絡ください。こちらで確認の上、申し込み方法についてご案内いたします。
+        </p>
+      </NormalSection>
+      <NormalSection className={styles.scrollSection} data-scroll-section=''>
+        <h2>申し込みをしてない中学生の方へ</h2>
+        <p>
+          先日、中学生向けの外苑祭のチケットの抽選を行いました。
+          現在のチケットの発券状況から、当日の残席数に余裕が見込まれるため、先の抽選に申し込んでいない中学生とその保護者様には、当日にご来場頂ければ入場及び展示部活の観覧、残席状況によってはクラス公演や体育館公演もご観覧いただけることになりました。
+          <a href='https://docs.google.com/forms/d/e/1FAIpQLSfGsEXv2e1IoDbF2RjhrCyK5myHU0Dq-YJ4_3dHMhNeLAvjUg/viewform?usp=dialog'>
+            お問い合わせ
+          </a>
+          よりご連絡をいただければ、入場チケットの発行も可能です（公演の予約はできません）。
+          <br />
+          <strong>
+            ※青高生からの招待券をお持ちの中学生は申し込み不要です。
+          </strong>
+        </p>
+      </NormalSection>
+      <NormalSection className={styles.scrollSection} data-scroll-section=''>
         <h2>生徒用ページ</h2>
         <p>
           青高生の皆さんは、

@@ -451,7 +451,7 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
 
       setIsIssuingTicket(true);
 
-      // 別々のチケット使用の場合、中学生と親両方のチケットを発行、保護者のみの場合は親のみ発行
+      // 別々のアカウント使用の場合、中学生と親両方のチケットを発行、保護者のみの場合は親のみ発行
       if (juniorUsageType === 1) {
         const { error: juniorTicketError } = await supabase.functions.invoke(
           'issue-tickets',
@@ -607,7 +607,7 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
               <NormalSection>
                 <h2 style={{ marginBottom: '0.5rem' }}>利用形態</h2>
                 <p>
-                  「中学生と保護者(共通のチケット使用)」から「別々のチケットを使用」への変更以外は、後から変更できませんのでご注意ください。
+                  「中学生と保護者(共通のチケット使用)」から「別々のアカウントを使用」への変更以外は、後から変更できませんのでご注意ください。
                 </p>
                 <div className={styles.usageTypeSelection}>
                   <label
@@ -640,7 +640,7 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
                       checked={juniorUsageType === 1}
                       onChange={() => handleUsageTypeChange(1)}
                     />
-                    中学生と保護者(別々のチケット使用)
+                    中学生と保護者(別々のアカウント使用)
                   </label>
                   <label
                     className={`${styles.usageTypeButton} ${
@@ -691,7 +691,7 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
                   <>
                     <h3 className={styles.h3WithIcon}>
                       <IoMdHelpCircleOutline />
-                      中学生と保護者(別々のチケット使用)とは
+                      中学生と保護者(別々のアカウント使用)とは
                     </h3>
                     <p>
                       中学生アカウントと保護者用アカウントの2つを作成して、それぞれでチケットを取得する方式です。ここで入力した保護者情報を用いて、保護者の端末でログインしてください。
@@ -912,14 +912,14 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
               setShowSeparateTicketsConfirmation(false);
               await handleSignUp(undefined, true);
             }}
-            headingText='登録後のログインについて'
+            headingText='2つのアカウントを発行します'
             buttonText='続行する'
           >
             <p>
-              中学生と保護者で別々のアカウントを発行します。
+              <strong>この後中学生のアカウントに移動します。</strong>
             </p>
             <p>
-              この後中学生のアカウントに遷移します。保護者アカウントは、ここで入力した保護者情報を用いて、保護者の端末でログインしてください。
+              保護者アカウントは、<span style={{textDecoration: 'underline'}}>ここで入力した保護者情報を用いて、保護者の端末でログインしてください。</span>
             </p>
           </Modal>
         ) : null}

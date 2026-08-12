@@ -63,7 +63,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
 
   const handleUsageTypeChange = (type: number) => {
     setJuniorUsageType(type);
-    // 「別々のチケット使用」を選択した場合、確認ダイアログを表示
+    // 「別々のアカウント使用」を選択した場合、確認ダイアログを表示
     if (type === 1) {
       setPrevJuniorUsageType(juniorUsageType);
       setAccountSplit((prev) => ({
@@ -292,7 +292,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
 
       setIsIssuingTicket(true);
 
-      // 別々のチケット使用の場合、中学生と親両方のチケットを発行
+      // 別々のアカウント使用の場合、中学生と親両方のチケットを発行
       if (juniorUsageType === 1) {
         // 中学生用チケット発行
         const { error: juniorTicketError } = await supabase.functions.invoke(
@@ -415,7 +415,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
         <NormalSection>
           <h2 style={{ marginBottom: '0.5rem' }}>利用形態</h2>
           <p>
-            「中学生と保護者(共通のチケット使用)」から「別々のチケットを使用」への変更以外は、後から変更できませんのでご注意ください。
+            「中学生と保護者(共通のチケット使用)」から「別々のアカウントを使用」への変更以外は、後から変更できませんのでご注意ください。
           </p>
           <div className={styles.usageTypeSelection}>
             <label
@@ -444,7 +444,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
                 checked={juniorUsageType === 1}
                 onChange={() => handleUsageTypeChange(1)}
               />
-              中学生と保護者(別々のチケット使用)
+              中学生と保護者(別々のアカウント使用)
             </label>
             <label
               className={`${styles.usageTypeButton} ${
@@ -523,7 +523,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
             <>
               <h3 className={styles.h3WithIcon}>
                 <IoMdHelpCircleOutline />
-                中学生と保護者(別々のチケット使用)とは
+                中学生と保護者(別々のアカウント使用)とは
               </h3>
               <p>
                 中学生アカウントと保護者用アカウントの2つを作成して、それぞれでチケットを取得する方式です。ここで入力した保護者情報を用いて、保護者の端末でログインしてください。
