@@ -49,6 +49,51 @@ const fetchAllRows = async <T>(
   }
 };
 
+/** Auth Admin API の最大ページサイズを考慮して全ユーザーを取得する。 */
+const fetchAllAuthUsers = async (adminClient: SupabaseClient) => {
+  const users = [];
+  for (let page = 1; ; page++) {
+    const {
+      data: { users: pageUsers },
+      error,
+    } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage: ADMIN_LIST_PAGE_SIZE,
+    });
+    if (error) {
+      throw error;
+    }
+    users.push(...pageUsers);
+    if (pageUsers.length < ADMIN_LIST_PAGE_SIZE) {
+      return users;
+    }
+  }
+};
+
+/** 対象のメールアドレスが見つかるまで Auth Admin API をページングする。 */
+const findAuthUserByEmail = async (adminClient: SupabaseClient, email: string) => {
+  const normalizedEmail = email.toLowerCase();
+  for (let page = 1; ; page++) {
+    const {
+      data: { users },
+      error,
+    } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage: ADMIN_LIST_PAGE_SIZE,
+    });
+    if (error) {
+      throw error;
+    }
+
+    const user = users.find(
+      (candidate) => candidate.email?.toLowerCase() === normalizedEmail,
+    );
+    if (user || users.length < ADMIN_LIST_PAGE_SIZE) {
+      return user;
+    }
+  }
+};
+
 type AdminAuthRequest = {
   action?: unknown;
   password?: unknown;
@@ -1663,14 +1708,9 @@ Deno.serve(async (req) => {
 
     if (body.mode === 'resetUserData' || body.mode === 'deleteUserAccount') {
       const session = await requireValidSession(adminClient, req);
-      const { data, error: listError } = await adminClient.auth.admin.listUsers({
-        perPage: 1000,
-      });
-      if (listError) {
-        throw listError;
-      }
-      const authUser = data.users.find(
-        (user) => user.email?.toLowerCase() === body.userEmail,
+      const authUser = await findAuthUserByEmail(
+        adminClient,
+        body.userEmail,
       );
       if (!authUser) {
         throw new HttpError(404, '対象のAuthユーザーが見つかりません。');
@@ -1774,17 +1814,7 @@ Deno.serve(async (req) => {
       const targetType: 'student' | 'junior' =
         body.mode === 'deleteAccountsByType' ? body.accountType : 'student';
 
-      // 生徒アカウントを最大1000件取得
-      const {
-        data: { users },
-        error: listError,
-      } = await adminClient.auth.admin.listUsers({
-        perPage: 1000,
-      });
-
-      if (listError) {
-        throw listError;
-      }
+      const users = await fetchAllAuthUsers(adminClient);
 
       // accountType に応じた対象ユーザーのみ抽出
       const usersToDelete = users.filter(
@@ -1848,17 +1878,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 生徒アカウントを最大1000件取得
-      const {
-        data: { users: remainingUsers },
-        error,
-      } = await adminClient.auth.admin.listUsers({
-        perPage: 1000,
-      });
-
-      if (error) {
-        throw error;
-      }
+      const remainingUsers = await fetchAllAuthUsers(adminClient);
 
       // accountType に応じた対象ユーザーの残数
       const usersRemaining = remainingUsers.filter(
@@ -2520,20 +2540,7 @@ Deno.serve(async (req) => {
 
       const email = `${body.studentId}@gaiensai.local`;
 
-      // IDから対象ユーザーを検索 (Auth Admin APIを使用)
-      // デフォルトは50件なので、perPageを指定して検索対象を広げる
-      const {
-        data: { users },
-        error: listError,
-      } = await adminClient.auth.admin.listUsers({
-        perPage: 1000,
-      });
-
-      if (listError) {
-        throw listError;
-      }
-
-      const authUser = users.find((u) => u.email === email);
+      const authUser = await findAuthUserByEmail(adminClient, email);
 
       if (!authUser) {
         throw new HttpError(
