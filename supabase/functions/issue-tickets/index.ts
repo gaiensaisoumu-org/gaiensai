@@ -12,6 +12,7 @@ import {
   generateTicketCode,
   signCode,
 } from '@shared/generateTicketCode.ts';
+import { decodeTicketCode } from '@shared/decodeTicketCode.ts';
 import { issueWithRollback, type RpcClient } from './issueWithRollback.ts';
 import {
   YEAR_BITS,
@@ -455,15 +456,15 @@ export const handleIssueTicketsRequest = async (
       juniorEntryOnlyId !== undefined &&
       body.ticketTypeId === juniorEntryOnlyId;
 
-    // 間柄変更時は、フロント側から送られたaffiliationを優先的に使用
-    const affiliation =
-      body.cancelCode && body.affiliation !== undefined
-        ? Number(body.affiliation)
-        : isAuthenticatedStudent
-          ? Number(userRow?.affiliation ?? -1)
-          : isDayTicket
-            ? DAY_TICKET_ANONYMOUS_AFFILIATION
-            : ANONYMOUS_AFFILIATION;
+    // 通常発券と、生徒アカウントによる間柄変更では、ログイン中の生徒を
+    // チケット利用者として扱う。中学生・未ログインの間柄変更は後で旧コードの
+    // affiliation を引き継ぐ。
+    let affiliation =
+      isAuthenticatedStudent
+        ? Number(userRow?.affiliation ?? -1)
+        : isDayTicket
+          ? DAY_TICKET_ANONYMOUS_AFFILIATION
+          : ANONYMOUS_AFFILIATION;
 
     if (isAuthenticatedStudent) {
       if (!Number.isInteger(affiliation)) {
@@ -509,19 +510,17 @@ export const handleIssueTicketsRequest = async (
     );
     const issueUserId = user?.id ?? DAY_TICKET_GUEST_USER_ID;
     const ensureNoOtherClassSelfTicketInSameRound = async () => {
-      const {
-        data: existingSelfTicket,
-        error: existingSelfTicketError,
-      } = await adminClient
-        .from('tickets')
-        .select('id, class_tickets!inner(class_id)')
-        .eq('user_id', issueUserId)
-        .eq('status', 'valid')
-        .eq('relationship', SELF_RELATIONSHIP_ID)
-        .eq('class_tickets.round_id', body.scheduleId)
-        .neq('class_tickets.class_id', body.performanceId)
-        .limit(1)
-        .maybeSingle();
+      const { data: existingSelfTicket, error: existingSelfTicketError } =
+        await adminClient
+          .from('tickets')
+          .select('id, class_tickets!inner(class_id)')
+          .eq('user_id', issueUserId)
+          .eq('status', 'valid')
+          .eq('relationship', SELF_RELATIONSHIP_ID)
+          .eq('class_tickets.round_id', body.scheduleId)
+          .neq('class_tickets.class_id', body.performanceId)
+          .limit(1)
+          .maybeSingle();
 
       if (existingSelfTicketError) {
         throw new HttpError(
@@ -558,7 +557,9 @@ export const handleIssueTicketsRequest = async (
         .from('gym_performances')
         .select('id')
         .eq('group_name', gymPerformanceRow.group_name);
-      gymPerformanceIdsForLimit = (sameClubPerformances ?? []).map((row) => Number(row.id));
+      gymPerformanceIdsForLimit = (sameClubPerformances ?? []).map((row) =>
+        Number(row.id),
+      );
     }
 
     if (body.cancelCode && body.issueCount !== 1) {
@@ -678,10 +679,7 @@ export const handleIssueTicketsRequest = async (
         throw new HttpError(409, 'クラス公演招待券の受付は停止中です。');
       }
 
-      if (
-        issueMode === 'class' &&
-        relationshipId === SELF_RELATIONSHIP_ID
-      ) {
+      if (issueMode === 'class' && relationshipId === SELF_RELATIONSHIP_ID) {
         await ensureNoOtherClassSelfTicketInSameRound();
       }
 
@@ -890,23 +888,32 @@ export const handleIssueTicketsRequest = async (
       configRow.gym_ticket_limits_by_club &&
       typeof configRow.gym_ticket_limits_by_club === 'object' &&
       !Array.isArray(configRow.gym_ticket_limits_by_club)
-        ? configRow.gym_ticket_limits_by_club as Record<string, unknown>
+        ? (configRow.gym_ticket_limits_by_club as Record<string, unknown>)
         : {};
-    const defaultOtherClubTicketLimit = Number(configRow.max_tickets_per_other_club_user);
+    const defaultOtherClubTicketLimit = Number(
+      configRow.max_tickets_per_other_club_user,
+    );
     const targetGymClub = gymPerformanceRow?.group_name ?? '';
     const targetIsOwnClub = Boolean(userRow?.clubs?.includes(targetGymClub));
     const ownClubLimit = Number(gymTicketLimitsByClub[targetGymClub]);
-    const gymTicketLimit = targetIsOwnClub && Number.isInteger(ownClubLimit) && ownClubLimit >= 0
-      ? ownClubLimit
-      : defaultOtherClubTicketLimit;
-    const selectedClassPerformance = issueMode === 'class'
-      ? await adminClient
-          .from('class_performances')
-          .select('class_name, max_tickets_per_user')
-          .eq('id', body.performanceId)
-          .maybeSingle()
-      : null;
-    if (issueMode === 'class' && (!selectedClassPerformance || selectedClassPerformance.error || !selectedClassPerformance.data)) {
+    const gymTicketLimit =
+      targetIsOwnClub && Number.isInteger(ownClubLimit) && ownClubLimit >= 0
+        ? ownClubLimit
+        : defaultOtherClubTicketLimit;
+    const selectedClassPerformance =
+      issueMode === 'class'
+        ? await adminClient
+            .from('class_performances')
+            .select('class_name, max_tickets_per_user')
+            .eq('id', body.performanceId)
+            .maybeSingle()
+        : null;
+    if (
+      issueMode === 'class' &&
+      (!selectedClassPerformance ||
+        selectedClassPerformance.error ||
+        !selectedClassPerformance.data)
+    ) {
       throw new HttpError(500, 'クラス公演の発券設定が取得できませんでした。');
     }
     const ownClassName = !isJuniorUser
@@ -936,7 +943,11 @@ export const handleIssueTicketsRequest = async (
       );
     }
 
-    if (!isDayTicket && !isAdmissionOnlyTicket && body.issueCount > maxTicketsPerUser) {
+    if (
+      !isDayTicket &&
+      !isAdmissionOnlyTicket &&
+      body.issueCount > maxTicketsPerUser
+    ) {
       throw new HttpError(
         409,
         `1回の発行枚数がユーザ上限を超えています。最大 ${maxTicketsPerUser} 枚までです。
@@ -969,6 +980,19 @@ export const handleIssueTicketsRequest = async (
         );
       }
       oldTicket = fetchedOldTicket; // 取得したチケット情報を外部スコープの変数に代入
+
+      if (userRow?.role !== 'student') {
+        // 中学生アカウントまたは未ログインでの変更は、元チケットの所属を保つ。
+        // クライアントから渡された affiliation は信頼しない。
+        const decodedOldTicket = await decodeTicketCode(body.cancelCode);
+        if (!decodedOldTicket) {
+          throw new HttpError(
+            409,
+            '差し替え対象チケットのコードを検証できません。ページを更新してからやり直してください。',
+          );
+        }
+        affiliation = decodedOldTicket.affiliation;
+      }
 
       if (oldTicket.status !== 'valid') {
         throw new HttpError(
@@ -1118,25 +1142,73 @@ export const handleIssueTicketsRequest = async (
         ? maxTicketsPerUser * 2
         : maxTicketsPerUser;
     let otherPerformanceExisting = 0;
-    const isOtherPerformanceTarget = issueMode === 'class'
-      ? !isOwnClass
-      : issueMode === 'gym'
-        ? !targetIsOwnClub
-        : false;
+    const isOtherPerformanceTarget =
+      issueMode === 'class'
+        ? !isOwnClass
+        : issueMode === 'gym'
+          ? !targetIsOwnClub
+          : false;
     if (!isJuniorUser && !isDayTicket && isOtherPerformanceTarget) {
       const ownClassNameForTotal = ownClassName;
       const [classIdsResult, gymIdsResult] = await Promise.all([
-        adminClient.from('class_performances').select('id').neq('class_name', ownClassNameForTotal ?? ''),
-        adminClient.from('gym_performances').select('id').not('group_name', 'in', `(${(userRow?.clubs ?? []).map((club) => `"${club.replaceAll('"', '\\"')}"`).join(',') || '""'})`),
+        adminClient
+          .from('class_performances')
+          .select('id')
+          .neq('class_name', ownClassNameForTotal ?? ''),
+        adminClient
+          .from('gym_performances')
+          .select('id')
+          .not(
+            'group_name',
+            'in',
+            `(${(userRow?.clubs ?? []).map((club) => `"${club.replaceAll('"', '\\"')}"`).join(',') || '""'})`,
+          ),
       ]);
-      const otherClassIds = (classIdsResult.data ?? []).map((row) => Number(row.id));
-      const otherGymIds = (gymIdsResult.data ?? []).map((row) => Number(row.id));
+      const otherClassIds = (classIdsResult.data ?? []).map((row) =>
+        Number(row.id),
+      );
+      const otherGymIds = (gymIdsResult.data ?? []).map((row) =>
+        Number(row.id),
+      );
       const [otherClassCount, otherGymCount] = await Promise.all([
-        otherClassIds.length === 0 ? Promise.resolve({ count: 0, error: null }) : adminClient.from('tickets').select('id, class_tickets!inner(id)', { count: 'exact', head: true }).eq('user_id', issueUserId).eq('status', 'valid').in('class_tickets.class_id', otherClassIds).not('ticket_type', 'in', `(${admissionOnlyTicketTypeIds.join(',')})`),
-        otherGymIds.length === 0 ? Promise.resolve({ count: 0, error: null }) : adminClient.from('tickets').select('id, gym_tickets!inner(id)', { count: 'exact', head: true }).eq('user_id', issueUserId).eq('status', 'valid').in('gym_tickets.performance_id', otherGymIds).not('ticket_type', 'in', `(${admissionOnlyTicketTypeIds.join(',')})`),
+        otherClassIds.length === 0
+          ? Promise.resolve({ count: 0, error: null })
+          : adminClient
+              .from('tickets')
+              .select('id, class_tickets!inner(id)', {
+                count: 'exact',
+                head: true,
+              })
+              .eq('user_id', issueUserId)
+              .eq('status', 'valid')
+              .in('class_tickets.class_id', otherClassIds)
+              .not(
+                'ticket_type',
+                'in',
+                `(${admissionOnlyTicketTypeIds.join(',')})`,
+              ),
+        otherGymIds.length === 0
+          ? Promise.resolve({ count: 0, error: null })
+          : adminClient
+              .from('tickets')
+              .select('id, gym_tickets!inner(id)', {
+                count: 'exact',
+                head: true,
+              })
+              .eq('user_id', issueUserId)
+              .eq('status', 'valid')
+              .in('gym_tickets.performance_id', otherGymIds)
+              .not(
+                'ticket_type',
+                'in',
+                `(${admissionOnlyTicketTypeIds.join(',')})`,
+              ),
       ]);
-      if (otherClassCount.error || otherGymCount.error) throw new HttpError(500, '他公演の発行枚数取得に失敗しました。');
-      otherPerformanceExisting = Number(otherClassCount.count ?? 0) + Number(otherGymCount.count ?? 0);
+      if (otherClassCount.error || otherGymCount.error) {
+        throw new HttpError(500, '他公演の発行枚数取得に失敗しました。');
+      }
+      otherPerformanceExisting =
+        Number(otherClassCount.count ?? 0) + Number(otherGymCount.count ?? 0);
     }
     // 入場専用券のリクエストまたは間柄の変更時は制限チェックをスキップする
     const isExemptLimit =
@@ -1153,21 +1225,36 @@ export const handleIssueTicketsRequest = async (
         さらに必要な場合は、まだ発行可能枚数に余裕がある他の生徒に、招待券を分けてもらえないかと相談してください。`,
       );
     }
-    if (!isJuniorUser && !isDayTicket && isOtherPerformanceTarget && !isExemptLimit &&
-      otherPerformanceExisting + totalPersonCount > Number(configRow.max_tickets_per_other_performance_user)) {
-      throw new HttpError(409, `他クラス・部活の合計発行可能枚数を超えています。（現在 ${otherPerformanceExisting} 枚、上限 ${Number(configRow.max_tickets_per_other_performance_user)} 枚）`);
+    if (
+      !isJuniorUser &&
+      !isDayTicket &&
+      isOtherPerformanceTarget &&
+      !isExemptLimit &&
+      otherPerformanceExisting + totalPersonCount >
+        Number(configRow.max_tickets_per_other_performance_user)
+    ) {
+      throw new HttpError(
+        409,
+        `他クラス・部活の合計発行可能枚数を超えています。（現在 ${otherPerformanceExisting} 枚、上限 ${Number(configRow.max_tickets_per_other_performance_user)} 枚）`,
+      );
     }
 
     // チケットコードのプレフィックスを生成（学年クラス番号 + チケット種別 + 間柄 + 公演ID + 回ID + 発行年をYEAR_BITSで割ったあまり）
     const issuedYear = configuredYear;
     const issuedYearForPrefix = issuedYear % 2 ** Number(YEAR_BITS);
-    const concatenated = `${padNumber(affiliation, 5)}${padNumber(body.ticketTypeId, 1)}${padNumber(relationshipId, 1)}${padNumber(body.performanceId, 2)}${padNumber(body.scheduleId, 2)}${padNumber(issuedYearForPrefix, 2)}`;
+    // 間柄変更では、コード・DB・採番カウンターのすべてに変更先の間柄を使う。
+    // relationshipId はフロントからの互換用ダミー値になり得るため、採番には使わない。
+    const codeRelationshipId =
+      body.cancelCode && body.targetRelationshipId !== undefined
+        ? body.targetRelationshipId
+        : relationshipId;
+    const concatenated = `${padNumber(affiliation, 5)}${padNumber(body.ticketTypeId, 1)}${padNumber(codeRelationshipId, 1)}${padNumber(body.performanceId, 2)}${padNumber(body.scheduleId, 2)}${padNumber(issuedYearForPrefix, 2)}`;
     const basePrefix = generateManualCode(BigInt(concatenated));
 
     // チケットコードに埋め込むフラグの決定ロジック
     const getEncodingRelationshipId = (index: number): number => {
       if (!isJuniorUser || isDayTicket) {
-        return relationshipId;
+        return codeRelationshipId;
       }
       if (body.targetRelationshipId) {
         return body.targetRelationshipId;
@@ -1255,8 +1342,7 @@ export const handleIssueTicketsRequest = async (
         const serial = startSerial;
         const ticketData = {
           affiliation,
-          relationship:
-            body.targetRelationshipId ?? getEncodingRelationshipId(0),
+          relationship: codeRelationshipId,
           type: body.ticketTypeId,
           performance: body.performanceId,
           schedule: body.scheduleId,
@@ -1273,12 +1359,18 @@ export const handleIssueTicketsRequest = async (
             : 'reissue_ticket_change_relationship_with_codes';
 
         const { data, error } = await adminClient.rpc(reissueRpcName, {
-          p_user_id: issueUserId,
+          // 生徒アカウントでの変更は、その生徒を新チケットの利用者にする。
+          // 中学生・未ログインでは利用者も元のままとする。発行枠の所有者は
+          // DB関数が issued_by_user_id として旧チケットから引き継ぐ。
+          p_user_id:
+            userRow?.role === 'student'
+              ? issueUserId
+              : (oldTicket?.user_id ?? issueUserId),
           p_old_code: body.cancelCode,
           p_ticket_type_id: body.ticketTypeId,
           p_performance_id: body.performanceId,
           p_schedule_id: body.scheduleId,
-          p_new_relationship_id: relationshipId,
+          p_new_relationship_id: codeRelationshipId,
           p_issue_count: 1,
           p_codes: [code],
           p_signatures: [signature],

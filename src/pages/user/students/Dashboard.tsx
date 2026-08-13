@@ -637,8 +637,16 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
 
       setIssuedTicketNumber(cards.length);
 
-      // Merge database tickets with local storage tickets from other users
-      const allCards = [...cards, ...otherUsersLocalStorageTickets];
+      // issued_by_user_id 経由でDBからも取得されるチケットがあるため、
+      // ローカルキャッシュとの結合後にコード単位で重複を除く。
+      const allCards = Array.from(
+        new Map(
+          [...cards, ...otherUsersLocalStorageTickets].map((card) => [
+            card.code,
+            card,
+          ]),
+        ).values(),
+      );
 
       setTicketCards(allCards);
       writeCachedTicketCards(user.id, cards);
