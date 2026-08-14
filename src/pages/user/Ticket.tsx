@@ -43,6 +43,7 @@ import { formatDateText } from '../../utils/formatDateText.ts';
 import { useTicketStorage } from '../../features/tickets/useTicketStorage.ts';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.tsx';
 import { useTitle } from '../../hooks/useTitle.ts';
+import { formatMaintenanceEndAt, readMaintenanceConfig } from '../../features/tickets/maintenanceMode.ts';
 
 type TicketDisplay = TicketDecodedDisplaySeed & {
   code: string;
@@ -284,6 +285,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
     number | null
   >(null);
   const [isChangingRelationship, setIsChangingRelationship] = useState(false);
+  const [maintenanceConfig, setMaintenanceConfig] = useState(readMaintenanceConfig);
   const [ticket, setTicket] = useState<TicketDisplay>({
     code: '',
     signature: '',
@@ -898,6 +900,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
     if (!isRelationshipModalOpen) {
       return;
     }
+    setMaintenanceConfig(readMaintenanceConfig());
 
     const loadRelationships = async () => {
       setRelationshipLoading(true);
@@ -1522,6 +1525,11 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               <p className={styles.relationshipModalMessage}>
                 間柄を変更して再発行します（再発行とキャンセルは一括で処理され、どちらか片方だけ成功することはありません）。続行しますか?
               </p>
+              {maintenanceConfig.maintenanceMode && (
+                <p className={styles.relationshipError}>
+                  現在メンテナンス中のため、間柄を変更できません。終了予定時刻: {formatMaintenanceEndAt(maintenanceConfig.endsAt) ?? '未定'}
+                </p>
+              )}
 
               <label
                 className={styles.relationshipField}
@@ -1535,7 +1543,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                   onChange={(event) =>
                     setSelectedRelationshipId(Number(event.currentTarget.value))
                   }
-                  disabled={relationshipLoading || isChangingRelationship}
+                  disabled={relationshipLoading || isChangingRelationship || maintenanceConfig.maintenanceMode}
                 >
                   <option value='' disabled={true}>
                     選択してください
@@ -1568,7 +1576,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                   type='button'
                   className={styles.changeRelationshipConfirmButton}
                   onClick={handleChangeRelationship}
-                  disabled={relationshipLoading || isChangingRelationship}
+                  disabled={relationshipLoading || isChangingRelationship || maintenanceConfig.maintenanceMode}
                 >
                   {isChangingRelationship ? '変更中...' : '続行する'}
                 </button>

@@ -18,13 +18,19 @@ type ControlPanelSettings = {
   showLength: number;
   maxTicketsPerOtherClassUser: number;
   maxTicketsPerOtherPerformanceUser: number;
-  classTicketLimits: { id: number; class_name: string; max_tickets_per_user: number }[];
+  classTicketLimits: {
+    id: number;
+    class_name: string;
+    max_tickets_per_user: number;
+  }[];
   maxTicketsPerOtherClubUser: number;
   gymTicketLimitsByClub: Record<string, number>;
   maxTicketsPerJuniorUser: number;
   maxAdmissionOnlyJuniorAccounts: number;
   juniorReleaseOpen: boolean;
   ticketIssuingEnabled: boolean;
+  maintenanceMode: boolean;
+  maintenanceEndsAt: string | null;
   activeTicketTypeIds: number[];
   defaultClassTotalCapacity: number;
   defaultClassJuniorCapacity: number;
@@ -237,6 +243,8 @@ const SettingsContent = () => {
     maxAdmissionOnlyJuniorAccounts: 100,
     juniorReleaseOpen: false,
     ticketIssuingEnabled: true,
+    maintenanceMode: false,
+    maintenanceEndsAt: null,
     activeTicketTypeIds: [
       TICKET_TYPE_IDS.classInvite,
       TICKET_TYPE_IDS.rehearsalInvite,
@@ -281,10 +289,15 @@ const SettingsContent = () => {
   const [editingNumericValue, setEditingNumericValue] = useState('');
   const [editingGymClub, setEditingGymClub] = useState<string | null>(null);
   const [editingGymClubLimit, setEditingGymClubLimit] = useState('');
-  const [editingClassLimitId, setEditingClassLimitId] = useState<number | null>(null);
+  const [editingClassLimitId, setEditingClassLimitId] = useState<number | null>(
+    null,
+  );
   const [editingClassLimit, setEditingClassLimit] = useState('');
   const [isBulkClassLimitModalOpen, setIsBulkClassLimitModalOpen] =
     useState(false);
+  const [isMaintenanceEndModalOpen, setIsMaintenanceEndModalOpen] =
+    useState(false);
+  const [maintenanceEndsAtDraft, setMaintenanceEndsAtDraft] = useState('');
   const [bulkClassLimit, setBulkClassLimit] = useState('');
   const [activeDetailTab, setActiveDetailTab] = useState<
     'schedules' | 'relationships'
@@ -635,6 +648,9 @@ const SettingsContent = () => {
           typeof nextSettings.maxAdmissionOnlyJuniorAccounts !== 'number' ||
           typeof nextSettings.juniorReleaseOpen !== 'boolean' ||
           typeof nextSettings.ticketIssuingEnabled !== 'boolean' ||
+          typeof nextSettings.maintenanceMode !== 'boolean' ||
+          (nextSettings.maintenanceEndsAt !== null &&
+            typeof nextSettings.maintenanceEndsAt !== 'string') ||
           typeof nextSettings.defaultClassTotalCapacity !== 'number' ||
           typeof nextSettings.defaultClassJuniorCapacity !== 'number' ||
           typeof nextSettings.defaultGymCapacity !== 'number' ||
@@ -809,9 +825,13 @@ const SettingsContent = () => {
           eventYear: nextSettings.eventYear,
           showLength: nextSettings.showLength,
           maxTicketsPerOtherClassUser: nextSettings.maxTicketsPerOtherClassUser,
-          maxTicketsPerOtherPerformanceUser: nextSettings.maxTicketsPerOtherPerformanceUser,
+          maxTicketsPerOtherPerformanceUser:
+            nextSettings.maxTicketsPerOtherPerformanceUser,
           classTicketLimitsById: Object.fromEntries(
-            nextSettings.classTicketLimits.map((item) => [item.id, item.max_tickets_per_user]),
+            nextSettings.classTicketLimits.map((item) => [
+              item.id,
+              item.max_tickets_per_user,
+            ]),
           ),
           maxTicketsPerOtherClubUser: nextSettings.maxTicketsPerOtherClubUser,
           gymTicketLimitsByClub: nextSettings.gymTicketLimitsByClub,
@@ -820,6 +840,8 @@ const SettingsContent = () => {
             nextSettings.maxAdmissionOnlyJuniorAccounts,
           juniorReleaseOpen: nextSettings.juniorReleaseOpen,
           ticketIssuingEnabled: nextSettings.ticketIssuingEnabled,
+          maintenanceMode: nextSettings.maintenanceMode,
+          maintenanceEndsAt: nextSettings.maintenanceEndsAt,
           defaultClassTotalCapacity: nextSettings.defaultClassTotalCapacity,
           defaultClassJuniorCapacity: nextSettings.defaultClassJuniorCapacity,
           defaultGymCapacity: nextSettings.defaultGymCapacity,
@@ -841,14 +863,16 @@ const SettingsContent = () => {
 
       setSettings({
         ...nextSettings,
-        hasMultipleClassTotalCapacities:
-          capacitySettingsToUpdate.includes('defaultClassTotalCapacity')
-            ? false
-            : nextSettings.hasMultipleClassTotalCapacities,
-        hasMultipleClassJuniorCapacities:
-          capacitySettingsToUpdate.includes('defaultClassJuniorCapacity')
-            ? false
-            : nextSettings.hasMultipleClassJuniorCapacities,
+        hasMultipleClassTotalCapacities: capacitySettingsToUpdate.includes(
+          'defaultClassTotalCapacity',
+        )
+          ? false
+          : nextSettings.hasMultipleClassTotalCapacities,
+        hasMultipleClassJuniorCapacities: capacitySettingsToUpdate.includes(
+          'defaultClassJuniorCapacity',
+        )
+          ? false
+          : nextSettings.hasMultipleClassJuniorCapacities,
         hasMultipleGymCapacities: capacitySettingsToUpdate.includes(
           'defaultGymCapacity',
         )
@@ -868,6 +892,24 @@ const SettingsContent = () => {
       return false;
     } finally {
       setIsSyncingSetting(false);
+    }
+  };
+
+  const saveMaintenanceMode = async (
+    maintenanceMode: boolean,
+    maintenanceEndsAt: string | null,
+  ) => {
+    setIsModalSubmitting(true);
+    const updated = await syncSettings(
+      { ...settings, maintenanceMode, maintenanceEndsAt },
+      maintenanceMode
+        ? 'メンテナンスモードを有効化しました。'
+        : 'メンテナンスモードを無効化しました。',
+      'ticketSection',
+    );
+    setIsModalSubmitting(false);
+    if (updated && maintenanceMode) {
+      setIsMaintenanceEndModalOpen(false);
     }
   };
 
@@ -1055,7 +1097,8 @@ const SettingsContent = () => {
     setEditingGymClub(club);
     setEditingGymClubLimit(
       String(
-        settings.gymTicketLimitsByClub[club] ?? settings.maxTicketsPerOtherClubUser,
+        settings.gymTicketLimitsByClub[club] ??
+          settings.maxTicketsPerOtherClubUser,
       ),
     );
     setSettingsMessageScope('modal');
@@ -1124,18 +1167,27 @@ const SettingsContent = () => {
     }
     const limit = Number(editingClassLimit);
     if (!Number.isInteger(limit) || limit < 0 || limit > 100) {
-      setSettingsError('クラスごとの発行可能枚数は0〜100の範囲の整数で入力してください。');
+      setSettingsError(
+        'クラスごとの発行可能枚数は0〜100の範囲の整数で入力してください。',
+      );
       return;
     }
     const nextSettings = {
       ...settings,
       classTicketLimits: settings.classTicketLimits.map((item) =>
-        item.id === editingClassLimitId ? { ...item, max_tickets_per_user: limit } : item,
+        item.id === editingClassLimitId
+          ? { ...item, max_tickets_per_user: limit }
+          : item,
       ),
     };
     setIsModalSubmitting(true);
-    const className = settings.classTicketLimits.find((item) => item.id === editingClassLimitId)?.class_name ?? 'クラス';
-    const success = await syncSettings(nextSettings, `${className}の発行可能枚数を更新しました。`);
+    const className =
+      settings.classTicketLimits.find((item) => item.id === editingClassLimitId)
+        ?.class_name ?? 'クラス';
+    const success = await syncSettings(
+      nextSettings,
+      `${className}の発行可能枚数を更新しました。`,
+    );
     setIsModalSubmitting(false);
     if (success) {
       closeClassLimitEditModal();
@@ -1161,7 +1213,9 @@ const SettingsContent = () => {
   const handleConfirmBulkClassLimitEdit = async () => {
     const limit = Number(bulkClassLimit);
     if (!Number.isInteger(limit) || limit < 0 || limit > 100) {
-      setSettingsError('クラスごとの発行可能枚数は0〜100の範囲の整数で入力してください。');
+      setSettingsError(
+        'クラスごとの発行可能枚数は0〜100の範囲の整数で入力してください。',
+      );
       return;
     }
 
@@ -1687,7 +1741,7 @@ const SettingsContent = () => {
         <h2>チケット発券</h2>
         <div className={styles.formGrid}>
           <div>
-            <h3>券種別の受付設定</h3>
+            <h3>全体</h3>
             <div className={styles.field}>
               <label className={styles.settingLabel}>チケット発券全体</label>
               <label>
@@ -1721,6 +1775,62 @@ const SettingsContent = () => {
                 />
               </label>
             </div>
+            <h3>メンテナスモード</h3>
+            <div className={styles.field}>
+              <label className={styles.settingLabel} htmlFor='maintenance-mode'>
+                メンテナンスモードを有効にする
+              </label>
+              <Switch
+                id='maintenance-mode'
+                checked={settings.maintenanceMode}
+                onChange={(checked: boolean) => {
+                  if (isSettingsLoading || isSyncingSetting) {
+                    return;
+                  }
+                  if (checked) {
+                    setMaintenanceEndsAtDraft(
+                      settings.maintenanceEndsAt
+                        ? toLocalDateTimeInputValue(settings.maintenanceEndsAt)
+                        : '',
+                    );
+                    setIsMaintenanceEndModalOpen(true);
+                    return;
+                  }
+                  void saveMaintenanceMode(false, null);
+                }}
+              />
+            </div>
+            {settings.maintenanceMode && (
+              <div className={styles.field}>
+                <label className={styles.settingLabel} htmlFor='maintenance-ends-at'>
+                  終了予定日時
+                </label>
+                <input
+                  id='maintenance-ends-at'
+                  className={styles.fieldControl}
+                  type='datetime-local'
+                  value={settings.maintenanceEndsAt ? toLocalDateTimeInputValue(settings.maintenanceEndsAt) : ''}
+                  onInput={(event) => {
+                    const value = (event.target as HTMLInputElement).value;
+                    setSettings((current) => ({
+                      ...current,
+                      maintenanceEndsAt: value ? new Date(value).toISOString() : null,
+                    }));
+                  }}
+                  onBlur={(event) => {
+                    if (event.currentTarget.value) {
+                      void saveMaintenanceMode(
+                        true,
+                        new Date(event.currentTarget.value).toISOString(),
+                      );
+                    }
+                  }}
+                  disabled={isSettingsLoading || isSyncingSetting}
+                  required
+                />
+              </div>
+            )}
+            <h3>券種別の受付設定</h3>
             <div className={styles.field}>
               <label
                 className={styles.settingLabel}
@@ -2581,6 +2691,58 @@ const SettingsContent = () => {
           </button>
         </form>
       </NormalSection>
+      {isMaintenanceEndModalOpen && (
+        <div className={styles.settingModalOverlay} role='presentation'>
+          <div
+            className={styles.settingModal}
+            role='dialog'
+            aria-modal='true'
+            aria-labelledby='maintenance-end-modal-title'
+          >
+            <h3 id='maintenance-end-modal-title' className={styles.settingModalTitle}>
+              メンテナンス終了予定時刻
+            </h3>
+            <p>メンテナンスモードを有効にするには終了予定時刻の設定が必要です。</p>
+            <label className={styles.settingLabel} htmlFor='maintenance-end-modal-input'>
+              終了予定日時
+            </label>
+            <input
+              id='maintenance-end-modal-input'
+              className={styles.fieldControl}
+              type='datetime-local'
+              value={maintenanceEndsAtDraft}
+              onInput={(event) =>
+                setMaintenanceEndsAtDraft((event.target as HTMLInputElement).value)
+              }
+              disabled={isModalSubmitting}
+              required
+            />
+            <div className={styles.settingModalActions}>
+              <button
+                type='button'
+                className={styles.settingModalCancel}
+                onClick={() => setIsMaintenanceEndModalOpen(false)}
+                disabled={isModalSubmitting}
+              >
+                キャンセル
+              </button>
+              <button
+                type='button'
+                className={styles.settingModalConfirm}
+                disabled={!maintenanceEndsAtDraft || isModalSubmitting}
+                onClick={() =>
+                  void saveMaintenanceMode(
+                    true,
+                    new Date(maintenanceEndsAtDraft).toISOString(),
+                  )
+                }
+              >
+                {isModalSubmitting ? '保存中...' : '有効にする'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {editingNumericKey && (
         <div
           className={styles.settingModalOverlay}
@@ -3086,10 +3248,7 @@ const SettingsContent = () => {
             aria-labelledby='reset-all-likes-title'
             onClick={(event) => event.stopPropagation()}
           >
-            <h3
-              id='reset-all-likes-title'
-              className={styles.settingModalTitle}
-            >
+            <h3 id='reset-all-likes-title' className={styles.settingModalTitle}>
               全てのいいねを消去しますか？
             </h3>
             <p>

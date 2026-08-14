@@ -574,7 +574,7 @@ export const handleIssueTicketsRequest = async (
     const { data: configRow, error: configError } = await adminClient
       .from('configs')
       .select(
-        'max_tickets_per_other_class_user, max_tickets_per_other_club_user, max_tickets_per_other_performance_user, max_tickets_per_junior_user, gym_ticket_limits_by_club, is_active, event_year',
+        'max_tickets_per_other_class_user, max_tickets_per_other_club_user, max_tickets_per_other_performance_user, max_tickets_per_junior_user, gym_ticket_limits_by_club, is_active, maintenance_mode, event_year',
       )
       .order('id', { ascending: true })
       .maybeSingle();
@@ -600,10 +600,12 @@ export const handleIssueTicketsRequest = async (
       );
     }
 
-    if (configRow.is_active === false) {
+    if (configRow.is_active === false || configRow.maintenance_mode === true) {
       throw new HttpError(
         409,
-        '現在チケット発券は停止中です。しばらくしてから再度お試しください。',
+        configRow.maintenance_mode === true
+          ? '現在メンテナンス中です。しばらくしてから再度お試しください。'
+          : '現在チケット発券は停止中です。しばらくしてから再度お試しください。',
       );
     }
 

@@ -36,6 +36,7 @@ import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTyp
 import { useTitle } from '../../../hooks/useTitle';
 import { OfflineError, withTimeout } from '../../../utils/withTimeout';
 import Modal from '../../../components/ui/Modal';
+import { formatMaintenanceEndAt, saveMaintenanceConfig } from '../../../features/tickets/maintenanceMode';
 
 const STUDENT_TICKETS_CACHE_PREFIX = 'ticket-display-cache:v1:';
 const STUDENT_ACCOUNT_CONFIRMATION_STORAGE_PREFIX =
@@ -107,6 +108,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     () => navigator.onLine && !isOfflineMode,
   );
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
+  const [maintenance, setMaintenance] = useState<{ active: boolean; endsAt: string | null }>({ active: false, endsAt: null });
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
   const [classRemainingByPerformanceId, setClassRemainingByPerformanceId] =
@@ -375,6 +377,8 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         };
         config?: {
           is_active?: boolean | null;
+          maintenance_mode?: boolean | null;
+          maintenance_ends_at?: string | null;
           show_length?: number | null;
           max_tickets_per_other_club_user?: number | null;
           gym_ticket_limits_by_club?: Record<string, unknown> | null;
@@ -403,8 +407,10 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         setIsAccountConfirmationModalOpen(true);
       }
       if (typeof dashboard.config?.is_active === 'boolean') {
-        setIsTicketIssuingEnabled(dashboard.config.is_active);
+        setIsTicketIssuingEnabled(dashboard.config.is_active && dashboard.config.maintenance_mode !== true);
       }
+      saveMaintenanceConfig(dashboard.config);
+      setMaintenance({ active: dashboard.config?.maintenance_mode === true, endsAt: dashboard.config?.maintenance_ends_at ?? null });
       if (controls) {
         setClassInviteMode(controls.class_invite_mode ?? 'open');
         setGymInviteMode(controls.gym_invite_mode ?? 'open');
@@ -968,6 +974,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
               現在チケット発券は受付停止中です。
             </p>
           )}
+        {maintenance.active && <Alert type='warning'><p>現在メンテナンス中です。終了予定時刻: {formatMaintenanceEndAt(maintenance.endsAt) ?? '未定'}</p></Alert>}
       </section>
       {ticketNotice && (
         <Alert type='info'>

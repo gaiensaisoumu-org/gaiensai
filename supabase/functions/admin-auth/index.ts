@@ -109,6 +109,8 @@ type AdminAuthRequest = {
   maxTicketsPerJuniorUser?: unknown;
   juniorReleaseOpen?: unknown;
   ticketIssuingEnabled?: unknown;
+  maintenanceMode?: unknown;
+  maintenanceEndsAt?: unknown;
   activeTicketTypeIds?: unknown;
   ticketIssueModes?: unknown;
   defaultClassTotalCapacity?: unknown;
@@ -255,6 +257,8 @@ type AdminAuthBody =
       maxAdmissionOnlyJuniorAccounts: number;
       juniorReleaseOpen: boolean;
       ticketIssuingEnabled: boolean;
+      maintenanceMode: boolean;
+      maintenanceEndsAt: string | null;
       defaultClassTotalCapacity: number;
       defaultClassJuniorCapacity: number;
       defaultGymCapacity: number;
@@ -335,6 +339,8 @@ type AdminSettingsRow = {
   max_admission_only_junior_accounts: number;
   junior_release_open: boolean;
   is_active: boolean;
+  maintenance_mode: boolean;
+  maintenance_ends_at: string | null;
 };
 
 type AdminSessionRow = {
@@ -1052,6 +1058,8 @@ const parseBody = (body: unknown): AdminAuthBody => {
       maxTicketsPerJuniorUser,
       juniorReleaseOpen,
       ticketIssuingEnabled,
+      maintenanceMode,
+      maintenanceEndsAt,
       defaultClassTotalCapacity,
       defaultClassJuniorCapacity,
       defaultGymCapacity,
@@ -1121,6 +1129,18 @@ const parseBody = (body: unknown): AdminAuthBody => {
         'ticketIssuingEnabled は真偽値で送信してください。',
       );
     }
+    if (typeof maintenanceMode !== 'boolean') {
+      throw new HttpError(400, 'maintenanceMode は真偽値で送信してください。');
+    }
+    if (
+      maintenanceEndsAt !== null &&
+      (typeof maintenanceEndsAt !== 'string' || Number.isNaN(Date.parse(maintenanceEndsAt)))
+    ) {
+      throw new HttpError(400, 'maintenanceEndsAt を正しく入力してください。');
+    }
+    if (maintenanceMode && maintenanceEndsAt === null) {
+      throw new HttpError(400, 'メンテナンス終了予定時刻を入力してください。');
+    }
 
     return {
       mode: 'updateSettings',
@@ -1156,6 +1176,8 @@ const parseBody = (body: unknown): AdminAuthBody => {
       ),
       juniorReleaseOpen,
       ticketIssuingEnabled,
+      maintenanceMode,
+      maintenanceEndsAt: maintenanceEndsAt === null ? null : new Date(maintenanceEndsAt).toISOString(),
       defaultClassTotalCapacity: total,
       defaultClassJuniorCapacity: junior,
       defaultGymCapacity: gymCapacity,
@@ -1297,7 +1319,7 @@ const fetchAdminSettings = async (adminClient: SupabaseClient) => {
   const { data, error } = await adminClient
     .from('configs')
     .select(
-      'id, event_year, show_length, max_tickets_per_other_class_user, max_tickets_per_other_performance_user, max_tickets_per_other_club_user, gym_ticket_limits_by_club, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active',
+      'id, event_year, show_length, max_tickets_per_other_class_user, max_tickets_per_other_performance_user, max_tickets_per_other_club_user, gym_ticket_limits_by_club, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active, maintenance_mode, maintenance_ends_at',
     )
     .limit(1);
 
@@ -2697,6 +2719,8 @@ Deno.serve(async (req) => {
               settings.max_admission_only_junior_accounts,
             juniorReleaseOpen: settings.junior_release_open,
             ticketIssuingEnabled: settings.is_active,
+            maintenanceMode: settings.maintenance_mode,
+            maintenanceEndsAt: settings.maintenance_ends_at,
             defaultClassTotalCapacity:
               maxCapacities.defaultClassTotalCapacity ?? 0,
             defaultClassJuniorCapacity:
@@ -2743,6 +2767,8 @@ Deno.serve(async (req) => {
             body.maxAdmissionOnlyJuniorAccounts,
           junior_release_open: body.juniorReleaseOpen,
           is_active: body.ticketIssuingEnabled,
+          maintenance_mode: body.maintenanceMode,
+          maintenance_ends_at: body.maintenanceEndsAt,
         })
         .eq('id', currentSettings.id);
 

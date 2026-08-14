@@ -252,11 +252,11 @@ const Issue = () => {
   useEffect(() => {
     const loadIssuingState = async () => {
       const { data } = await getStudentIssueBootstrap();
-      const configData = (data as { config?: { is_active?: boolean | null } })
+      const configData = (data as { config?: { is_active?: boolean | null; maintenance_mode?: boolean | null } })
         ?.config;
 
       if (typeof configData?.is_active === 'boolean') {
-        setIsTicketIssuingEnabled(configData.is_active);
+        setIsTicketIssuingEnabled(configData.is_active && configData.maintenance_mode !== true);
       }
     };
 

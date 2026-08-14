@@ -37,6 +37,8 @@ import {
 import { OfflineError, withTimeout } from "../../../utils/withTimeout";
 import { clearAllUserCaches } from "../../../features/tickets/ticketDisplayCache";
 import Modal from "../../../components/ui/Modal";
+import Alert from "../../../components/ui/Alert";
+import { formatMaintenanceEndAt, saveMaintenanceConfig } from "../../../features/tickets/maintenanceMode";
 
 type TicketSnapshot = {
   performances?: Array<{
@@ -78,6 +80,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   );
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
+  const [maintenance, setMaintenance] = useState<{ active: boolean; endsAt: string | null }>({ active: false, endsAt: null });
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
   const [myTicketSortMode, setMyTicketSortMode] =
@@ -531,7 +534,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       }
 
       const pageData = (pageResponse ?? {}) as {
-        config?: { is_active?: boolean | null; max_tickets_per_junior_user?: number | null };
+        config?: { is_active?: boolean | null; maintenance_mode?: boolean | null; maintenance_ends_at?: string | null; max_tickets_per_junior_user?: number | null };
         controls?: { class_invite_mode?: string | null; rehearsal_invite_mode?: string | null; gym_invite_mode?: string | null; entry_only_mode?: string | null };
         non_entry_ticket_count?: number;
         entry_only_ticket_count?: number;
@@ -540,8 +543,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         gym_performances?: unknown[];
       };
       if (typeof pageData.config?.is_active === "boolean") {
-        setIsTicketIssuingEnabled(pageData.config.is_active);
+        setIsTicketIssuingEnabled(pageData.config.is_active && pageData.config.maintenance_mode !== true);
       }
+      saveMaintenanceConfig(pageData.config);
+      setMaintenance({ active: pageData.config?.maintenance_mode === true, endsAt: pageData.config?.maintenance_ends_at ?? null });
       const controls = pageData.controls;
       if (controls) {
         setHasAnyActiveInviteTicketType(
@@ -764,6 +769,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
             現在チケット発券は受付停止中です。
           </p>
         )}
+        {maintenance.active && <Alert type="warning"><p>現在メンテナンス中です。終了予定時刻: {formatMaintenanceEndAt(maintenance.endsAt) ?? "未定"}</p></Alert>}
       </section>
       <NormalSection>
         <h2>自分が使うチケット</h2>
