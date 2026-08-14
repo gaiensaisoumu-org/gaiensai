@@ -72,6 +72,9 @@ const formatIssuedAt = (value: string) => {
       });
 };
 
+const normalizeTicketCodeForSearch = (value: string) =>
+  value.replace(/-/g, '').toLowerCase();
+
 type Roster = RosterXlsxSheet & {
   id: string;
 };
@@ -256,6 +259,7 @@ const TicketManagementContent = () => {
       data.classTickets.map((item) => [item.id, item]),
     );
     const gymTickets = new Map(data.gymTickets.map((item) => [item.id, item]));
+    const normalizedCode = normalizeTicketCodeForSearch(code);
     return data.tickets
       .map((ticket) => {
         const owner = users.get(ticket.user_id);
@@ -294,8 +298,8 @@ const TicketManagementContent = () => {
       .filter((row) => {
         const allName = row.displayName.toLowerCase();
         return (
-          (!code ||
-            row.ticket.code.toLowerCase().includes(code.toLowerCase())) &&
+          (!normalizedCode ||
+            normalizeTicketCodeForSearch(row.ticket.code).includes(normalizedCode)) &&
           (!name || allName.includes(name.toLowerCase())) &&
           (!affiliation ||
             String(row.owner?.affiliation ?? '').includes(affiliation)) &&
