@@ -13,10 +13,22 @@ export const decodeTicketSerialFromCode = async (
 
 export const applyDecodedSerials = async <T extends { code: string }>(
   tickets: T[],
-): Promise<Array<T & { serial?: number }>> =>
+): Promise<Array<T & { serial?: number; decodedRelationshipId?: number }>> =>
   Promise.all(
-    tickets.map(async (ticket) => ({
-      ...ticket,
-      serial: await decodeTicketSerialFromCode(ticket.code),
-    })),
+    tickets.map(async (ticket) => {
+      try {
+        const decoded = await decodeTicketCodeWithEnv(ticket.code);
+        return {
+          ...ticket,
+          serial: typeof decoded?.serial === 'number'
+            ? decoded.serial
+            : undefined,
+          decodedRelationshipId: typeof decoded?.relationship === 'number'
+            ? decoded.relationship
+            : undefined,
+        };
+      } catch {
+        return { ...ticket };
+      }
+    }),
   );

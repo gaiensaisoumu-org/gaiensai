@@ -12,6 +12,7 @@ import {
 import styles from './TicketManagement.module.css';
 import { applyDecodedSerials } from '../../features/tickets/decodeTicketSerial';
 import { formatTicketCode } from '../../features/tickets/formatTicketCode';
+import { resolveJuniorRelationshipName } from '../../features/tickets/juniorRelationship';
 import {
   downloadRosterXlsx,
   type RosterXlsxSheet,
@@ -30,6 +31,7 @@ type Ticket = {
   person_count: number;
   ticket_name?: string | null;
   serial?: number;
+  decodedRelationshipId?: number;
 };
 type Master = {
   id: number;
@@ -74,6 +76,15 @@ const formatIssuedAt = (value: string) => {
 
 const normalizeTicketCodeForSearch = (value: string) =>
   value.replace(/-/g, '').toLowerCase();
+
+const displayRelationship = (
+  ticket: Ticket,
+  relationships: Map<number, string>,
+) =>
+  resolveJuniorRelationshipName(
+    ticket.ticket_type,
+    ticket.decodedRelationshipId ?? -1,
+  ) ?? relationships.get(ticket.relationship) ?? '-';
 
 type Roster = RosterXlsxSheet & {
   id: string;
@@ -191,6 +202,7 @@ const TicketManagementContent = () => {
   const [performance, setPerformance] = useState('');
   const [schedule, setSchedule] = useState('');
   const [status, setStatus] = useState('');
+  const [relationship, setRelationship] = useState('');
   const [ticketType, setTicketType] = useState('');
   const [ticketKind, setTicketKind] = useState('');
   const [cancellingCode, setCancellingCode] = useState<string | null>(null);
@@ -288,7 +300,7 @@ const TicketManagementContent = () => {
           ticket,
           owner,
           displayName,
-          relationship: relationships.get(ticket.relationship) ?? '-',
+          relationship: displayRelationship(ticket, relationships),
           ticketKind: ticketKinds.get(ticket.ticket_type) ?? '-',
           ticketType: ticketTypes.get(ticket.ticket_type) ?? '-',
           performance,
@@ -306,6 +318,7 @@ const TicketManagementContent = () => {
           (!performance || row.performance === performance) &&
           (!schedule || row.schedule === schedule) &&
           (!status || row.ticket.status === status) &&
+          (!relationship || row.relationship === relationship) &&
           (!ticketType || row.ticketType === ticketType) &&
           (!ticketKind || row.ticketKind === ticketKind)
         );
@@ -318,6 +331,7 @@ const TicketManagementContent = () => {
     performance,
     schedule,
     status,
+    relationship,
     ticketType,
     ticketKind,
   ]);
@@ -368,6 +382,7 @@ const TicketManagementContent = () => {
     setPerformance('');
     setSchedule('');
     setStatus('');
+    setRelationship('');
     setTicketType('');
     setTicketKind('');
   };
@@ -399,6 +414,21 @@ const TicketManagementContent = () => {
       return (master?.name ?? '-').replace(/\([^)]*\)/g, '');
     })),
   ].sort();
+  const relationshipOptions = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    const relationships = new Map(
+      data.relationships.map((item) => [item.id, item.name ?? '-']),
+    );
+    return [
+      ...new Set(
+        data.tickets.map((ticket) =>
+          displayRelationship(ticket, relationships),
+        ),
+      ),
+    ].sort((a, b) => a.localeCompare(b, 'ja'));
+  }, [data]);
   const rosters = useMemo(
     () => (data ? buildRosters(data) : []),
     [data],
@@ -591,6 +621,22 @@ const TicketManagementContent = () => {
               {Object.entries(statusLabel).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            間柄
+            <select
+              value={relationship}
+              onChange={(e) =>
+                setRelationship((e.target as HTMLSelectElement).value)
+              }
+            >
+              <option value=''>すべて</option>
+              {relationshipOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}
                 </option>
               ))}
             </select>
