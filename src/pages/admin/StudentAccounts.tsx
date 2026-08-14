@@ -79,6 +79,9 @@ const StudentAccountsContent = () => {
   const [existingFilterGrade, setExistingFilterGrade] = useState('');
   const [existingFilterClass, setExistingFilterClass] = useState('');
   const [existingFilterAttendance, setExistingFilterAttendance] = useState('');
+  const [existingFilterInitialRegistration, setExistingFilterInitialRegistration] =
+    useState('');
+  const [existingFilterClub, setExistingFilterClub] = useState('');
 
   const [generatedAccounts, setGeneratedAccounts] = useState<
     { id: string; password: string }[]
@@ -213,8 +216,25 @@ const StudentAccountsContent = () => {
       const matchAttendance =
         existingFilterAttendance === '' ||
         n === String(existingFilterAttendance).padStart(2, '0');
+      const matchInitialRegistration =
+        existingFilterInitialRegistration === '' ||
+        (existingFilterInitialRegistration === 'completed'
+          ? user.isInitialRegistrationComplete
+          : !user.isInitialRegistrationComplete);
+      const matchClub =
+        existingFilterClub === '' ||
+        (existingFilterClub === '__none__'
+          ? user.clubs.length === 0
+          : user.clubs.includes(existingFilterClub));
 
-      return matchSearch && matchGrade && matchClass && matchAttendance;
+      return (
+        matchSearch &&
+        matchGrade &&
+        matchClass &&
+        matchAttendance &&
+        matchInitialRegistration &&
+        matchClub
+      );
     });
   }, [
     existingUsers,
@@ -222,7 +242,17 @@ const StudentAccountsContent = () => {
     existingFilterGrade,
     existingFilterClass,
     existingFilterAttendance,
+    existingFilterInitialRegistration,
+    existingFilterClub,
   ]);
+
+  const existingClubOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(existingUsers.flatMap((user) => user.clubs).filter(Boolean)),
+      ).sort((a, b) => a.localeCompare(b, 'ja')),
+    [existingUsers],
+  );
 
   const handleSingleCreate = async (event: Event) => {
     event.preventDefault();
@@ -1012,6 +1042,46 @@ const StudentAccountsContent = () => {
                 }
               />
             </div>
+            <div className={`${styles.field} ${styles.filterField}`}>
+              <label className={`${styles.settingLabel} ${styles.filterLabel}`}>
+                初回登録:
+              </label>
+              <select
+                className={styles.fieldControl}
+                value={existingFilterInitialRegistration}
+                onChange={(e) =>
+                  setExistingFilterInitialRegistration(
+                    (e.target as HTMLSelectElement).value,
+                  )
+                }
+              >
+                <option value=''>すべて</option>
+                <option value='completed'>済み</option>
+                <option value='not-completed'>未登録</option>
+              </select>
+            </div>
+            <div className={`${styles.field} ${styles.filterField}`}>
+              <label className={`${styles.settingLabel} ${styles.filterLabel}`}>
+                部活:
+              </label>
+              <select
+                className={styles.fieldControl}
+                value={existingFilterClub}
+                onChange={(e) =>
+                  setExistingFilterClub(
+                    (e.target as HTMLSelectElement).value,
+                  )
+                }
+              >
+                <option value=''>すべて</option>
+                <option value='__none__'>なし</option>
+                {existingClubOptions.map((club) => (
+                  <option key={club} value={club}>
+                    {club}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type='button'
               className={styles.inlineEditButton}
@@ -1020,6 +1090,8 @@ const StudentAccountsContent = () => {
                 setExistingFilterGrade('');
                 setExistingFilterClass('');
                 setExistingFilterAttendance('');
+                setExistingFilterInitialRegistration('');
+                setExistingFilterClub('');
               }}
             >
               リセット

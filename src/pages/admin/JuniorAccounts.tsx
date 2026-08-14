@@ -32,6 +32,7 @@ type BulkCreateResponse = {
 type ExistingAuthUser = {
   studentId: string;
   email: string;
+  affiliation: number | null;
   juniorUsageType: number | null;
   applicationDay: string | null;
   lastSignIn?: string;
@@ -42,6 +43,7 @@ type ExistingJuniorAccount = {
   id: string;
   birthday: string;
   email: string;
+  affiliation: number | null;
   createdAt: string;
   juniorUsageType: number | null;
   applicationDay: string | null;
@@ -223,7 +225,13 @@ const JuniorAccountContent = () => {
     ExistingJuniorAccount[]
   >([]);
   const [isLoadingExistingUsers, setIsLoadingExistingUsers] = useState(false);
-  const [existingSearch, setExistingSearch] = useState('');
+  const [existingSearchId, setExistingSearchId] = useState('');
+  const [existingSearchAffiliation, setExistingSearchAffiliation] =
+    useState('');
+  const [existingSearchBirthday, setExistingSearchBirthday] = useState('');
+  const [existingFilterUsageType, setExistingFilterUsageType] = useState('');
+  const [existingFilterApplicationDay, setExistingFilterApplicationDay] =
+    useState('');
   const [accountActionEmail, setAccountActionEmail] = useState<string | null>(
     null,
   );
@@ -254,6 +262,7 @@ const JuniorAccountContent = () => {
             id: parsed.id,
             birthday: parsed.birthday,
             email: user.email,
+            affiliation: user.affiliation,
             createdAt: user.createdAt,
             juniorUsageType: user.juniorUsageType,
             applicationDay: user.applicationDay,
@@ -280,20 +289,38 @@ const JuniorAccountContent = () => {
   }, []);
 
   const filteredExistingJuniorAccounts = useMemo(() => {
-    const query = existingSearch.trim().toLowerCase();
-    if (!query) {
-      return existingJuniorAccounts;
-    }
-    return existingJuniorAccounts.filter((account) =>
-      [
-        account.id,
-        account.birthday,
-        account.email,
-        formatJuniorUsageType(account.juniorUsageType),
-        formatApplicationDay(account.applicationDay),
-      ].some((value) => value.toLowerCase().includes(query)),
-    );
-  }, [existingJuniorAccounts, existingSearch]);
+    const id = existingSearchId.trim().toLowerCase();
+    const affiliation = existingSearchAffiliation.trim();
+    const birthday = existingSearchBirthday.trim();
+
+    return existingJuniorAccounts.filter((account) => {
+      const matchesId = !id || account.id.toLowerCase().includes(id);
+      const matchesAffiliation =
+        !affiliation || String(account.affiliation ?? '').includes(affiliation);
+      const matchesBirthday = !birthday || account.birthday.includes(birthday);
+      const matchesUsageType =
+        !existingFilterUsageType ||
+        String(account.juniorUsageType ?? '') === existingFilterUsageType;
+      const matchesApplicationDay =
+        !existingFilterApplicationDay ||
+        account.applicationDay === existingFilterApplicationDay;
+
+      return (
+        matchesId &&
+        matchesAffiliation &&
+        matchesBirthday &&
+        matchesUsageType &&
+        matchesApplicationDay
+      );
+    });
+  }, [
+    existingJuniorAccounts,
+    existingSearchId,
+    existingSearchAffiliation,
+    existingSearchBirthday,
+    existingFilterUsageType,
+    existingFilterApplicationDay,
+  ]);
 
   const handleAccountAction = async (
     account: ExistingJuniorAccount,
@@ -849,23 +876,128 @@ const JuniorAccountContent = () => {
         </p>
         <div className={styles.filterArea}>
           <div className={`${styles.field} ${styles.filterField}`}>
-            <label className={`${styles.settingLabel} ${styles.filterLabel}`}>
-              検索:
+            <label
+              className={`${styles.settingLabel} ${styles.filterLabel}`}
+              htmlFor='junior-account-id-search'
+            >
+              ID
             </label>
             <input
+              id='junior-account-id-search'
               type='search'
-              placeholder='ID、誕生日、メールアドレスなど'
+              placeholder='IDで検索'
               className={styles.fieldControl}
-              value={existingSearch}
+              value={existingSearchId}
               onInput={(event) =>
-                setExistingSearch((event.target as HTMLInputElement).value)
+                setExistingSearchId((event.target as HTMLInputElement).value)
               }
             />
+          </div>
+          <div className={`${styles.field} ${styles.filterField}`}>
+            <label
+              className={`${styles.settingLabel} ${styles.filterLabel}`}
+              htmlFor='junior-account-affiliation-search'
+            >
+              中学生固有ID
+            </label>
+            <input
+              id='junior-account-affiliation-search'
+              type='search'
+              inputMode='numeric'
+              placeholder='固有IDで検索'
+              className={styles.fieldControl}
+              value={existingSearchAffiliation}
+              onInput={(event) =>
+                setExistingSearchAffiliation(
+                  (event.target as HTMLInputElement).value,
+                )
+              }
+            />
+          </div>
+          <div className={`${styles.field} ${styles.filterField}`}>
+            <label
+              className={`${styles.settingLabel} ${styles.filterLabel}`}
+              htmlFor='junior-account-birthday-search'
+            >
+              誕生日
+            </label>
+            <input
+              id='junior-account-birthday-search'
+              type='search'
+              inputMode='numeric'
+              placeholder='YYYYMMDD'
+              className={styles.fieldControl}
+              value={existingSearchBirthday}
+              onInput={(event) =>
+                setExistingSearchBirthday(
+                  (event.target as HTMLInputElement).value,
+                )
+              }
+            />
+          </div>
+          <div className={`${styles.field} ${styles.filterField}`}>
+            <label
+              className={`${styles.settingLabel} ${styles.filterLabel}`}
+              htmlFor='junior-account-usage-type-filter'
+            >
+              利用形態
+            </label>
+            <select
+              id='junior-account-usage-type-filter'
+              className={styles.fieldControl}
+              value={existingFilterUsageType}
+              onChange={(event) =>
+                setExistingFilterUsageType(
+                  (event.target as HTMLSelectElement).value,
+                )
+              }
+            >
+              <option value=''>すべて</option>
+              <option value='0'>{formatJuniorUsageType(0)}</option>
+              <option value='1'>{formatJuniorUsageType(1)}</option>
+              <option value='2'>{formatJuniorUsageType(2)}</option>
+              <option value='3'>{formatJuniorUsageType(3)}</option>
+            </select>
+          </div>
+          <div className={`${styles.field} ${styles.filterField}`}>
+            <label
+              className={`${styles.settingLabel} ${styles.filterLabel}`}
+              htmlFor='junior-account-application-day-filter'
+            >
+              申込内容
+            </label>
+            <select
+              id='junior-account-application-day-filter'
+              className={styles.fieldControl}
+              value={existingFilterApplicationDay}
+              onChange={(event) =>
+                setExistingFilterApplicationDay(
+                  (event.target as HTMLSelectElement).value,
+                )
+              }
+            >
+              <option value=''>すべて</option>
+              <option value='class_day=day1&day2'>
+                {formatApplicationDay('class_day=day1&day2')}
+              </option>
+              <option value='gym_day=day1&day2'>
+                {formatApplicationDay('gym_day=day1&day2')}
+              </option>
+              <option value='admission_only'>
+                {formatApplicationDay('admission_only')}
+              </option>
+            </select>
           </div>
           <button
             type='button'
             className={styles.inlineEditButton}
-            onClick={() => setExistingSearch('')}
+            onClick={() => {
+              setExistingSearchId('');
+              setExistingSearchAffiliation('');
+              setExistingSearchBirthday('');
+              setExistingFilterUsageType('');
+              setExistingFilterApplicationDay('');
+            }}
           >
             リセット
           </button>
@@ -881,6 +1013,7 @@ const JuniorAccountContent = () => {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>中学生固有ID</th>
                 <th>誕生日</th>
                 <th>利用形態</th>
                 <th>申込内容</th>
@@ -891,7 +1024,7 @@ const JuniorAccountContent = () => {
             <tbody>
               {filteredExistingJuniorAccounts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className={styles.info}>
+                  <td colSpan={7} className={styles.info}>
                     {existingJuniorAccounts.length === 0
                       ? '登録済みの中学生アカウントはありません。'
                       : '検索条件に一致するアカウントはありません。'}
@@ -901,6 +1034,7 @@ const JuniorAccountContent = () => {
                 filteredExistingJuniorAccounts.map((account) => (
                   <tr key={account.email}>
                     <td>{account.id}</td>
+                    <td>{account.affiliation ?? '未登録'}</td>
                     <td>{account.birthday}</td>
                     <td>{formatJuniorUsageType(account.juniorUsageType)}</td>
                     <td>{formatApplicationDay(account.applicationDay)}</td>

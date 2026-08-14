@@ -2258,6 +2258,7 @@ Deno.serve(async (req) => {
       const userProfiles: {
         id: string;
         email: string;
+        affiliation: number;
         clubs: string[] | null;
         junior_usage_type: number | null;
         application_day: string | null;
@@ -2270,7 +2271,9 @@ Deno.serve(async (req) => {
       ) {
         const { data, error: profilesError } = await adminClient
           .from('users')
-          .select('id, email, clubs, junior_usage_type, application_day')
+          .select(
+            'id, email, affiliation, clubs, junior_usage_type, application_day',
+          )
           .in(
             'email',
             authUserEmails.slice(index, index + PROFILE_FETCH_BATCH_SIZE),
@@ -2293,6 +2296,7 @@ Deno.serve(async (req) => {
         userProfiles.map((profile) => [
           profile.email.toLowerCase(),
           {
+            affiliation: profile.affiliation,
             juniorUsageType: profile.junior_usage_type,
             applicationDay: profile.application_day,
           },
@@ -2309,6 +2313,9 @@ Deno.serve(async (req) => {
           studentId: u.user_metadata?.student_id || u.email?.split('@')[0],
           email: u.email,
           clubs: clubsByUserEmail.get(u.email?.toLowerCase() ?? '') ?? [],
+          affiliation:
+            juniorProfileByUserEmail.get(u.email?.toLowerCase() ?? '')
+              ?.affiliation ?? null,
           isInitialRegistrationComplete: registeredUserEmails.has(
             u.email?.toLowerCase() ?? '',
           ),
