@@ -256,21 +256,17 @@ const getOrganizationStatus = async (
     const issuerId = (ticket as { issued_by_user_id: string }).issued_by_user_id;
     countByIssuer.set(issuerId, (countByIssuer.get(issuerId) ?? 0) + 1);
   }
-  const affiliationById = new Map(
-    members.map((member) => [member.id, member.affiliation]),
-  );
-  const ranking = [...countByIssuer.entries()]
-    .map(([userId, ticketCount]) => ({
-      affiliation: affiliationById.get(userId) ?? null,
-      ticketCount,
+  const ranking = members
+    .map((member) => ({
+      affiliation: member.affiliation,
+      ticketCount: countByIssuer.get(member.id) ?? 0,
     }))
     .sort(
       (a, b) =>
         b.ticketCount - a.ticketCount ||
         (a.affiliation ?? Number.MAX_SAFE_INTEGER) -
           (b.affiliation ?? Number.MAX_SAFE_INTEGER),
-    )
-    .slice(0, 10);
+    );
 
   return {
     ...(initialRegistration ? { initialRegistration } : {}),

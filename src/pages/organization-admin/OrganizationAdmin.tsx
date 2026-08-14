@@ -1044,7 +1044,7 @@ const OrganizationAdmin = () => {
                       />
                     )}
                   <StatusDonut
-                    label='チケット発行済み'
+                    label='チケット発行済み（初回登録済み中）'
                     ratio={dashboard.status.ticketIssuance}
                   />
                   {dashboard.status.performanceCapacity && (
@@ -1061,7 +1061,7 @@ const OrganizationAdmin = () => {
                 <h2>チケット発行枚数ランキング</h2>
                 {dashboard.status.ranking.length === 0 ? (
                   <p className={styles.statusEmpty}>
-                    まだ発行済みチケットはありません。
+                    対象の初回登録済みユーザーがいません。
                   </p>
                 ) : (
                   <ol className={styles.rankingList}>
