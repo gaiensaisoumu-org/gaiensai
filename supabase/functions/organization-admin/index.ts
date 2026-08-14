@@ -239,42 +239,9 @@ const getOrganizationStatus = async (
     );
   }
 
-  const memberIds = members.map((member) => member.id);
-  const { data: issuedTickets, error: issuedTicketsError } = memberIds.length
-    ? await client
-        .from('tickets')
-        .select('issued_by_user_id')
-        .eq('status', 'valid')
-        .in('issued_by_user_id', memberIds)
-    : { data: [], error: null };
-  if (issuedTicketsError) {
-    throw issuedTicketsError;
-  }
-
-  const countByIssuer = new Map<string, number>();
-  for (const ticket of issuedTickets ?? []) {
-    const issuerId = (ticket as { issued_by_user_id: string }).issued_by_user_id;
-    countByIssuer.set(issuerId, (countByIssuer.get(issuerId) ?? 0) + 1);
-  }
-  const ranking = members
-    .map((member) => ({
-      affiliation: member.affiliation,
-      ticketCount: countByIssuer.get(member.id) ?? 0,
-    }))
-    .sort(
-      (a, b) =>
-        b.ticketCount - a.ticketCount ||
-        (a.affiliation ?? Number.MAX_SAFE_INTEGER) -
-          (b.affiliation ?? Number.MAX_SAFE_INTEGER),
-    );
-
   return {
-    ...(initialRegistration ? { initialRegistration } : {}),
-    ticketIssuance: {
-      completed: countByIssuer.size,
-      total: members.length,
-    },
-    ranking,
+    members,
+    initialRegistration,
   };
 };
 
@@ -376,7 +343,7 @@ Deno.serve(async (req) => {
           corsHeaders,
         );
       }
-      const status = await getOrganizationStatus(
+      const organization = await getOrganizationStatus(
         client,
         own.kind,
         String(
@@ -390,14 +357,14 @@ Deno.serve(async (req) => {
           ? client
               .from('class_tickets')
               .select(
-                'id, round_id, tickets!inner(id, code, created_at, relationship, ticket_type, person_count, users!tickets_issued_by_user_id_fkey(affiliation))',
+                'id, round_id, tickets!inner(id, code, created_at, relationship, ticket_type, person_count, issued_by_user_id, users!tickets_issued_by_user_id_fkey(affiliation))',
               )
               .eq('class_id', own.performance.id)
               .eq('tickets.status', 'valid')
           : client
               .from('gym_tickets')
               .select(
-                'id, performance_id, tickets!inner(id, code, created_at, relationship, ticket_type, person_count, users!tickets_issued_by_user_id_fkey(affiliation))',
+                'id, performance_id, tickets!inner(id, code, created_at, relationship, ticket_type, person_count, issued_by_user_id, users!tickets_issued_by_user_id_fkey(affiliation))',
               )
               .in(
                 'performance_id',
@@ -413,6 +380,53 @@ Deno.serve(async (req) => {
         const personCount = Number(ticket?.person_count ?? 0);
         return total + (Number.isFinite(personCount) ? personCount : 0);
       }, 0);
+      const memberIds = new Set(organization.members.map((member) => member.id));
+      const memberIdList = [...memberIds];
+      const { data: memberIssuedTickets, error: memberIssuedTicketsError } =
+        memberIdList.length
+          ? await client
+              .from('tickets')
+              .select('issued_by_user_id')
+              .eq('status', 'valid')
+              .in('issued_by_user_id', memberIdList)
+          : { data: [], error: null };
+      if (memberIssuedTicketsError) {
+        throw memberIssuedTicketsError;
+      }
+      const issuedMemberIds = new Set(
+        (memberIssuedTickets ?? []).map(
+          (ticket) =>
+            (ticket as { issued_by_user_id: string }).issued_by_user_id,
+        ),
+      );
+      const targetCountByIssuer = new Map<string, number>();
+      for (const link of ticketLinks ?? []) {
+        const ticket = (link as {
+          tickets?: { issued_by_user_id?: string };
+        }).tickets;
+        const issuerId = ticket?.issued_by_user_id;
+        if (issuerId && memberIds.has(issuerId)) {
+          targetCountByIssuer.set(
+            issuerId,
+            (targetCountByIssuer.get(issuerId) ?? 0) + 1,
+          );
+        }
+      }
+      const status = {
+        ...(organization.initialRegistration
+          ? { initialRegistration: organization.initialRegistration }
+          : {}),
+        ticketIssuance: {
+          completed: issuedMemberIds.size,
+          total: organization.members.length,
+        },
+        ranking: organization.members
+          .map((member) => ({
+            affiliation: member.affiliation,
+            ticketCount: targetCountByIssuer.get(member.id) ?? 0,
+          }))
+          .sort((a, b) => b.ticketCount - a.ticketCount || a.affiliation - b.affiliation),
+      };
       const { data: relationships, error: relationshipsError } = await client
         .from('relationships')
         .select('id, name');
