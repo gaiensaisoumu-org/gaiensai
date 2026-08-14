@@ -231,6 +231,23 @@ const Home = () => {
           </a>
           より、受付番号と申し込んだ公演についてご連絡ください。こちらで確認の上、申し込み方法についてご案内いたします。
         </p>
+
+        <h3>2026/8/14 追記</h3>
+        <p>
+          <a href='https://www.metro.ed.jp/aoyama-h/news/2026/08/newsentry_83.html'>
+            青山高校ホームページ
+          </a>
+          に、抽選結果を8/17（月）に再送するとの案内がございます。お問い合わせの前に、
+          <ul>
+            <li>
+              gaiensaiok@aoko.ed.jp、あるいはgaiensaing@aoko.ed.jpのメール受信をブロックしない設定をする
+            </li>
+            <li>
+              迷惑メール、ジャンクメール等のフォルダを確認する（Gmailの応募者の中には、迷惑メールに届いていた例が確認されています）
+            </li>
+          </ul>
+          をご確認ください。
+        </p>
       </NormalSection>
       <NormalSection className={styles.scrollSection} data-scroll-section=''>
         <h2>申し込みをしてない中学生の方へ</h2>
