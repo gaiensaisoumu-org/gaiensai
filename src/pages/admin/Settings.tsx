@@ -30,6 +30,10 @@ type ControlPanelSettings = {
   defaultClassJuniorCapacity: number;
   defaultGymCapacity: number;
   defaultGymJuniorCapacity: number;
+  hasMultipleClassTotalCapacities: boolean;
+  hasMultipleClassJuniorCapacities: boolean;
+  hasMultipleGymCapacities: boolean;
+  hasMultipleGymJuniorCapacities: boolean;
 };
 
 type TicketTypeControlValue =
@@ -195,6 +199,11 @@ const NUMERIC_SETTING_META = {
 } as const;
 
 type NumericSettingKey = keyof typeof NUMERIC_SETTING_META;
+type TicketCapacitySettingKey =
+  | 'defaultClassTotalCapacity'
+  | 'defaultClassJuniorCapacity'
+  | 'defaultGymCapacity'
+  | 'defaultGymJuniorCapacity';
 type SettingsMessageScope =
   | 'modal'
   | 'globalSection'
@@ -240,6 +249,10 @@ const SettingsContent = () => {
     defaultClassJuniorCapacity: 5,
     defaultGymCapacity: 300,
     defaultGymJuniorCapacity: 0,
+    hasMultipleClassTotalCapacities: false,
+    hasMultipleClassJuniorCapacities: false,
+    hasMultipleGymCapacities: false,
+    hasMultipleGymJuniorCapacities: false,
   });
   const [ticketTypeControls, setTicketTypeControls] =
     useState<TicketTypeControls>(DEFAULT_TICKET_TYPE_CONTROLS);
@@ -626,6 +639,10 @@ const SettingsContent = () => {
           typeof nextSettings.defaultClassJuniorCapacity !== 'number' ||
           typeof nextSettings.defaultGymCapacity !== 'number' ||
           typeof nextSettings.defaultGymJuniorCapacity !== 'number' ||
+          typeof nextSettings.hasMultipleClassTotalCapacities !== 'boolean' ||
+          typeof nextSettings.hasMultipleClassJuniorCapacities !== 'boolean' ||
+          typeof nextSettings.hasMultipleGymCapacities !== 'boolean' ||
+          typeof nextSettings.hasMultipleGymJuniorCapacities !== 'boolean' ||
           !Array.isArray(nextSettings.activeTicketTypeIds)
         ) {
           throw new Error('設定データの形式が不正です。');
@@ -771,6 +788,7 @@ const SettingsContent = () => {
     nextSettings: ControlPanelSettings,
     successMessage = '設定を更新しました。',
     messageScope: Exclude<SettingsMessageScope, null> = 'ticketSection',
+    capacitySettingsToUpdate: TicketCapacitySettingKey[] = [],
   ) => {
     const token = getSessionToken();
     if (!token) {
@@ -806,6 +824,7 @@ const SettingsContent = () => {
           defaultClassJuniorCapacity: nextSettings.defaultClassJuniorCapacity,
           defaultGymCapacity: nextSettings.defaultGymCapacity,
           defaultGymJuniorCapacity: nextSettings.defaultGymJuniorCapacity,
+          capacitySettingsToUpdate,
         },
         headers: {
           'x-admin-session-token': token,
@@ -820,7 +839,27 @@ const SettingsContent = () => {
         throw new Error('設定の保存に失敗しました。');
       }
 
-      setSettings(nextSettings);
+      setSettings({
+        ...nextSettings,
+        hasMultipleClassTotalCapacities:
+          capacitySettingsToUpdate.includes('defaultClassTotalCapacity')
+            ? false
+            : nextSettings.hasMultipleClassTotalCapacities,
+        hasMultipleClassJuniorCapacities:
+          capacitySettingsToUpdate.includes('defaultClassJuniorCapacity')
+            ? false
+            : nextSettings.hasMultipleClassJuniorCapacities,
+        hasMultipleGymCapacities: capacitySettingsToUpdate.includes(
+          'defaultGymCapacity',
+        )
+          ? false
+          : nextSettings.hasMultipleGymCapacities,
+        hasMultipleGymJuniorCapacities: capacitySettingsToUpdate.includes(
+          'defaultGymJuniorCapacity',
+        )
+          ? false
+          : nextSettings.hasMultipleGymJuniorCapacities,
+      });
       setSettingsSuccess(successMessage);
       return true;
     } catch (error) {
@@ -972,6 +1011,44 @@ const SettingsContent = () => {
     setSettingsMessageScope('modal');
     setSettingsError(null);
     setSettingsSuccess(null);
+  };
+
+  const hasMultipleTicketCapacitySettings = (key: NumericSettingKey) => {
+    switch (key) {
+      case 'defaultClassTotalCapacity':
+        return settings.hasMultipleClassTotalCapacities;
+      case 'defaultClassJuniorCapacity':
+        return settings.hasMultipleClassJuniorCapacities;
+      case 'defaultGymCapacity':
+        return settings.hasMultipleGymCapacities;
+      case 'defaultGymJuniorCapacity':
+        return settings.hasMultipleGymJuniorCapacities;
+      default:
+        return false;
+    }
+  };
+
+  const isTicketCapacitySettingKey = (
+    key: NumericSettingKey,
+  ): key is TicketCapacitySettingKey =>
+    key === 'defaultClassTotalCapacity' ||
+    key === 'defaultClassJuniorCapacity' ||
+    key === 'defaultGymCapacity' ||
+    key === 'defaultGymJuniorCapacity';
+
+  const ticketCapacityUpdateWarning = (key: NumericSettingKey) => {
+    switch (key) {
+      case 'defaultClassTotalCapacity':
+        return 'ここで設定すると、すべてのクラス公演の合計チケット数が変更されます。';
+      case 'defaultClassJuniorCapacity':
+        return 'ここで設定すると、すべてのクラス公演の中学生枠が変更されます。';
+      case 'defaultGymCapacity':
+        return 'ここで設定すると、すべての体育館公演の合計チケット数が変更されます。';
+      case 'defaultGymJuniorCapacity':
+        return 'ここで設定すると、すべての体育館公演の中学生枠が変更されます。';
+      default:
+        return '';
+    }
   };
 
   const openGymClubLimitEditModal = (club: string) => {
@@ -1257,6 +1334,7 @@ const SettingsContent = () => {
       key === 'eventYear' || key === 'showLength'
         ? 'globalSection'
         : 'ticketSection',
+      isTicketCapacitySettingKey(key) ? [key] : [],
     );
     setIsModalSubmitting(false);
     if (success) {
@@ -1852,7 +1930,9 @@ const SettingsContent = () => {
               </label>
               <div className={styles.settingControlGroup}>
                 <span id='ticket-class-total' className={styles.fieldValue}>
-                  {settings.defaultClassTotalCapacity}
+                  {settings.hasMultipleClassTotalCapacities
+                    ? '各設定参照'
+                    : settings.defaultClassTotalCapacity}
                 </span>
                 <button
                   type='button'
@@ -1875,7 +1955,9 @@ const SettingsContent = () => {
               </label>
               <div className={styles.settingControlGroup}>
                 <span id='ticket-class-junior' className={styles.fieldValue}>
-                  {settings.defaultClassJuniorCapacity}
+                  {settings.hasMultipleClassJuniorCapacities
+                    ? '各設定参照'
+                    : settings.defaultClassJuniorCapacity}
                 </span>
                 <button
                   type='button'
@@ -1895,7 +1977,9 @@ const SettingsContent = () => {
               </label>
               <div className={styles.settingControlGroup}>
                 <span id='ticket-gym-total' className={styles.fieldValue}>
-                  {settings.defaultGymCapacity}
+                  {settings.hasMultipleGymCapacities
+                    ? '各設定参照'
+                    : settings.defaultGymCapacity}
                 </span>
                 <button
                   type='button'
@@ -1916,7 +2000,9 @@ const SettingsContent = () => {
               </label>
               <div className={styles.settingControlGroup}>
                 <span id='ticket-gym-junior' className={styles.fieldValue}>
-                  {settings.defaultGymJuniorCapacity}
+                  {settings.hasMultipleGymJuniorCapacities
+                    ? '各設定参照'
+                    : settings.defaultGymJuniorCapacity}
                 </span>
                 <button
                   type='button'
@@ -2526,6 +2612,11 @@ const SettingsContent = () => {
                 setEditingNumericValue((event.target as HTMLInputElement).value)
               }
             />
+            {hasMultipleTicketCapacitySettings(editingNumericKey) && (
+              <Alert type='warning'>
+                <p>{ticketCapacityUpdateWarning(editingNumericKey)}</p>
+              </Alert>
+            )}
             {settingsMessageScope === 'modal' && settingsError && (
               <p className={styles.authError}>{settingsError}</p>
             )}

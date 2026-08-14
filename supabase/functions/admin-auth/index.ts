@@ -115,6 +115,7 @@ type AdminAuthRequest = {
   defaultClassJuniorCapacity?: unknown;
   defaultGymCapacity?: unknown;
   defaultGymJuniorCapacity?: unknown;
+  capacitySettingsToUpdate?: unknown;
   table?: unknown;
   recordId?: unknown;
   column?: unknown;
@@ -158,6 +159,14 @@ type AdminAuthRequest = {
   roundName?: unknown;
   isActive?: unknown;
 };
+
+const CAPACITY_SETTING_KEYS = [
+  'defaultClassTotalCapacity',
+  'defaultClassJuniorCapacity',
+  'defaultGymCapacity',
+  'defaultGymJuniorCapacity',
+] as const;
+type CapacitySettingKey = (typeof CAPACITY_SETTING_KEYS)[number];
 
 type TicketIssueMode =
   | 'open'
@@ -250,6 +259,7 @@ type AdminAuthBody =
       defaultClassJuniorCapacity: number;
       defaultGymCapacity: number;
       defaultGymJuniorCapacity: number;
+      capacitySettingsToUpdate: CapacitySettingKey[];
     }
   | {
       mode: 'updateAcceptingStatus';
@@ -1046,6 +1056,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
       defaultClassJuniorCapacity,
       defaultGymCapacity,
       defaultGymJuniorCapacity,
+      capacitySettingsToUpdate,
       maxAdmissionOnlyJuniorAccounts,
     } = body as AdminAuthRequest;
 
@@ -1083,6 +1094,20 @@ const parseBody = (body: unknown): AdminAuthBody => {
         '体育館公演の中学生枠は合計定員以下で指定してください。',
       );
     }
+
+    if (
+      !Array.isArray(capacitySettingsToUpdate) ||
+      capacitySettingsToUpdate.some(
+        (key) =>
+          typeof key !== 'string' ||
+          !CAPACITY_SETTING_KEYS.includes(key as CapacitySettingKey),
+      )
+    ) {
+      throw new HttpError(400, '更新する定員設定が不正です。');
+    }
+    const normalizedCapacitySettingsToUpdate = [
+      ...new Set(capacitySettingsToUpdate as CapacitySettingKey[]),
+    ];
 
     if (typeof juniorReleaseOpen !== 'boolean') {
       throw new HttpError(
@@ -1135,6 +1160,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
       defaultClassJuniorCapacity: junior,
       defaultGymCapacity: gymCapacity,
       defaultGymJuniorCapacity: gymJunior,
+      capacitySettingsToUpdate: normalizedCapacitySettingsToUpdate,
       maxAdmissionOnlyJuniorAccounts: normalizeInteger(
         maxAdmissionOnlyJuniorAccounts,
         'maxAdmissionOnlyJuniorAccounts',
@@ -1337,24 +1363,52 @@ const fetchMaxCapacities = async (adminClient: SupabaseClient) => {
     throw gymError;
   }
 
-  const maxClassTotal =
-    classData && classData.length > 0
-      ? Math.max(...classData.map((row) => row.total_capacity ?? 0))
-      : null;
-  const maxClassJunior =
-    classData && classData.length > 0
-      ? Math.max(...classData.map((row) => row.junior_capacity ?? 0))
-      : null;
-  const maxGym =
-    gymData && gymData.length > 0
-      ? Math.max(...gymData.map((row) => row.capacity ?? 0))
-      : null;
-  const maxGymJunior =
-    gymData && gymData.length > 0
-      ? Math.max(...gymData.map((row) => row.junior_capacity ?? 0))
-      : null;
+  const mostFrequentValue = (values: (number | null)[]) => {
+    if (values.length === 0) {
+      return null;
+    }
+    const counts = new Map<number, number>();
+    let mostFrequent = values[0] ?? 0;
+    values.forEach((value) => {
+      const normalizedValue = value ?? 0;
+      const count = (counts.get(normalizedValue) ?? 0) + 1;
+      counts.set(normalizedValue, count);
+      if (count > (counts.get(mostFrequent) ?? 0)) {
+        mostFrequent = normalizedValue;
+      }
+    });
+    return mostFrequent;
+  };
 
-  return { maxClassTotal, maxClassJunior, maxGym, maxGymJunior };
+  const hasMultipleValues = (values: (number | null)[]) =>
+    new Set(values.map((value) => value ?? 0)).size > 1;
+
+  return {
+    defaultClassTotalCapacity: mostFrequentValue(
+      (classData ?? []).map((row) => row.total_capacity),
+    ),
+    defaultClassJuniorCapacity: mostFrequentValue(
+      (classData ?? []).map((row) => row.junior_capacity),
+    ),
+    defaultGymCapacity: mostFrequentValue(
+      (gymData ?? []).map((row) => row.capacity),
+    ),
+    defaultGymJuniorCapacity: mostFrequentValue(
+      (gymData ?? []).map((row) => row.junior_capacity),
+    ),
+    hasMultipleClassTotalCapacities: hasMultipleValues(
+      (classData ?? []).map((row) => row.total_capacity),
+    ),
+    hasMultipleClassJuniorCapacities: hasMultipleValues(
+      (classData ?? []).map((row) => row.junior_capacity),
+    ),
+    hasMultipleGymCapacities: hasMultipleValues(
+      (gymData ?? []).map((row) => row.capacity),
+    ),
+    hasMultipleGymJuniorCapacities: hasMultipleValues(
+      (gymData ?? []).map((row) => row.junior_capacity),
+    ),
+  };
 };
 
 const isBcryptHash = (value: string) => /^\$2[aby]\$\d{2}\$.{53}$/.test(value);
@@ -2643,10 +2697,20 @@ Deno.serve(async (req) => {
               settings.max_admission_only_junior_accounts,
             juniorReleaseOpen: settings.junior_release_open,
             ticketIssuingEnabled: settings.is_active,
-            defaultClassTotalCapacity: maxCapacities.maxClassTotal ?? 0,
-            defaultClassJuniorCapacity: maxCapacities.maxClassJunior ?? 0,
-            defaultGymCapacity: maxCapacities.maxGym ?? 0,
-            defaultGymJuniorCapacity: maxCapacities.maxGymJunior ?? 0,
+            defaultClassTotalCapacity:
+              maxCapacities.defaultClassTotalCapacity ?? 0,
+            defaultClassJuniorCapacity:
+              maxCapacities.defaultClassJuniorCapacity ?? 0,
+            defaultGymCapacity: maxCapacities.defaultGymCapacity ?? 0,
+            defaultGymJuniorCapacity:
+              maxCapacities.defaultGymJuniorCapacity ?? 0,
+            hasMultipleClassTotalCapacities:
+              maxCapacities.hasMultipleClassTotalCapacities,
+            hasMultipleClassJuniorCapacities:
+              maxCapacities.hasMultipleClassJuniorCapacities,
+            hasMultipleGymCapacities: maxCapacities.hasMultipleGymCapacities,
+            hasMultipleGymJuniorCapacities:
+              maxCapacities.hasMultipleGymJuniorCapacities,
             activeTicketTypeIds,
             ticketIssueModes,
           },
@@ -2686,17 +2750,57 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
-      // 全クラス公演のキャパシティを一括更新
-      const { error: classUpdateError } = await adminClient
-        .from('class_performances')
-        .update({
-          total_capacity: body.defaultClassTotalCapacity,
-          junior_capacity: body.defaultClassJuniorCapacity,
-        })
-        .neq('id', 0);
-
-      if (classUpdateError) {
-        throw classUpdateError;
+      const classCapacityUpdate: {
+        total_capacity?: number;
+        junior_capacity?: number;
+      } = {};
+      if (body.capacitySettingsToUpdate.includes('defaultClassTotalCapacity')) {
+        classCapacityUpdate.total_capacity = body.defaultClassTotalCapacity;
+      }
+      if (body.capacitySettingsToUpdate.includes('defaultClassJuniorCapacity')) {
+        classCapacityUpdate.junior_capacity = body.defaultClassJuniorCapacity;
+      }
+      if (Object.keys(classCapacityUpdate).length > 0) {
+        const { data: classCapacities, error: classCapacityError } =
+          await adminClient
+            .from('class_performances')
+            .select('total_capacity, junior_capacity');
+        if (classCapacityError) {
+          throw classCapacityError;
+        }
+        if (
+          classCapacityUpdate.total_capacity !== undefined &&
+          (classCapacities ?? []).some(
+            (performance) =>
+              (performance.junior_capacity ?? 0) >
+              classCapacityUpdate.total_capacity!,
+          )
+        ) {
+          throw new HttpError(
+            400,
+            '合計定員は、各公演の中学生枠以上で指定してください。',
+          );
+        }
+        if (
+          classCapacityUpdate.junior_capacity !== undefined &&
+          (classCapacities ?? []).some(
+            (performance) =>
+              (performance.total_capacity ?? 0) <
+              classCapacityUpdate.junior_capacity!,
+          )
+        ) {
+          throw new HttpError(
+            400,
+            '中学生枠は、各公演の合計定員以下で指定してください。',
+          );
+        }
+        const { error: classUpdateError } = await adminClient
+          .from('class_performances')
+          .update(classCapacityUpdate)
+          .neq('id', 0);
+        if (classUpdateError) {
+          throw classUpdateError;
+        }
       }
       for (const [id, limit] of Object.entries(body.classTicketLimitsById)) {
         const { error } = await adminClient
@@ -2706,17 +2810,52 @@ Deno.serve(async (req) => {
         if (error) {throw error;}
       }
 
-      // 全体育館公演のキャパシティを一括更新
-      const { error: gymUpdateError } = await adminClient
-        .from('gym_performances')
-        .update({
-          capacity: body.defaultGymCapacity,
-          junior_capacity: body.defaultGymJuniorCapacity,
-        })
-        .neq('id', 0);
-
-      if (gymUpdateError) {
-        throw gymUpdateError;
+      const gymCapacityUpdate: { capacity?: number; junior_capacity?: number } = {};
+      if (body.capacitySettingsToUpdate.includes('defaultGymCapacity')) {
+        gymCapacityUpdate.capacity = body.defaultGymCapacity;
+      }
+      if (body.capacitySettingsToUpdate.includes('defaultGymJuniorCapacity')) {
+        gymCapacityUpdate.junior_capacity = body.defaultGymJuniorCapacity;
+      }
+      if (Object.keys(gymCapacityUpdate).length > 0) {
+        const { data: gymCapacities, error: gymCapacityError } =
+          await adminClient
+            .from('gym_performances')
+            .select('capacity, junior_capacity');
+        if (gymCapacityError) {
+          throw gymCapacityError;
+        }
+        if (
+          gymCapacityUpdate.capacity !== undefined &&
+          (gymCapacities ?? []).some(
+            (performance) =>
+              (performance.junior_capacity ?? 0) > gymCapacityUpdate.capacity!,
+          )
+        ) {
+          throw new HttpError(
+            400,
+            '体育館公演の合計定員は、各公演の中学生枠以上で指定してください。',
+          );
+        }
+        if (
+          gymCapacityUpdate.junior_capacity !== undefined &&
+          (gymCapacities ?? []).some(
+            (performance) =>
+              (performance.capacity ?? 0) < gymCapacityUpdate.junior_capacity!,
+          )
+        ) {
+          throw new HttpError(
+            400,
+            '体育館公演の中学生枠は、各公演の合計定員以下で指定してください。',
+          );
+        }
+        const { error: gymUpdateError } = await adminClient
+          .from('gym_performances')
+          .update(gymCapacityUpdate)
+          .neq('id', 0);
+        if (gymUpdateError) {
+          throw gymUpdateError;
+        }
       }
 
       await adminClient
