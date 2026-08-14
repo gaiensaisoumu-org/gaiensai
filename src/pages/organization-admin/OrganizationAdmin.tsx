@@ -32,6 +32,13 @@ type TicketLink = {
   };
 };
 type PerformanceRound = { id: number; name: string };
+type StatusRatio = { completed: number; total: number };
+type OrganizationStatus = {
+  initialRegistration?: StatusRatio;
+  ticketIssuance: StatusRatio;
+  performanceCapacity?: StatusRatio;
+  ranking: { affiliation: number | null; ticketCount: number }[];
+};
 type GymScheduleDraft = {
   id: number;
   roundName: string;
@@ -47,6 +54,7 @@ type Dashboard = {
   tickets: TicketLink[];
   relationships: { id: number; name: string }[];
   gymTicketLimit?: number;
+  status?: OrganizationStatus;
 };
 type MessageScope = 'performance' | 'image' | 'ticketSettings' | 'password';
 type NameDirectory = Record<string, string>;
@@ -79,19 +87,24 @@ const exportRosterXlsx = async (
 
   const localDate = `${yyyy}-${mm}-${dd}`;
   await downloadRosterXlsx({
-    rosters: [{
-      name: organizationName,
-      rounds: performances,
-      tickets: tickets.map((ticket) => ({
-        affiliation: ticket.tickets.users?.affiliation ?? null,
-        name: namesByAffiliation[String(ticket.tickets.users?.affiliation ?? '')] ?? '',
-        relationship: ticket.tickets.relationship,
-        code: ticket.tickets.code,
-        createdAt: ticket.tickets.created_at,
-        roundId: ticket.round_id ?? -1,
-      })),
-      generalCapacity,
-    }],
+    rosters: [
+      {
+        name: organizationName,
+        rounds: performances,
+        tickets: tickets.map((ticket) => ({
+          affiliation: ticket.tickets.users?.affiliation ?? null,
+          name:
+            namesByAffiliation[
+              String(ticket.tickets.users?.affiliation ?? '')
+            ] ?? '',
+          relationship: ticket.tickets.relationship,
+          code: ticket.tickets.code,
+          createdAt: ticket.tickets.created_at,
+          roundId: ticket.round_id ?? -1,
+        })),
+        generalCapacity,
+      },
+    ],
     relationships,
     filename: `招待者名簿_${organizationName}_${localDate}.xlsx`,
   });
@@ -120,6 +133,37 @@ const affiliationClassKey = (affiliation: number) =>
 const classNameKey = (className: unknown) => {
   const digits = String(className ?? '').match(/(\d+)\D+(\d+)/);
   return digits ? `${Number(digits[1])}-${Number(digits[2])}` : null;
+};
+
+const StatusDonut = ({
+  label,
+  ratio,
+}: {
+  label: string;
+  ratio: StatusRatio;
+}) => {
+  const percentage =
+    ratio.total > 0
+      ? Math.round((ratio.completed / ratio.total) * 1000) / 10
+      : 0;
+  return (
+    <div className={styles.statusCard}>
+      <h3>{label}</h3>
+      <div
+        className={styles.donut}
+        style={`--progress: ${percentage}%;`}
+        role='img'
+        aria-label={`${label} ${percentage}%（${ratio.completed}人 / ${ratio.total}人）`}
+      >
+        <div>
+          <strong>{ratio.total > 0 ? `${percentage}%` : '—'}</strong>
+          <span>
+            {ratio.completed} / {ratio.total} 人
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const nameDirectoryStorageKey = (
@@ -525,8 +569,15 @@ const OrganizationAdmin = () => {
       ) {
         throw new Error('中学生枠は0〜定員の範囲で入力してください。');
       }
-      if (dashboard?.kind === 'class' && (!Number.isInteger(classTicketLimitValue) || classTicketLimitValue < 0 || classTicketLimitValue > 100)) {
-        throw new Error('自クラスの発行可能枚数は0〜100の整数で入力してください。');
+      if (
+        dashboard?.kind === 'class' &&
+        (!Number.isInteger(classTicketLimitValue) ||
+          classTicketLimitValue < 0 ||
+          classTicketLimitValue > 100)
+      ) {
+        throw new Error(
+          '自クラスの発行可能枚数は0〜100の整数で入力してください。',
+        );
       }
       const { error: invokeError } = await supabase.functions.invoke(
         'organization-admin',
@@ -536,7 +587,9 @@ const OrganizationAdmin = () => {
             isAccepting: nextIsAccepting,
             capacity: capacityValue,
             juniorCapacity: juniorCapacityValue,
-            ...(dashboard?.kind === 'class' ? { maxTicketsPerUser: classTicketLimitValue } : {}),
+            ...(dashboard?.kind === 'class'
+              ? { maxTicketsPerUser: classTicketLimitValue }
+              : {}),
           },
           headers: sessionHeaders(),
         },
@@ -972,6 +1025,57 @@ const OrganizationAdmin = () => {
         </NormalSection>
         {dashboard.kind !== 'exhibition' && (
           <>
+            {dashboard.status && (
+              <NormalSection>
+                <div className={styles.statusHeading}>
+                  <div>
+                    <h2>ステータス</h2>
+                    <p>
+                      発行済みは有効チケットを1枚以上発行した生徒、公演枠は中学生分を含む発行人数で集計しています。
+                    </p>
+                  </div>
+                </div>
+                <div className={styles.statusGrid}>
+                  {dashboard.kind === 'class' &&
+                    dashboard.status.initialRegistration && (
+                      <StatusDonut
+                        label='初回登録済み'
+                        ratio={dashboard.status.initialRegistration}
+                      />
+                    )}
+                  <StatusDonut
+                    label='チケット発行済み'
+                    ratio={dashboard.status.ticketIssuance}
+                  />
+                  {dashboard.status.performanceCapacity && (
+                    <StatusDonut
+                      label='公演枠の発行状況'
+                      ratio={dashboard.status.performanceCapacity}
+                    />
+                  )}
+                </div>
+              </NormalSection>
+            )}
+            {dashboard.status && (
+              <NormalSection>
+                <h2>チケット発行枚数ランキング</h2>
+                {dashboard.status.ranking.length === 0 ? (
+                  <p className={styles.statusEmpty}>
+                    まだ発行済みチケットはありません。
+                  </p>
+                ) : (
+                  <ol className={styles.rankingList}>
+                    {dashboard.status.ranking.map((entry, index) => (
+                      <li key={`${entry.affiliation}-${index}`}>
+                        <span className={styles.rank}>{index + 1}</span>
+                        <span>{formatAffiliation(entry.affiliation)}</span>
+                        <strong>{entry.ticketCount} 枚</strong>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </NormalSection>
+            )}
             <NormalSection>
               <h2>受付・定員設定</h2>
               <div className={styles.settingsList}>
@@ -1017,7 +1121,12 @@ const OrganizationAdmin = () => {
                       <span>自クラス・部活の最大発行可能枚数</span>
                       <p>{classTicketLimit}枚</p>
                     </div>
-                    <button type='button' className={styles.inlineEditButton} onClick={openCapacityModal} disabled={busy}>
+                    <button
+                      type='button'
+                      className={styles.inlineEditButton}
+                      onClick={openCapacityModal}
+                      disabled={busy}
+                    >
                       変更する
                     </button>
                   </div>
@@ -1318,7 +1427,11 @@ const OrganizationAdmin = () => {
                       min='0'
                       max='100'
                       value={draftClassTicketLimit}
-                      onInput={(event) => setDraftClassTicketLimit((event.target as HTMLInputElement).value)}
+                      onInput={(event) =>
+                        setDraftClassTicketLimit(
+                          (event.target as HTMLInputElement).value,
+                        )
+                      }
                       required
                     />
                   </label>

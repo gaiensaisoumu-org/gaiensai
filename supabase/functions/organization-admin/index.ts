@@ -170,6 +170,118 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
   };
 };
 
+type OrganizationMember = {
+  id: string;
+  affiliation: number;
+  clubs: string[] | null;
+};
+
+const classKeyForAffiliation = (affiliation: number) =>
+  `${Math.floor(affiliation / 10000)}-${Math.floor((affiliation % 10000) / 100)}`;
+
+const classKeyFromName = (className: unknown) => {
+  const match = String(className ?? '').match(/(\d+)\D+(\d+)/);
+  return match ? `${Number(match[1])}-${Number(match[2])}` : null;
+};
+
+const getOrganizationStatus = async (
+  client: SupabaseClient,
+  kind: 'class' | 'gym',
+  organizationName: string,
+) => {
+  const { data: profiles, error: profilesError } = await client
+    .from('users')
+    .select('id, affiliation, clubs')
+    .eq('role', 'student');
+  if (profilesError) {
+    throw profilesError;
+  }
+
+  const allProfiles = (profiles ?? []) as OrganizationMember[];
+  let members: OrganizationMember[];
+  let initialRegistration: { completed: number; total: number } | undefined;
+
+  if (kind === 'class') {
+    const classKey = classKeyFromName(organizationName);
+    members = classKey
+      ? allProfiles.filter((profile) =>
+          classKeyForAffiliation(profile.affiliation) === classKey,
+        )
+      : [];
+
+    const authUsers = [];
+    for (let page = 1; ; page++) {
+      const { data, error } = await client.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
+      if (error) {
+        throw error;
+      }
+      authUsers.push(...data.users);
+      if (data.users.length < 1000) {
+        break;
+      }
+    }
+    const total = classKey
+      ? authUsers.filter((user) => {
+          const affiliation = Number(user.email?.split('@')[0]);
+          return (
+            Number.isInteger(affiliation) &&
+            classKeyForAffiliation(affiliation) === classKey
+          );
+        }).length
+      : 0;
+    initialRegistration = { completed: members.length, total };
+  } else {
+    members = allProfiles.filter((profile) =>
+      profile.clubs?.includes(organizationName),
+    );
+  }
+
+  const memberIds = members.map((member) => member.id);
+  const { data: issuedTickets, error: issuedTicketsError } = memberIds.length
+    ? await client
+        .from('tickets')
+        .select('issued_by_user_id')
+        .eq('status', 'valid')
+        .in('issued_by_user_id', memberIds)
+    : { data: [], error: null };
+  if (issuedTicketsError) {
+    throw issuedTicketsError;
+  }
+
+  const countByIssuer = new Map<string, number>();
+  for (const ticket of issuedTickets ?? []) {
+    const issuerId = (ticket as { issued_by_user_id: string }).issued_by_user_id;
+    countByIssuer.set(issuerId, (countByIssuer.get(issuerId) ?? 0) + 1);
+  }
+  const affiliationById = new Map(
+    members.map((member) => [member.id, member.affiliation]),
+  );
+  const ranking = [...countByIssuer.entries()]
+    .map(([userId, ticketCount]) => ({
+      affiliation: affiliationById.get(userId) ?? null,
+      ticketCount,
+    }))
+    .sort(
+      (a, b) =>
+        b.ticketCount - a.ticketCount ||
+        (a.affiliation ?? Number.MAX_SAFE_INTEGER) -
+          (b.affiliation ?? Number.MAX_SAFE_INTEGER),
+    )
+    .slice(0, 10);
+
+  return {
+    ...(initialRegistration ? { initialRegistration } : {}),
+    ticketIssuance: {
+      completed: countByIssuer.size,
+      total: members.length,
+    },
+    ranking,
+  };
+};
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
@@ -268,19 +380,28 @@ Deno.serve(async (req) => {
           corsHeaders,
         );
       }
+      const status = await getOrganizationStatus(
+        client,
+        own.kind,
+        String(
+          own.kind === 'class'
+            ? own.performance.class_name
+            : own.performance.group_name,
+        ),
+      );
       const ticketQuery =
         own.kind === 'class'
           ? client
               .from('class_tickets')
               .select(
-                'id, round_id, tickets!inner(id, code, created_at, relationship, ticket_type, users!tickets_issued_by_user_id_fkey(affiliation))',
+                'id, round_id, tickets!inner(id, code, created_at, relationship, ticket_type, person_count, users!tickets_issued_by_user_id_fkey(affiliation))',
               )
               .eq('class_id', own.performance.id)
               .eq('tickets.status', 'valid')
           : client
               .from('gym_tickets')
               .select(
-                'id, performance_id, tickets!inner(id, code, created_at, relationship, ticket_type, users!tickets_issued_by_user_id_fkey(affiliation))',
+                'id, performance_id, tickets!inner(id, code, created_at, relationship, ticket_type, person_count, users!tickets_issued_by_user_id_fkey(affiliation))',
               )
               .in(
                 'performance_id',
@@ -291,6 +412,11 @@ Deno.serve(async (req) => {
       if (error) {
         throw error;
       }
+      const issuedPeople = (ticketLinks ?? []).reduce((total, link) => {
+        const ticket = (link as { tickets?: { person_count?: unknown } }).tickets;
+        const personCount = Number(ticket?.person_count ?? 0);
+        return total + (Number.isFinite(personCount) ? personCount : 0);
+      }, 0);
       const { data: relationships, error: relationshipsError } = await client
         .from('relationships')
         .select('id, name');
@@ -350,6 +476,16 @@ Deno.serve(async (req) => {
             })),
             relationships: relationships ?? [],
             gymTicketLimit,
+            status: {
+              ...status,
+              performanceCapacity: {
+                completed: issuedPeople,
+                total: own.performances.reduce(
+                  (total, performance) => total + Number(performance.capacity ?? 0),
+                  0,
+                ),
+              },
+            },
             tickets: generalTickets.map((link) => ({
               ...link,
               round_id: (link as { performance_id?: number }).performance_id,
@@ -383,6 +519,14 @@ Deno.serve(async (req) => {
             name: schedule.round_name,
           })),
           relationships: relationships ?? [],
+          status: {
+            ...status,
+            performanceCapacity: {
+              completed: issuedPeople,
+              total: Number(own.performance.total_capacity ?? 0) *
+                (schedules ?? []).length,
+            },
+          },
           tickets: generalTickets.map((link) => ({
             ...link,
             round_name: roundNames.get(link.round_id) ?? '未設定',
@@ -773,7 +917,6 @@ Deno.serve(async (req) => {
     const status = error instanceof HttpError ? error.status : 500;
     const message =
       error instanceof Error ? error.message : '処理に失敗しました。';
-    console.log(error);
     return json({ error: message }, corsHeaders, status);
   }
 });

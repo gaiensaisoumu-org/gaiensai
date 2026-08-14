@@ -21,6 +21,98 @@
   color: var(--sub-text-color);
 }
 
+.statusHeading p {
+  margin: 0;
+  color: var(--sub-text-color);
+  font-size: 0.9rem;
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.statusCard {
+  min-height: 230px;
+  padding: 1rem;
+  border: 1px solid var(--settings-border-color);
+  border-radius: 10px;
+}
+
+.statusCard h3,
+.ranking h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.donut {
+  display: grid;
+  width: 150px;
+  aspect-ratio: 1;
+  margin: 1rem auto 0;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--accent-color) 0 var(--progress),
+    var(--settings-border-color) var(--progress) 100%
+  );
+}
+
+.donut > div {
+  display: grid;
+  width: 108px;
+  aspect-ratio: 1;
+  place-items: center;
+  align-content: center;
+  border-radius: 50%;
+  background: var(--main-bg-color);
+}
+
+.donut strong {
+  font-size: 1.35rem;
+}
+
+.donut span {
+  color: var(--sub-text-color);
+  font-size: 0.78rem;
+}
+
+.rankingList {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rankingList li {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--settings-border-color);
+  font-size: 0.9rem;
+}
+
+.rank {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary-color);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.statusEmpty {
+  color: var(--sub-text-color);
+  font-size: 0.9rem;
+}
+
 .form {
   display: grid;
   max-width: 640px;
@@ -314,6 +406,10 @@ td {
   }
 
   .scheduleTimeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .statusGrid {
     grid-template-columns: 1fr;
   }
 
