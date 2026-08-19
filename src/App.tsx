@@ -28,6 +28,8 @@ import {
   OrganizationAccounts,
   PerformancesManagement,
   Availability,
+  OrganizationRegister,
+  OrganizationScanHistory,
 } from './routes';
 import LineCallback from './features/auth/Line';
 import NotFound from './shared/NotFound';
@@ -45,6 +47,7 @@ import {
   Students,
   AdminHome,
   Scan,
+  OrganizationScan,
   Register,
   Ticket,
   TicketHistory,
@@ -135,6 +138,11 @@ const userPageLayout = () => (
         <Route path='/rio' component={SecretBase} />
         <Route path='/riogunawan' component={SecretBase} />
         <Route path='/auth/line/callback' component={LineCallback} />
+
+        <Route
+          path='/organization-history'
+          component={OrganizationScanHistory}
+        />
         <Route default component={NotFound} />
       </Router>
     </div>
@@ -155,7 +163,10 @@ const AdminPageLayout = () => (
         <Route path='/student-accounts' component={StudentAccounts} />
         <Route path='/junior-accounts' component={JuniorAccounts} />
         <Route path='/organization-accounts' component={OrganizationAccounts} />
-        <Route path='/performances-management' component={PerformancesManagement} />
+        <Route
+          path='/performances-management'
+          component={PerformancesManagement}
+        />
         <Route default component={NotFound} />
       </Router>
     </div>
@@ -203,6 +214,12 @@ const InnerApp = () => {
       preload(Info);
     } else if (path.startsWith('/admin/scan')) {
       preload(AdminLayout, ScanLayout, Scan, AdminHome);
+    } else if (path.startsWith('/organization-scan')) {
+      preload(OrganizationScan);
+    } else if (path.startsWith('/organization-register')) {
+      preload(OrganizationScan);
+    } else if (path.startsWith('/organization-scan-history')) {
+      preload(OrganizationScan);
     } else if (path.startsWith('/admin')) {
       preload(AdminLayout, AdminHome);
     }
@@ -214,6 +231,8 @@ const InnerApp = () => {
       <Route path='/students' component={Students} />
       <Route path='/students/*' component={Students} />
       <Route path='/admin/scan' component={AdminScanLayout} />
+      <Route path='/organization-scan' component={OrganizationScan} />
+      <Route path='/organization-register' component={OrganizationRegister} />
       <Route path='/admin/*' component={AdminPageLayout} />
       <Route path='/admin' component={AdminPageLayout} />
       <Route path='/junior/*' component={Junior} />

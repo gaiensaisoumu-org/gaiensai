@@ -30,6 +30,15 @@ export const DayTicketIssueResult = lazy(
 export const Students = lazy(() => import('./pages/user/students/Students'));
 export const AdminHome = lazy(() => import('./pages/admin/AdminHome'));
 export const Scan = lazy(() => import('./pages/admin/Scan'));
+export const OrganizationScan = lazy(
+  () => import('./pages/organization-admin/OrganizationScan'),
+);
+export const OrganizationRegister = lazy(
+  () => import('./pages/organization-admin/OrganizationRegister'),
+);
+export const OrganizationScanHistory = lazy(
+  () => import('./pages/organization-admin/OrganizationScanHistory'),
+);
 export const Register = lazy(() => import('./pages/admin/Register'));
 export const ScanHistory = lazy(() => import('./pages/admin/ScanHistory'));
 export const Settings = lazy(() => import('./pages/admin/Settings'));

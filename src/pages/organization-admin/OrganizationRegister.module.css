@@ -1,0 +1,753 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.75rem;
+  border-radius: 16px;
+  background: color-mix(in srgb,
+      var(--translucent-b-bg-color) 95%,
+      transparent);
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
+.formLabel {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--heading-text-color);
+}
+
+.textInput {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--select-border-color);
+  background: color-mix(in srgb, var(--main-bg-color) 85%, transparent);
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.textInput:focus-visible {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent);
+}
+
+.textInputRules {
+  margin: 0;
+  font-size: small;
+}
+
+.submitButton {
+  padding: 0.85rem 1.5rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg,
+      var(--primary-color),
+      color-mix(in srgb, var(--primary-color) 70%, #000) 80%);
+  color: #fff;
+  border: none;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+
+.submitButton:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.modalSecondaryButton {
+  padding: 0.85rem 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--select-border-color);
+  background: transparent;
+  color: var(--main-text-color);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.modalDescription {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--sub-text-color);
+}
+
+.pageShell {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-top: 4rem;
+}
+
+@media (max-width: 800px) {
+  .pageShell {
+    padding-top: 8rem;
+  }
+}
+
+.ticketlessCounterRegister {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.75rem;
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  background: var(--main-bg-color);
+  color: var(--main-text-color);
+  font-weight: 700;
+}
+
+.errorText {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.resultCard {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 50;
+  width: calc(100vw - 1.5em);
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+
+  background-color: var(--scan-result-bg-color);
+  color: var(--scan-result-text-color);
+
+  margin: 0;
+  padding: 1rem;
+  border: 5px solid var(--scan-result-border-color);
+  border-radius: 14px;
+}
+
+.resultCardReentry {
+  background-color: var(--scan-result-reentry-bg-color);
+  color: var(--scan-result-reentry-text-color);
+  border-color: var(--scan-result-reentry-border-color);
+}
+
+.resultCardReentry .resultTitle {
+  color: var(--scan-result-reentry-text-color);
+}
+
+.resultCardReentry .primaryPerformance {
+  color: var(--scan-result-reentry-text-color);
+}
+
+.resultCardEnter {
+  animation: resultCardFadeIn 200ms ease-out forwards;
+}
+
+.resultCardExit {
+  animation: resultCardFadeOut 1000ms ease-in forwards;
+}
+
+.resultTitle {
+  margin: 0 0 1rem;
+  color: var(--success-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resultSuccessOverlay {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--scan-result-success-overlay-bg-color);
+}
+
+.resultSuccessOverlayReentry {
+  background-color: var(--result-success-reentry-overlay-bg-color);
+}
+
+.resultBody {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.primaryPerformance {
+  margin: 0;
+  font-size: min(10vw, 3.5rem);
+  color: var(--scan-result-primary-color);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.scheduleName {
+  display: inline-block;
+  margin-left: 0.5em;
+}
+
+.secondaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.secondaryItem {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--scan-result-border-color);
+  border-radius: 999px;
+  font-weight: 700;
+  background: color-mix(in srgb,
+      var(--scan-result-border-color) 18%,
+      transparent);
+}
+
+.resultCardReentry .secondaryItem {
+  border-color: var(--scan-result-reentry-border-color);
+  background: color-mix(in srgb,
+      var(--scan-result-reentry-border-color) 18%,
+      transparent);
+}
+
+.tertiaryBlock {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.tertiaryLine {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+.rawValue {
+  margin: 0;
+  font-size: 0.76rem;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  opacity: 0.62;
+  overflow-wrap: anywhere;
+}
+
+@keyframes resultCardFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes resultCardFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.instructionBlock {
+  padding: 0.5rem 0;
+  border-radius: 8px;
+  color: var(--scan-result-instruction-color);
+}
+
+.instructionBlock p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (min-width: 800px) {
+  .primaryPerformance {
+    margin: 0.5em 0;
+  }
+
+  .secondaryRow {
+    margin: 0 0 1em;
+  }
+
+  .instructionBlock p {
+    font-size: 1.75rem;
+    padding: 0.75rem 0;
+  }
+}
+
+.resultCardError {
+  border-color: var(--error-border-color);
+  background-color: var(--scan-result-error-bg-color);
+}
+
+.resultErrorOverlay {
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--scan-result-error-overlay-bg-color);
+}
+
+.resultCardError .resultTitle {
+  color: var(--error-text-color);
+}
+
+.serverSection {
+  padding: 1rem 1.75rem;
+  border-radius: 16px;
+  background: color-mix(in srgb,
+      var(--translucent-b-bg-color) 95%,
+      transparent);
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
+.offlineAlertSection {
+  margin-top: 1rem;
+}
+
+.audioSection {
+  margin-top: 1rem;
+  padding: 1rem 1.75rem;
+  border-radius: 16px;
+  background: color-mix(in srgb,
+      var(--translucent-b-bg-color) 95%,
+      transparent);
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
+.audioSummary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.audioSummaryLabel {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--heading-text-color);
+}
+
+.audioSettingRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.audioSettingRow span {
+  font-weight: 700;
+  color: var(--heading-text-color);
+}
+
+.audioSettingRow select {
+  border: 1px solid var(--select-border-color);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  background: var(--normal-section-bg-color);
+  color: var(--main-text-color);
+}
+
+.credit {
+  font-size: 0.8em;
+}
+
+.serverUrlDisplay {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.serverUrlLabel {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--heading-text-color);
+  flex: 1;
+  min-width: 200px;
+}
+
+.serverUrl {
+  color: var(--main-text-color);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.9rem;
+  display: inline-block;
+  margin-left: 1em;
+  word-break: break-all;
+}
+
+.changeButton {
+  margin-left: 1em;
+}
+
+.warningActionRow {
+  margin-top: 0.75rem;
+}
+
+.iconButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5em;
+  padding: 0.5em;
+  border-radius: 999px;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+  z-index: 15;
+}
+
+.changeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 2rem;
+  min-width: 300px;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--heading-text-color);
+}
+
+.modalButtonGroup {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: flex-end;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContainer {
+  background-color: var(--main-bg-color);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid var(--select-border-color);
+}
+
+.modalContent p {
+  margin: 0;
+}
+
+.statsSection {
+  padding: 1.5rem 1.75rem;
+  border-radius: 16px;
+  background: color-mix(in srgb,
+      var(--translucent-b-bg-color) 95%,
+      transparent);
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  margin-top: 1rem;
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.statLabel {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--heading-text-color);
+}
+
+.statValue {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--accent-color);
+}
+
+.recordsSection {
+  padding: 1.5rem 1.75rem;
+  border-radius: 16px;
+  background: color-mix(in srgb,
+      var(--translucent-b-bg-color) 95%,
+      transparent);
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  margin-top: 1rem;
+}
+
+.recordsTitleRow {
+  margin: 0 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recordsTitle {
+  font-size: 1.1rem;
+  margin: 0 1em 0 0;
+  font-weight: 700;
+  color: var(--heading-text-color);
+}
+
+.recordsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.recordItem {
+  padding: 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--main-bg-color) 60%, transparent);
+  border: 1px solid var(--select-border-color);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.recordId {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recordCode,
+.recordDateTime,
+.recordResult {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.recordLabel {
+  font-weight: 700;
+  color: var(--sub-text-color);
+  min-width: 50px;
+}
+
+.recordValue {
+  font-size: 0.95rem;
+  color: var(--main-text-color);
+  word-break: break-all;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+.resultSuccess {
+  color: var(--success-color);
+}
+
+.resultSuccess .recordValue {
+  color: var(--success-color);
+}
+
+.resultReentry {
+  color: var(--warning-color);
+}
+
+.resultReentry .recordValue {
+  color: var(--warning-color);
+}
+
+.resultFailed {
+  color: var(--error-text-color);
+}
+
+.resultFailed .recordValue {
+  color: var(--error-text-color);
+}
+
+.noRecords {
+  margin: 0;
+  padding: 1rem;
+  text-align: center;
+  color: var(--sub-text-color);
+  font-size: 0.95rem;
+}
+
+.entryCountDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+.entryCountButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+
+.entryCountButton:hover {
+  transform: scale(1.1);
+  filter: brightness(1.1);
+}
+
+.entryCountButton:active {
+  transform: scale(0.95);
+}
+
+.entryCountValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--scan-result-primary-color);
+}
+
+.entryCountUnit {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+@media (min-width: 800px) {
+  .entryCountDisplay {
+    position: absolute;
+    top: 50%;
+    right: 2em;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 0;
+    align-items: end;
+  }
+
+  .entryCountValue {
+    font-size: 15rem;
+    margin: 0;
+    padding: 0;
+    line-height: 0.8;
+  }
+}
+
+.recordEntryCount {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.5rem 0;
+}
+
+.recordCountButton {
+  border: 1px solid var(--select-border-color);
+  background: var(--normal-section-bg-color);
+  border-radius: 50%;
+  padding: 0;
+  width: 2.5em;
+  height: 2.5em;
+  font-size: 1rem;
+  font-weight: 700;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+
+.recordCountButton:hover {
+  transform: scale(1.1);
+  filter: brightness(1.1);
+}
+
+.recordCountButton:active {
+  transform: scale(0.95);
+}
+
+.recordCountValue {
+  font-weight: 700;
+  color: var(--heading-text-color);
+  min-width: 50px;
+  text-align: center;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--error-text-color);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+.deleteButton:hover {
+  filter: brightness(1.1);
+}

@@ -1,0 +1,451 @@
+.videoWrapper {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100vh;
+  background: #000;
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  object-fit: cover;
+}
+
+.scanOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scanFrame {
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.52);
+}
+
+.scanTargetDisplay {
+  position: fixed;
+  z-index: 10;
+  top: 1rem;
+  left: 50%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.55rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  background: var(--translucent-b-bg-color);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  color: #fff;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .scanTargetDisplay {
+    top: 5rem;
+  }
+}
+
+.scanTargetLabel {
+  font-size: 0.78rem;
+  opacity: 0.78;
+}
+
+.scanTargetDisplay strong {
+  font-size: 1rem;
+}
+
+.performanceInProgress {
+  position: fixed;
+  z-index: 11;
+  top: 1rem;
+  right: 4.5rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: var(--success-color);
+  color: var(--white);
+  font-weight: 700;
+}
+
+@media (max-width: 450px) {
+  .performanceInProgress {
+    top: 5rem;
+    right: 1rem;
+  }
+}
+
+.targetSelectionShell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  background: var(--main-bg-color);
+}
+
+.targetSelectionCard {
+  width: min(100%, 32rem);
+}
+
+.targetSelectionCard h1,
+.targetSelectionCard p {
+  margin: 0;
+}
+
+.targetSelectionCard label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.targetSelectionCard select,
+.targetSelectionStartButton {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--table-border-color);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.targetSelectionStartButton {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: var(--white);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.targetSelectionStartButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.spacer {
+  height: 100vh;
+}
+
+.preparingShell {
+  position: relative;
+  display: grid;
+  width: 90vw;
+  max-width: 900px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  gap: 50px;
+  padding: 1.5rem;
+  background: var(--main-bg-color);
+  color: var(--main-text-color);
+}
+
+.preparingTitle {
+  justify-self: start;
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 6rem);
+}
+
+.nextPerformanceTitle {
+  justify-self: end;
+  margin: 0;
+  text-align: right;
+  color: var(--accent-color);
+  font-size: clamp(1.25rem, 5vw, 3rem);
+}
+
+.preparingEndedTitle {
+  font-size: clamp(1.2rem, 4vw, 2.5rem);
+}
+
+.preparingStartButton {
+  align-self: end;
+  justify-self: center;
+  min-width: min(18rem, 100%);
+  padding: 1rem 2rem;
+  border: 0;
+  border-radius: 12px;
+  background: var(--primary-color);
+  color: var(--white);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.statusText {
+  margin-top: 0.75rem;
+}
+
+.errorText {
+  margin-top: 0.75rem;
+  color: #ff8b8b;
+}
+
+.resultCard {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 9;
+  width: calc(100vw - 1.5em);
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+
+  background-color: var(--scan-result-bg-color);
+  color: var(--scan-result-text-color);
+
+  margin: 0;
+  padding: 1rem;
+  border: 5px solid var(--scan-result-border-color);
+  border-radius: 14px;
+}
+
+.resultCardEnter {
+  animation: resultCardFadeIn 200ms ease-out forwards;
+}
+
+.resultCardExit {
+  animation: resultCardFadeOut 1000ms ease-in forwards;
+}
+
+.resultTitle {
+  margin: 0 0 1rem;
+  color: var(--success-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resultSuccessOverlay {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--scan-result-success-overlay-bg-color);
+}
+
+.resultBody {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.primaryPerformance {
+  margin: 0;
+  font-size: min(10vw, 3.5rem);
+  color: var(--scan-result-primary-color);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.scheduleName {
+  display: inline-block;
+  margin-left: 0.5em;
+}
+
+.secondaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.secondaryItem {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--scan-result-border-color);
+  border-radius: 999px;
+  font-weight: 700;
+  background: color-mix(
+    in srgb,
+    var(--scan-result-border-color) 18%,
+    transparent
+  );
+}
+
+.tertiaryBlock {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.tertiaryLine {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.rawValue {
+  margin: 0;
+  font-size: 0.76rem;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  opacity: 0.62;
+  overflow-wrap: anywhere;
+}
+
+@keyframes resultCardFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes resultCardFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.instructionBlock {
+  padding: 0.5rem 0;
+  border-radius: 8px;
+  color: var(--scan-result-instruction-color);
+}
+
+.instructionBlock p {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (min-width: 800px) {
+  .primaryPerformance {
+    margin: 0.5em 0;
+  }
+
+  .secondaryRow {
+    margin: 0 0 1em;
+  }
+
+  .instructionBlock p {
+    font-size: 1.75rem;
+    padding: 0.75rem 0;
+  }
+}
+
+.resultCardError {
+  border-color: var(--error-border-color);
+  background-color: var(--scan-result-error-bg-color);
+}
+
+.resultErrorOverlay {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--scan-result-error-overlay-bg-color);
+}
+
+.resultCardError .resultTitle {
+  color: var(--error-text-color);
+}
+
+.warningButton {
+  padding: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--warn-border-color);
+  background: var(--warning-bg-color);
+  color: var(--warning-text-color);
+  cursor: pointer;
+  position: fixed;
+  font-size: 1.5em;
+  top: 4.5rem;
+  right: 1rem;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cameraToggleButton {
+  padding: 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  cursor: pointer;
+  position: absolute;
+  font-size: 2em;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+}
+
+.cameraToggleButton:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.cameraToggleButton:active {
+  transform: scale(0.95);
+}
+
+.manualInputButton {
+  position: absolute;
+  bottom: 1em;
+  left: 1em;
+  z-index: 10;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background-color 0.2s;
+}
+
+.ticketlessCounter {
+  position: absolute;
+  bottom: 4.6rem;
+  left: 1rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+
+.ticketlessEntryCount {
+  font-weight: 700;
+  color: var(--accent-color);
+  font-size: 2.5em;
+}
+
+.manualInputButton:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}

@@ -9,12 +9,20 @@ import { readErrorMessage } from '../../layout/AdminAuthLayout';
 import { useTitle } from '../../hooks/useTitle';
 import { formatTicketCode } from '../../features/tickets/formatTicketCode';
 import { downloadRosterXlsx } from '../../features/tickets/downloadRosterXlsx';
+import performancesSnapshot from '../../generated/performances-static.json';
 import styles from './OrganizationAdmin.module.css';
 import subPageStyles from '../../styles/sub-pages.module.css';
 
 const TOKEN_KEY = 'organization_admin_session_v1';
 const NAME_DIRECTORY_STORAGE_PREFIX = 'organization_admin_name_directory_v1';
 const NAME_DIRECTORY_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const toTokyoDateKey = (timestamp: number) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(timestamp));
 const sessionHeaders = () => ({
   'x-organization-admin-session-token': localStorage.getItem(TOKEN_KEY) ?? '',
 });
@@ -260,6 +268,11 @@ const OrganizationAdmin = () => {
   const [nameNotice, setNameNotice] = useState<string | null>(null);
   const [showMissingAffiliationModal, setShowMissingAffiliationModal] =
     useState(false);
+  const [todayInTokyo, setTodayInTokyo] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTodayInTokyo(toTokyoDateKey(Date.now()));
+  }, []);
 
   const triggerRedeploy = async () => {
     const { data, error } = await supabase.functions.invoke(
@@ -878,6 +891,45 @@ const OrganizationAdmin = () => {
     dashboard.kind === 'class'
       ? `${dashboard.performance.class_name} ${dashboard.performance.title || ''}`
       : String(dashboard.performance.group_name ?? '');
+  const organizationPerformanceId = Number(
+    dashboard.kind === 'gym'
+      ? (dashboard.performances[0]?.id ?? dashboard.performance.id)
+      : dashboard.performance.id,
+  );
+  const hasPerformanceToday =
+    todayInTokyo !== null && dashboard.kind === 'class'
+      ? performancesSnapshot.schedules.some(
+          (schedule) =>
+            toTokyoDateKey(new Date(schedule.start_at).getTime()) ===
+            todayInTokyo,
+        )
+      : todayInTokyo !== null && dashboard.kind === 'gym'
+        ? performancesSnapshot.gymPerformances.some(
+            (performance) =>
+              performance.group_name === dashboard.performance.group_name &&
+              toTokyoDateKey(new Date(performance.start_at).getTime()) ===
+                todayInTokyo,
+          )
+        : false;
+  const organizationScanQuery = new URLSearchParams(
+    hasPerformanceToday &&
+      Number.isSafeInteger(organizationPerformanceId) &&
+      organizationPerformanceId > 0
+      ? dashboard.kind === 'gym'
+        ? {
+            venue: 'gym',
+            performanceId: String(organizationPerformanceId),
+            scheduleId: 'auto',
+          }
+        : { performanceId: String(organizationPerformanceId) }
+      : {},
+  ).toString();
+  const organizationScanHref = `/organization-scan${
+    organizationScanQuery ? `?${organizationScanQuery}` : ''
+  }`;
+  const organizationRegisterHref = `/organization-register${
+    organizationScanQuery ? `?${organizationScanQuery}` : ''
+  }`;
   return (
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
@@ -890,6 +942,20 @@ const OrganizationAdmin = () => {
             ログアウト
           </button>
         </div>
+        {dashboard.kind !== 'exhibition' && (
+          <NormalSection>
+            <h2>チケットスキャン</h2>
+            <p>
+              当日使用する予定はありませんが、使いたいと思った時にご自由にお使いください。
+            </p>
+            <a className={styles.linkButton} href={organizationScanHref}>
+              カメラ使用のスキャンページ
+            </a>
+            <a className={styles.linkButton} href={organizationRegisterHref}>
+              QRコードリーダー用スキャンページ
+            </a>
+          </NormalSection>
+        )}
         <NormalSection>
           <h2>{dashboard.kind === 'exhibition' ? '展示情報' : '公演情報'}</h2>
           <form onSubmit={save} className={styles.form}>
