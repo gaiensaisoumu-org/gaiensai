@@ -252,16 +252,11 @@ const Home = () => {
       <NormalSection className={styles.scrollSection} data-scroll-section=''>
         <h2>申し込みをしてない中学生の方へ</h2>
         <p>
-          先日、中学生向けの外苑祭のチケットの抽選を行いました。
-          現在のチケットの発券状況から、当日の残席数に余裕が見込まれるため、先の抽選に申し込んでいない中学生とその保護者様には、当日にご来場頂ければ入場及び展示部活の観覧、残席状況によってはクラス公演や体育館公演もご観覧いただけることになりました。
-          <a href='https://docs.google.com/forms/d/e/1FAIpQLSfGsEXv2e1IoDbF2RjhrCyK5myHU0Dq-YJ4_3dHMhNeLAvjUg/viewform?usp=dialog'>
-            お問い合わせ
-          </a>
-          よりご連絡をいただければ、入場チケットの発行も可能です（公演の予約はできません）。
-          <br />
-          <strong>
-            ※青高生からの招待券をお持ちの中学生は申し込み不要です。
-          </strong>
+          <h3>2026/8/19 更新</h3>
+          <p>
+            中学生向けの追加受付は、予定数に達したため終了いたしました。
+            何卒ご了承ください。
+          </p>
         </p>
       </NormalSection>
       <NormalSection className={styles.scrollSection} data-scroll-section=''>
