@@ -14,6 +14,10 @@ Disallow: /gunawanrio
 Disallow: /gunawanrio/
 Disallow: /gunawan
 Disallow: /gunawan/
+Disallow: /organization-admin
+Disallow: /organization-scan
+Disallow: /organization-register
+Disallow: /organization-history
 Allow: /junior/login
 Allow: /students/login
 Allow: /
