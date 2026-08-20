@@ -1,0 +1,147 @@
+.pamphletHorizontal {
+  width: min(100% - 2rem, 1200px);
+  margin: 0 auto 2rem;
+}
+
+.pamphletVertical {
+  width: min(100% - 2rem, 760px);
+    margin: 0 auto 2rem;
+}
+
+.viewControls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.viewControls button,
+.pageList button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.viewControls button {
+  border: 1px solid var(--primary-color);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  color: var(--main-text-color);
+  background: transparent;
+}
+
+.viewControls .activeMode {
+  color: var(--main-text-color);
+  background: var(--primary-color);
+}
+
+.verticalReader {
+  display: grid;
+  gap: 1rem;
+}
+
+.verticalReader img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.horizontalReader {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  background: #f2f2f2;
+}
+
+.pageMoveControls {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.pageMoveButton {
+  min-width: 3em;
+  padding: 0.25em 1em;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 1.7rem;
+}
+
+.pageMoveButton:disabled {
+  visibility: hidden;
+}
+
+.horizontalPage {
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.horizontalPage img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (min-width: 700px) {
+  .horizontalPage {
+    flex-basis: 50%;
+  }
+}
+
+.pageList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.pageList button {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: transparent;
+  aspect-ratio: 0.707;
+}
+
+.pageList button:hover,
+.pageList button:focus-visible,
+.pageList .currentPage {
+  border-color: var(--primary-color);
+}
+
+.pageList img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pageList span {
+  position: absolute;
+  right: 0.2rem;
+  bottom: 0.2rem;
+  min-width: 1.4rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(0 0 0 / 70%);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 480px) {
+  .pamphlet {
+    width: 100%;
+  }
+
+  .pageList {
+    grid-template-columns: repeat(auto-fill, minmax(3.8rem, 1fr));
+    padding: 0 0.25rem;
+  }
+}
