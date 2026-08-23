@@ -462,6 +462,7 @@ const PerformanceDetail = ({
                   key={path}
                   src={getPerformanceImageUrl(path, snapshot.generatedAt)}
                   alt={`${classDetails?.title || gymDetails?.group_name || clubDetails?.group_name || '公演'}のギャラリー画像 ${index + 1}`}
+                  loading='lazy'
                 />
               ))}
             </div>

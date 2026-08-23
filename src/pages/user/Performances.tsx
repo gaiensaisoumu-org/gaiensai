@@ -305,7 +305,6 @@ const Performances = () => {
                       )}
                       alt={performance.title}
                       className={styles.cardBgImage}
-                      loading='lazy'
                     />
                   )}
                   <div className={styles.overlay} />
@@ -365,7 +364,6 @@ const Performances = () => {
                         )}
                         alt={perf.title || '公演画像'}
                         className={styles.cardBgImage}
-                        loading='lazy'
                       />
                       {/* グラデーション暗幕 */}
                       <div className={styles.overlay} />
@@ -485,7 +483,6 @@ const Performances = () => {
                         )}
                         alt={perf.group_name || '公演画像'}
                         className={styles.cardBgImage}
-                        loading='lazy'
                       />
                       {/* グラデーション暗幕 */}
                       <div className={styles.overlay} />
@@ -595,7 +592,6 @@ const Performances = () => {
                         )}
                         alt={club.group_name}
                         className={styles.cardBgImage}
-                        loading='lazy'
                       />
                       <div className={styles.overlay} />
                     </>
