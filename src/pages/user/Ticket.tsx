@@ -27,13 +27,14 @@ import { NoIndexMeta } from '../../components/NoIndexMeta.tsx';
 import pageStyles from '../../styles/sub-pages.module.css';
 import styles from './Ticket.module.css';
 import { MdClose } from 'react-icons/md';
-import TicketListContent from '../../features/tickets/TicketListContent.tsx';
+import TicketListContent, {
+  useTicketListSortMode,
+} from '../../features/tickets/TicketListContent.tsx';
 import type { CachedTicketDisplay } from '../../types/types.ts';
 import { useDecodedSerialTickets } from '../../features/tickets/useDecodedSerialTickets.ts';
 import type {
   TicketCardItem,
   TicketCardStatus,
-  TicketListSortMode,
 } from '../../features/tickets/IssuedTicketCardList.tsx';
 import { getTicketDisplayName } from '../../features/tickets/IssuedTicketCardList.tsx';
 
@@ -327,24 +328,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
     return !isNaN(affiliationNum) && affiliationNum > 100000;
   }, [ticket.affiliation]);
 
-  const [sortMode, setSortMode] = useState<TicketListSortMode>(() => {
-    try {
-      const saved = localStorage.getItem('ticketListSortMode');
-      return (saved as TicketListSortMode) || 'recent';
-    } catch {
-      return 'recent';
-    }
-  });
+  const [sortMode, setSortMode] = useTicketListSortMode();
 
   useTitle('チケット');
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ticketListSortMode', sortMode);
-    } catch {
-      // Ignore errors in saving to localStorage
-    }
-  }, [sortMode]);
 
   useEffect(() => {
     // ブラウザ環境でマウントされた後に実際のウィンドウ幅から計算

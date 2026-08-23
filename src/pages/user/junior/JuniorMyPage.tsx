@@ -12,8 +12,11 @@ import subPageStyles from '../../../styles/sub-pages.module.css';
 import sharedStyles from '../../../styles/shared.module.css';
 import dashboardStyles from '../students/Dashboard.module.css';
 import registrationStyles from '../students/InitialRegistration.module.css';
-import TicketListContent from '../../../features/tickets/TicketListContent';
-import type { TicketListSortMode } from '../../../features/tickets/IssuedTicketCardList';
+import TicketListContent, {
+  TicketListDisplayOptions,
+  useTicketListDisplayOptions,
+  useTicketListSortMode,
+} from '../../../features/tickets/TicketListContent';
 import NormalSection from '../../../components/ui/NormalSection';
 import PerformancesTable from '../../../features/performances/PerformancesTable';
 import GymPerformancesTable from '../../../features/performances/GymPerformancesTable';
@@ -76,6 +79,9 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const [ticketCards, setTicketCards] = useState<
     (TicketCardItem & { relationshipId: number })[]
   >([]);
+  const [ticketDisplayOptions, setTicketDisplayOptions] =
+    useTicketListDisplayOptions();
+  const [ticketSortMode, setTicketSortMode] = useTicketListSortMode();
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketCacheNotice, setTicketCacheNotice] = useState<string | null>(
@@ -89,8 +95,6 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   }>({ active: false, endsAt: null });
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
-  const [myTicketSortMode, setMyTicketSortMode] =
-    useState<TicketListSortMode>('recent');
   const [hasReachedJuniorIssueLimit, setHasReachedJuniorIssueLimit] =
     useState(false);
   const [classApplicationDays, setClassApplicationDays] =
@@ -810,15 +814,26 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         )}
       </section>
       <NormalSection>
+        <h2>表示設定</h2>
+        <TicketListDisplayOptions
+          tickets={ticketCards}
+          value={ticketDisplayOptions}
+          onChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
+        />
+      </NormalSection>
+      <NormalSection>
         <h2>自分が使うチケット</h2>
         {ticketCacheNotice && <p>{ticketCacheNotice}</p>}
         <TicketListContent
           loading={ticketLoading}
           error={ticketError}
           tickets={ticketCards}
-          showSortControl
-          sortMode={myTicketSortMode}
-          onSortModeChange={setMyTicketSortMode}
+          displayOptions={ticketDisplayOptions}
+          onDisplayOptionsChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
           emptyMessage='自分が使うチケットはまだありません。'
         />
       </NormalSection>

@@ -1,0 +1,159 @@
+.displayOptions {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.displayOptionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.selectOption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: var(--heading-text-color);
+}
+
+.optionSelect {
+  border: 1px solid var(--select-border-color);
+  border-radius: 8px;
+  background: var(--select-bg-color);
+  color: var(--main-text-color);
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  max-width: 12rem;
+}
+
+.displayModeButtons {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--select-border-color);
+  border-radius: 8px;
+}
+
+.displayModeButton,
+.displayModeButtonActive {
+  display: grid;
+  width: 2.3rem;
+  height: 2.1rem;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid var(--select-border-color);
+  background: var(--select-bg-color);
+  color: var(--main-text-color);
+  cursor: pointer;
+  font-size: 1.25rem;
+}
+
+.displayModeButton:last-child,
+.displayModeButtonActive:last-child {
+  border-right: 0;
+}
+
+.displayModeButtonActive {
+  background: var(--main-color, #3f51b5);
+  color: #fff;
+}
+
+.displayModeButton:focus-visible,
+.displayModeButtonActive:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--main-color, #3f51b5);
+  outline-offset: -2px;
+}
+
+.toggleOption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: var(--heading-text-color);
+  cursor: pointer;
+}
+
+.sortOptions {
+  margin: 0.75rem 0;
+}
+
+.ticketGroup + .ticketGroup {
+  margin-top: 1rem;
+}
+
+.ticketGroup h3 {
+  margin: 1rem 0 0.5rem;
+}
+
+.tableScroll {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.tableScrollHint {
+  margin: 0 0 0.5rem;
+  color: var(--sub-text-color);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.ticketTable {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ticketTable th,
+.ticketTable td {
+  padding: 0.7rem;
+  border-bottom: 1px solid var(--table-border-color);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.ticketTable th {
+  background: color-mix(in srgb, var(--main-bg-color) 72%, transparent);
+}
+
+.cancelButton {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--error-border-color);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--error-text-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tableActions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.changeButton {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--select-border-color);
+  border-radius: 0.5rem;
+  color: var(--main-text-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cancelButton:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.cancelError {
+  color: var(--error-text-color);
+}

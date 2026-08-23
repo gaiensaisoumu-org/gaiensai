@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import TicketListContent from '../../features/tickets/TicketListContent';
+import TicketListContent, {
+  TicketListDisplayOptions,
+  useTicketListDisplayOptions,
+  useTicketListSortMode,
+} from '../../features/tickets/TicketListContent';
 import Modal from '../../components/ui/Modal';
 import {
   clearTicketHistoryCaches,
@@ -9,7 +13,6 @@ import {
 import {
   isEndedPerformanceTicket,
   type TicketCardItem,
-  type TicketListSortMode,
 } from '../../features/tickets/IssuedTicketCardList';
 import { useDecodedSerialTickets } from '../../features/tickets/useDecodedSerialTickets';
 import pageStyles from '../../styles/sub-pages.module.css';
@@ -20,52 +23,9 @@ const TicketHistory = () => {
   const [cacheVersion, setCacheVersion] = useState(0);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
-  const [validSortMode, setValidSortMode] = useState<TicketListSortMode>(() => {
-    try {
-      return (
-        (localStorage.getItem(
-          'ticketListSortMode.valid',
-        ) as TicketListSortMode) || 'recent'
-      );
-    } catch {
-      return 'recent';
-    }
-  });
-  const [cancelledSortMode, setCancelledSortMode] =
-    useState<TicketListSortMode>(() => {
-      try {
-        return (
-          (localStorage.getItem(
-            'ticketListSortMode.cancelled',
-          ) as TicketListSortMode) || 'recent'
-        );
-      } catch {
-        return 'recent';
-      }
-    });
-  const [otherSortMode, setOtherSortMode] = useState<TicketListSortMode>(() => {
-    try {
-      return (
-        (localStorage.getItem(
-          'ticketListSortMode.other',
-        ) as TicketListSortMode) || 'recent'
-      );
-    } catch {
-      return 'recent';
-    }
-  });
-  const [endedPerformanceSortMode, setEndedPerformanceSortMode] =
-    useState<TicketListSortMode>(() => {
-      try {
-        return (
-          (localStorage.getItem(
-            'ticketListSortMode.ended-performance',
-          ) as TicketListSortMode) || 'recent'
-        );
-      } catch {
-        return 'recent';
-      }
-    });
+  const [ticketDisplayOptions, setTicketDisplayOptions] =
+    useTicketListDisplayOptions();
+  const [ticketSortMode, setTicketSortMode] = useTicketListSortMode();
 
   useTitle('チケット表示履歴');
 
@@ -75,41 +35,6 @@ const TicketHistory = () => {
     const intervalId = window.setInterval(updateCurrentTime, 60_000);
     return () => window.clearInterval(intervalId);
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ticketListSortMode.valid', validSortMode);
-    } catch {
-      // Ignore errors
-    }
-  }, [validSortMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ticketListSortMode.cancelled', cancelledSortMode);
-    } catch {
-      // Ignore errors
-    }
-  }, [cancelledSortMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ticketListSortMode.other', otherSortMode);
-    } catch {
-      // Ignore errors
-    }
-  }, [otherSortMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        'ticketListSortMode.ended-performance',
-        endedPerformanceSortMode,
-      );
-    } catch {
-      // Ignore errors
-    }
-  }, [endedPerformanceSortMode]);
 
   useEffect(() => {
     const refresh = () => setCacheVersion((previous) => previous + 1);
@@ -177,12 +102,23 @@ const TicketHistory = () => {
         </button>
       </div>
       <section>
+        <h2>表示設定</h2>
+        <TicketListDisplayOptions
+          tickets={tickets}
+          value={ticketDisplayOptions}
+          onChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
+        />
+      </section>
+      <section>
         <h2>有効なチケット</h2>
         <TicketListContent
           embedded={false}
-          showSortControl
-          sortMode={validSortMode}
-          onSortModeChange={setValidSortMode}
+          displayOptions={ticketDisplayOptions}
+          onDisplayOptionsChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
           tickets={validTickets}
           emptyMessage='この端末で開いたことがある有効なチケットはまだありません。'
         />
@@ -191,9 +127,10 @@ const TicketHistory = () => {
         <h2>終了済み</h2>
         <TicketListContent
           embedded={false}
-          showSortControl
-          sortMode={endedPerformanceSortMode}
-          onSortModeChange={setEndedPerformanceSortMode}
+          displayOptions={ticketDisplayOptions}
+          onDisplayOptionsChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
           tickets={endedPerformanceTickets}
           emptyMessage='終了済みの公演チケットはまだありません。'
         />
@@ -202,9 +139,10 @@ const TicketHistory = () => {
         <h2>キャンセル済みチケット</h2>
         <TicketListContent
           embedded={false}
-          showSortControl
-          sortMode={cancelledSortMode}
-          onSortModeChange={setCancelledSortMode}
+          displayOptions={ticketDisplayOptions}
+          onDisplayOptionsChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
           tickets={cancelledTickets}
           emptyMessage='この端末で開いたことがあるキャンセル済みチケットはまだありません。'
         />
@@ -213,9 +151,10 @@ const TicketHistory = () => {
         <h2>その他のチケット</h2>
         <TicketListContent
           embedded={false}
-          showSortControl
-          sortMode={otherSortMode}
-          onSortModeChange={setOtherSortMode}
+          displayOptions={ticketDisplayOptions}
+          onDisplayOptionsChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
           tickets={otherTickets}
           emptyMessage='この端末で開いたことがあるその他のチケットはまだありません。'
         />

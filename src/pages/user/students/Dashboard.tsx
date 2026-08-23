@@ -17,9 +17,12 @@ import NormalSection from '../../../components/ui/NormalSection';
 import {
   isEndedPerformanceTicket,
   type TicketCardItem,
-  type TicketListSortMode,
 } from '../../../features/tickets/IssuedTicketCardList';
-import TicketListContent from '../../../features/tickets/TicketListContent';
+import TicketListContent, {
+  TicketListDisplayOptions,
+  useTicketListDisplayOptions,
+  useTicketListSortMode,
+} from '../../../features/tickets/TicketListContent';
 import type { CachedTicketDisplay } from '../../../types/types';
 
 import subPageStyles from '../../../styles/sub-pages.module.css';
@@ -105,6 +108,9 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   const [ticketCards, setTicketCards] = useState<
     (TicketCardItem & { relationshipId: number; affiliation: string })[]
   >([]);
+  const [ticketDisplayOptions, setTicketDisplayOptions] =
+    useTicketListDisplayOptions();
+  const [ticketSortMode, setTicketSortMode] = useTicketListSortMode();
 
   useEffect(() => {
     const updateCurrentTime = () => setCurrentTime(new Date());
@@ -138,31 +144,6 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     useState<Map<number, number>>(new Map());
   const [otherPerformanceTotalRemaining, setOtherPerformanceTotalRemaining] =
     useState<number | null>(null);
-  const [myTicketSortMode, setMyTicketSortMode] = useState<TicketListSortMode>(
-    () => {
-      try {
-        return (
-          (localStorage.getItem(
-            'ticketListSortMode.myTicket',
-          ) as TicketListSortMode) || 'recent'
-        );
-      } catch {
-        return 'recent';
-      }
-    },
-  );
-  const [guestTicketSortMode, setGuestTicketSortMode] =
-    useState<TicketListSortMode>(() => {
-      try {
-        return (
-          (localStorage.getItem(
-            'ticketListSortMode.guestTicket',
-          ) as TicketListSortMode) || 'recent'
-        );
-      } catch {
-        return 'recent';
-      }
-    });
   const [ticketDisplayCacheVersion, setTicketDisplayCacheVersion] = useState(0);
   const [classInviteMode, setClassInviteMode] = useState<
     'open' | 'only-own' | 'off'
@@ -259,25 +240,6 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       window.removeEventListener('offline', handleOffline);
     };
   }, [isOfflineMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ticketListSortMode.myTicket', myTicketSortMode);
-    } catch {
-      // Ignore errors
-    }
-  }, [myTicketSortMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        'ticketListSortMode.guestTicket',
-        guestTicketSortMode,
-      );
-    } catch {
-      // Ignore errors
-    }
-  }, [guestTicketSortMode]);
 
   useEffect(() => {
     const refresh = () =>
@@ -1185,14 +1147,25 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         )}
       </NormalSection>
       <NormalSection>
+        <h2>表示設定</h2>
+        <TicketListDisplayOptions
+          tickets={[...ownUseTickets, ...guestTickets]}
+          value={ticketDisplayOptions}
+          onChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
+        />
+      </NormalSection>
+      <NormalSection>
         <h2>自分が使うチケット</h2>
         <TicketListContent
           loading={ticketLoading}
           error={ticketError}
           tickets={ownUseTickets}
-          showSortControl
-          sortMode={myTicketSortMode}
-          onSortModeChange={setMyTicketSortMode}
+          displayOptions={ticketDisplayOptions}
+          onDisplayOptionsChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
           emptyMessage='自分が使うチケットはまだありません。'
         />
       </NormalSection>
@@ -1202,9 +1175,10 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           loading={ticketLoading}
           error={ticketError}
           tickets={guestTickets}
-          showSortControl
-          sortMode={guestTicketSortMode}
-          onSortModeChange={setGuestTicketSortMode}
+          displayOptions={ticketDisplayOptions}
+          onDisplayOptionsChange={setTicketDisplayOptions}
+          sortMode={ticketSortMode}
+          onSortModeChange={setTicketSortMode}
           emptyMessage='招待者用のチケットはまだありません。'
         />
       </NormalSection>
