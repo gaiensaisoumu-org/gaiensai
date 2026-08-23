@@ -9,6 +9,7 @@ import { useLocation } from 'preact-iso';
 import { useTitle } from '../../hooks/useTitle';
 import performancesSnapshot from '../../generated/performances-static.json';
 import { getPerformanceImageUrl } from '../../lib/supabase';
+import { savePerformanceListScrollPosition } from '../../utils/ScrollToTop';
 import baseStyles from '../../styles/sub-pages.module.css';
 import styles from './Performances.module.css';
 import ticketStyles from '../../features/tickets/IssuedTicketCardList.module.css';
@@ -72,9 +73,11 @@ const snapshot = performancesSnapshot as unknown as PerformanceSnapshot;
 const DescriptionPreview = ({
   description,
   href,
+  onNavigate,
 }: {
   description: string;
   href: string;
+  onNavigate: () => void;
 }) => {
   const ref = useRef<HTMLParagraphElement>(null);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -102,7 +105,10 @@ const DescriptionPreview = ({
         <a
           className={styles.readMore}
           href={href}
-          onClick={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            onNavigate();
+            event.stopPropagation();
+          }}
         >
           続きを読む
         </a>
@@ -113,6 +119,10 @@ const DescriptionPreview = ({
 
 const Performances = () => {
   const { route } = useLocation();
+  const navigateToPerformance = (href: string) => {
+    savePerformanceListScrollPosition();
+    route(href);
+  };
   const { likes, acceptance } = useLikedPerformances();
   const [classSortMode, setClassSortMode] = useState<'class' | 'likes'>(() =>
     window.localStorage.getItem('performances.classSortMode') === 'likes'
@@ -282,7 +292,9 @@ const Performances = () => {
               <NormalSection
                 key={`${performance.type}:${performance.id}`}
                 className={`${styles.card} ${performance.href ? styles.cardLink : ''}`}
-                onClick={() => performance.href && route(performance.href)}
+                onClick={() =>
+                  performance.href && navigateToPerformance(performance.href)
+                }
               >
                 <div className={styles.cardHeader}>
                   {performance.imagePath && (
@@ -338,7 +350,9 @@ const Performances = () => {
               <NormalSection
                 key={perf.id}
                 className={`${styles.card} ${styles.cardLink}`}
-                onClick={() => route(`/performances/class/${perf.id}`)}
+                onClick={() =>
+                  navigateToPerformance(`/performances/class/${perf.id}`)
+                }
               >
                 <div className={styles.cardHeader}>
                   {perf.image_path && (
@@ -403,6 +417,9 @@ const Performances = () => {
                   <DescriptionPreview
                     description={perf.description || '説明はありません。'}
                     href={`/performances/class/${perf.id}`}
+                    onNavigate={() =>
+                      savePerformanceListScrollPosition()
+                    }
                   />
 
                   <div className={styles.footer}>
@@ -454,7 +471,9 @@ const Performances = () => {
               <NormalSection
                 key={perf.id}
                 className={`${styles.card} ${styles.cardLink}`}
-                onClick={() => route(`/performances/gym/${perf.id}`)}
+                onClick={() =>
+                  navigateToPerformance(`/performances/gym/${perf.id}`)
+                }
               >
                 {/* 📸 体育館用：背景画像を敷くヘッダーエリア（画像の高さで可変） */}
                 <div className={styles.cardHeader}>
@@ -512,6 +531,9 @@ const Performances = () => {
                   <DescriptionPreview
                     description={perf.description || '公演説明はありません。'}
                     href={`/performances/gym/${perf.id}`}
+                    onNavigate={() =>
+                      savePerformanceListScrollPosition()
+                    }
                   />
 
                   <div className={styles.footer}>
@@ -563,7 +585,9 @@ const Performances = () => {
               <NormalSection
                 key={club.id}
                 className={`${styles.card} ${styles.cardLink}`}
-                onClick={() => route(`/performances/club/${club.id}`)}
+                onClick={() =>
+                  navigateToPerformance(`/performances/club/${club.id}`)
+                }
               >
                 <div className={styles.cardHeader}>
                   {club.image_path && (
@@ -602,6 +626,9 @@ const Performances = () => {
                   <DescriptionPreview
                     description={club.description || '展示説明はありません。'}
                     href={`/performances/club/${club.id}`}
+                    onNavigate={() =>
+                      savePerformanceListScrollPosition()
+                    }
                   />
                 </div>
               </NormalSection>

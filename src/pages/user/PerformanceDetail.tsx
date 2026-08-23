@@ -14,6 +14,7 @@ import BackButton from '../../components/ui/BackButton';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { useTitle } from '../../hooks/useTitle';
 import { getPerformanceImageUrl, supabase } from '../../lib/supabase';
+import { RESTORE_PERFORMANCE_LIST_SCROLL_KEY } from '../../utils/ScrollToTop';
 import { getPerformanceAvailability } from '../../features/performances/performanceAvailability';
 import {
   getAvailabilityStatus,
@@ -141,6 +142,10 @@ const PerformanceDetail = ({
   const [issuePath, setIssuePath] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const performanceId = Number(id);
+  const backToPerformances = () => {
+    sessionStorage.setItem(RESTORE_PERFORMANCE_LIST_SCROLL_KEY, 'true');
+    route('/performances');
+  };
   const item = useMemo(
     () =>
       type === 'class'
@@ -205,7 +210,7 @@ const PerformanceDetail = ({
   if (!item) {
     return (
       <>
-        <BackButton href='/performances' />
+        <BackButton onClick={backToPerformances} />
         <p>公演が見つかりません。</p>
       </>
     );
@@ -369,7 +374,7 @@ const PerformanceDetail = ({
     : [];
   return (
     <>
-      <BackButton href='/performances' />
+      <BackButton onClick={backToPerformances} />
       <h1 className={baseStyles.pageTitle}>
         {classDetails?.title && (
           <p className={baseStyles.pageSubtitle}>{classDetails?.class_name}</p>
