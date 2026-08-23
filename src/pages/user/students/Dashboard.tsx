@@ -99,6 +99,13 @@ type TicketSnapshot = {
   relationships?: Array<{ id: number; name: string }>;
 };
 
+type OwnIssueLimitTarget = {
+  type: 'class' | 'gym';
+  performanceIds: number[];
+  label: string;
+  limit: number;
+};
+
 const ticketSnapshot = performancesSnapshot as TicketSnapshot;
 
 const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
@@ -144,6 +151,12 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     useState<Map<number, number>>(new Map());
   const [otherPerformanceTotalRemaining, setOtherPerformanceTotalRemaining] =
     useState<number | null>(null);
+  const [otherPerformanceIssueLimit, setOtherPerformanceIssueLimit] = useState<
+    number | null
+  >(null);
+  const [ownIssueLimitTargets, setOwnIssueLimitTargets] = useState<
+    OwnIssueLimitTarget[]
+  >([]);
   const [ticketDisplayCacheVersion, setTicketDisplayCacheVersion] = useState(0);
   const [classInviteMode, setClassInviteMode] = useState<
     'open' | 'only-own' | 'off'
@@ -170,6 +183,50 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   const [accountConfirmationError, setAccountConfirmationError] = useState<
     string | null
   >(null);
+
+  const ownIssueLimitSummaries = useMemo(() => {
+    const summaries = new Map<string, { issued: number; limit: number }>();
+    for (const target of ownIssueLimitTargets) {
+      const remainingByPerformanceId =
+        target.type === 'class'
+          ? classRemainingByPerformanceId
+          : gymRemainingByPerformanceId;
+      const remainingValues = target.performanceIds.map((performanceId) =>
+        remainingByPerformanceId.get(performanceId),
+      );
+      if (remainingValues.some((remaining) => remaining === undefined)) {
+        return null;
+      }
+      const remaining = Math.min(...(remainingValues as number[]));
+      const summary = summaries.get(target.label) ?? { issued: 0, limit: 0 };
+      summary.limit += target.limit;
+      summary.issued += Math.max(target.limit - remaining, 0);
+      summaries.set(target.label, summary);
+    }
+
+    return Array.from(summaries, ([label, summary]) => ({ label, ...summary }));
+  }, [
+    classRemainingByPerformanceId,
+    gymRemainingByPerformanceId,
+    ownIssueLimitTargets,
+  ]);
+
+  const otherPerformanceIssueLimitSummary = useMemo(() => {
+    if (
+      otherPerformanceIssueLimit === null ||
+      otherPerformanceTotalRemaining === null
+    ) {
+      return null;
+    }
+
+    return {
+      issued: Math.max(
+        otherPerformanceIssueLimit - otherPerformanceTotalRemaining,
+        0,
+      ),
+      limit: otherPerformanceIssueLimit,
+    };
+  }, [otherPerformanceIssueLimit, otherPerformanceTotalRemaining]);
 
   useTitle('ダッシュボード - 生徒用ページ');
 
@@ -357,6 +414,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           maintenance_mode?: boolean | null;
           maintenance_ends_at?: string | null;
           show_length?: number | null;
+          max_tickets_per_other_performance_user?: number | null;
           max_tickets_per_other_club_user?: number | null;
           gym_ticket_limits_by_club?: Record<string, unknown> | null;
         };
@@ -389,6 +447,12 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
             dashboard.config.maintenance_mode !== true,
         );
       }
+      setOtherPerformanceIssueLimit(
+        typeof dashboard.config?.max_tickets_per_other_performance_user ===
+          'number'
+          ? dashboard.config.max_tickets_per_other_performance_user
+          : null,
+      );
       saveMaintenanceConfig(dashboard.config);
       setMaintenance({
         active: dashboard.config?.maintenance_mode === true,
@@ -416,6 +480,68 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       ) {
         setOwnClassName(`${grade}-${classNo}`);
       }
+      const ownClass =
+        affiliation >= 10000 &&
+        grade >= 1 &&
+        grade <= config.grade_number &&
+        classNo >= 1 &&
+        classNo <= config.class_number
+          ? `${grade}-${classNo}`
+          : null;
+      const ownClubs = new Set([
+        ...(dashboard.profile?.clubs ?? []),
+        ...((userData as { clubs?: string[] | null }).clubs ?? []),
+      ]);
+      const configuredGymLimits =
+        dashboard.config?.gym_ticket_limits_by_club ?? {};
+      const fallbackGymLimit = Number(
+        dashboard.config?.max_tickets_per_other_club_user ?? 0,
+      );
+      const ownTargets: OwnIssueLimitTarget[] = [
+        ...(
+          (dashboard.class_performances ?? []) as Array<{
+            id: number;
+            class_name: string;
+            max_tickets_per_user?: number | null;
+          }>
+        )
+          .filter((performance) => performance.class_name === ownClass)
+          .map((performance) => ({
+            type: 'class' as const,
+            performanceIds: [performance.id],
+            label: `自クラス（${performance.class_name}）`,
+            limit: Math.max(Number(performance.max_tickets_per_user ?? 0), 0),
+          })),
+        ...(
+          (dashboard.gym_performances ?? []) as Array<{
+            id: number;
+            group_name: string;
+          }>
+        )
+          .filter((performance) => ownClubs.has(performance.group_name))
+          .reduce((targets, performance) => {
+            const existingTarget = targets.get(performance.group_name);
+            if (existingTarget) {
+              existingTarget.performanceIds.push(performance.id);
+              return targets;
+            }
+            const configuredLimit = Number(
+              configuredGymLimits[performance.group_name],
+            );
+            targets.set(performance.group_name, {
+              type: 'gym' as const,
+              performanceIds: [performance.id],
+              label: `部活（${performance.group_name}）`,
+              limit:
+                Number.isInteger(configuredLimit) && configuredLimit >= 0
+                  ? configuredLimit
+                  : Math.max(fallbackGymLimit, 0),
+            });
+            return targets;
+          }, new Map<string, OwnIssueLimitTarget>())
+          .values(),
+      ];
+      setOwnIssueLimitTargets(ownTargets);
       setHasReachedIssueLimit(false);
 
       // Load tickets from local storage (from all users)
@@ -1123,7 +1249,9 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           <LoadingSpinner />
         ) : ticketError ? (
           <p>{ticketError}</p>
-        ) : ticketCards.length > 0 ? (
+        ) : ticketCards.length > 0 ||
+          (ownIssueLimitSummaries?.length ?? 0) > 0 ||
+          otherPerformanceIssueLimitSummary ? (
           <div className={styles.ticketSummary}>
             <div className={styles.ticketSummaryItem}>
               <p className={styles.ticketSummaryNumber}>{issuedTicketNumber}</p>
@@ -1141,6 +1269,28 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
               </p>
               <p className={styles.ticketSummaryLabel}>招待者用</p>
             </div>
+            {ownIssueLimitSummaries?.map((summary) => (
+              <div className={styles.ticketSummaryItem} key={summary.label}>
+                <p className={styles.ticketSummaryNumber}>
+                  {summary.issued}
+                  <span className={styles.ticketSummaryUnit}>枚</span>/
+                  {summary.limit}
+                  <span className={styles.ticketSummaryUnit}>枚中</span>
+                </p>
+                <p className={styles.ticketSummaryLabel}>{summary.label}</p>
+              </div>
+            ))}
+            {otherPerformanceIssueLimitSummary && (
+              <div className={styles.ticketSummaryItem}>
+                <p className={styles.ticketSummaryNumber}>
+                  {otherPerformanceIssueLimitSummary.issued}
+                  <span className={styles.ticketSummaryUnit}>枚</span>/
+                  {otherPerformanceIssueLimitSummary.limit}
+                  <span className={styles.ticketSummaryUnit}>枚中</span>
+                </p>
+                <p className={styles.ticketSummaryLabel}>他クラス・部活 合計</p>
+              </div>
+            )}
           </div>
         ) : (
           <p>まだチケットは発券されていません。</p>
