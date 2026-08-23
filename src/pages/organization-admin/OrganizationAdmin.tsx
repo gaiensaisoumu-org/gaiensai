@@ -1173,7 +1173,7 @@ const OrganizationAdmin = () => {
           <ul>
             <li>自主リハーサル機能を追加しました</li>
             <li>
-              公演詳細ページにリンク・ギャラリーを追加できるようにしました。
+              公演詳細ページにリンク・ギャラリーを追加できるようにしました。準備風景などをあげられます。
             </li>
           </ul>
         </Alert>
@@ -1503,6 +1503,9 @@ const OrganizationAdmin = () => {
           </div>
           <div className={styles.gallerySettings}>
             <h3>ギャラリー</h3>
+            <p className={styles.imageHint}>
+              準備や練習中の風景、ビラの画像など、好きな画像を自由に追加することができます。
+            </p>
             {galleryPaths.length > 0 && (
               <div className={styles.galleryPreview}>
                 {galleryPaths.map((path) => (
