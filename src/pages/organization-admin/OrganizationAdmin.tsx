@@ -1064,6 +1064,118 @@ const OrganizationAdmin = () => {
             </a>
           </NormalSection>
         )}
+
+        {dashboard.kind === 'class' && (
+          <NormalSection>
+            <h2>自主リハーサル管理</h2>
+            <p>
+              開始時刻前のみ編集できます。発券済みの回を中止すると、既存チケットも無効になります。
+            </p>
+            <Alert type='info'>
+              <p>
+                チケットのスキャンは
+                <a href={organizationScanHref}>
+                  カメラ使用のスキャンページ
+                </a>
+                から、公演回で登録したリハーサルを選択してご利用ください。(自動モードはリハーサル非対応)
+              </p>
+            </Alert>
+            <form onSubmit={saveRehearsal} className={styles.form}>
+              <label>
+                リハーサル名
+                <input
+                  value={rehearsalName}
+                  onInput={(e) =>
+                    setRehearsalName((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <label>
+                開始
+                <input
+                  type='datetime-local'
+                  value={rehearsalStart}
+                  onInput={(e) =>
+                    setRehearsalStart((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <label>
+                終了
+                <input
+                  type='datetime-local'
+                  value={rehearsalEnd}
+                  onInput={(e) =>
+                    setRehearsalEnd((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <label>
+                定員
+                <input
+                  type='number'
+                  min='1'
+                  value={rehearsalCapacity}
+                  onInput={(e) =>
+                    setRehearsalCapacity((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <button disabled={busy}>
+                {busy ? '保存中...' : '＋ リハーサルを追加'}
+              </button>
+            </form>
+            <div className={styles.rehearsalList}>
+              {(dashboard.rehearsals ?? []).map((rehearsal) => {
+                const started =
+                  currentTime !== null &&
+                  new Date(rehearsal.start_time).getTime() <= currentTime;
+                return (
+                  <article className={styles.rehearsalCard} key={rehearsal.id}>
+                    <div>
+                      <strong>{rehearsal.round_name}</strong>
+                      <p>
+                        {new Date(rehearsal.start_time).toLocaleString('ja-JP')}{' '}
+                        ─{' '}
+                        {new Date(rehearsal.end_time).toLocaleTimeString(
+                          'ja-JP',
+                          { hour: '2-digit', minute: '2-digit' },
+                        )}
+                      </p>
+                      <p>
+                        定員 {rehearsal.capacity} ／ 発券中{' '}
+                        {rehearsal.active_ticket_count}{' '}
+                        {rehearsal.is_active ? '' : '／ 中止'}
+                      </p>
+                    </div>
+                    <button
+                      type='button'
+                      className={styles.secondary}
+                      disabled={busy || started || !rehearsal.is_active}
+                      onClick={() => cancelRehearsal(rehearsal.id)}
+                    >
+                      {!rehearsal.is_active
+                        ? '中止済み'
+                        : started
+                          ? '開始済み'
+                          : '中止'}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+            {messageScope === 'rehearsal' && error && (
+              <Alert type='error'>{error}</Alert>
+            )}
+            {messageScope === 'rehearsal' && notice && (
+              <Alert type='info'>{notice}</Alert>
+            )}
+          </NormalSection>
+        )}
         <NormalSection>
           <h2>{dashboard.kind === 'exhibition' ? '展示情報' : '公演情報'}</h2>
           <form onSubmit={save} className={styles.form}>
@@ -1197,108 +1309,6 @@ const OrganizationAdmin = () => {
             <Alert type='info'>{notice}</Alert>
           )}
         </NormalSection>
-        {dashboard.kind === 'class' && (
-          <NormalSection>
-            <h2>自主リハーサル管理</h2>
-            <p>
-              開始時刻前のみ編集できます。発券済みの回を中止すると、既存チケットも無効になります。
-            </p>
-            <form onSubmit={saveRehearsal} className={styles.form}>
-              <label>
-                リハーサル名
-                <input
-                  value={rehearsalName}
-                  onInput={(e) =>
-                    setRehearsalName((e.target as HTMLInputElement).value)
-                  }
-                  required
-                />
-              </label>
-              <label>
-                開始
-                <input
-                  type='datetime-local'
-                  value={rehearsalStart}
-                  onInput={(e) =>
-                    setRehearsalStart((e.target as HTMLInputElement).value)
-                  }
-                  required
-                />
-              </label>
-              <label>
-                終了
-                <input
-                  type='datetime-local'
-                  value={rehearsalEnd}
-                  onInput={(e) =>
-                    setRehearsalEnd((e.target as HTMLInputElement).value)
-                  }
-                  required
-                />
-              </label>
-              <label>
-                定員
-                <input
-                  type='number'
-                  min='1'
-                  value={rehearsalCapacity}
-                  onInput={(e) =>
-                    setRehearsalCapacity((e.target as HTMLInputElement).value)
-                  }
-                  required
-                />
-              </label>
-              <button disabled={busy}>
-                {busy ? '保存中...' : '＋ リハーサルを追加'}
-              </button>
-            </form>
-            <div className={styles.rehearsalList}>
-              {(dashboard.rehearsals ?? []).map((rehearsal) => {
-                const started =
-                  currentTime !== null &&
-                  new Date(rehearsal.start_time).getTime() <= currentTime;
-                return (
-                  <article className={styles.rehearsalCard} key={rehearsal.id}>
-                    <div>
-                      <strong>{rehearsal.round_name}</strong>
-                      <p>
-                        {new Date(rehearsal.start_time).toLocaleString('ja-JP')}{' '}
-                        ─{' '}
-                        {new Date(rehearsal.end_time).toLocaleTimeString(
-                          'ja-JP',
-                          { hour: '2-digit', minute: '2-digit' },
-                        )}
-                      </p>
-                      <p>
-                        定員 {rehearsal.capacity} ／ 発券中{' '}
-                        {rehearsal.active_ticket_count}{' '}
-                        {rehearsal.is_active ? '' : '／ 中止'}
-                      </p>
-                    </div>
-                    <button
-                      type='button'
-                      className={styles.secondary}
-                      disabled={busy || started || !rehearsal.is_active}
-                      onClick={() => cancelRehearsal(rehearsal.id)}
-                    >
-                      {!rehearsal.is_active
-                        ? '中止済み'
-                        : started
-                          ? '開始済み'
-                          : '中止'}
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-            {messageScope === 'rehearsal' && error && (
-              <Alert type='error'>{error}</Alert>
-            )}
-            {messageScope === 'rehearsal' && notice && (
-              <Alert type='info'>{notice}</Alert>
-            )}
-          </NormalSection>
-        )}
         {dashboard.kind !== 'exhibition' && (
           <>
             {dashboard.status && (
