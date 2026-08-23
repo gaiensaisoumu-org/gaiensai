@@ -181,6 +181,7 @@ type TicketIssueMode =
   | 'only-own'
   | 'outside-own-self-only'
   | 'public-rehearsals'
+  | 'self-rehearsals'
   | 'auto'
   | 'off';
 
@@ -393,6 +394,7 @@ const TICKET_ISSUE_MODE_VALUES = [
   'only-own',
   'outside-own-self-only',
   'public-rehearsals',
+  'self-rehearsals',
   'auto',
   'off',
 ] as const;

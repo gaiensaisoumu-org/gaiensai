@@ -47,6 +47,7 @@ type TicketTypeControlValue =
   | 'only-own'
   | 'outside-own-self-only'
   | 'public-rehearsals'
+  | 'self-rehearsals'
   | 'auto'
   | 'off';
 
@@ -155,6 +156,7 @@ const isTicketTypeControlValue = (
   value === 'only-own' ||
   value === 'outside-own-self-only' ||
   value === 'public-rehearsals' ||
+  value === 'self-rehearsals' ||
   value === 'auto' ||
   value === 'off';
 
@@ -1890,6 +1892,7 @@ const SettingsContent = () => {
               >
                 <option value='open'>すべて</option>
                 <option value='public-rehearsals'>公開リハーサルのみ</option>
+                <option value='self-rehearsals'>自主リハーサルのみ</option>
                 <option value='off'>無効</option>
               </select>
             </div>

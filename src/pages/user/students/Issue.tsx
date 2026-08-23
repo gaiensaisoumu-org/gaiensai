@@ -141,7 +141,8 @@ const Issue = () => {
   const [ticketTypes, setTicketTypes] = useState<TicketTypeOption[]>([]);
   const [issueControls, setIssueControls] = useState<{
     class_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
-    rehearsal_invite_mode: 'open' | 'only-own' | 'off';
+    rehearsal_invite_mode:
+      'open' | 'only-own' | 'public-rehearsals' | 'self-rehearsals' | 'off';
     gym_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
     entry_only_mode: 'open' | 'only-own' | 'off';
   } | null>(null);
@@ -398,7 +399,12 @@ const Issue = () => {
             controls?: {
               class_invite_mode:
                 'open' | 'only-own' | 'outside-own-self-only' | 'off';
-              rehearsal_invite_mode: 'open' | 'only-own' | 'off';
+              rehearsal_invite_mode:
+                | 'open'
+                | 'only-own'
+                | 'public-rehearsals'
+                | 'self-rehearsals'
+                | 'off';
               gym_invite_mode:
                 'open' | 'only-own' | 'outside-own-self-only' | 'off';
               entry_only_mode: 'open' | 'only-own' | 'off';

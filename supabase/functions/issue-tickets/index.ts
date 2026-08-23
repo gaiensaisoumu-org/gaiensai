@@ -41,6 +41,7 @@ type TicketIssueMode =
   | 'only-own'
   | 'outside-own-self-only'
   | 'public-rehearsals'
+  | 'self-rehearsals'
   | 'auto'
   | 'off';
 
@@ -62,6 +63,7 @@ const TICKET_ISSUE_MODE_VALUES = new Set<string>([
   'only-own',
   'outside-own-self-only',
   'public-rehearsals',
+  'self-rehearsals',
   'auto',
   'off',
 ]);
@@ -777,7 +779,10 @@ export const handleIssueTicketsRequest = async (
       if (ticketIssueControls.rehearsalInvite === 'off') {
         throw new HttpError(409, 'リハーサル招待券の受付は停止中です。');
       }
-      if (ticketIssueControls.rehearsalInvite === 'public-rehearsals') {
+      if (
+        ticketIssueControls.rehearsalInvite === 'public-rehearsals' ||
+        ticketIssueControls.rehearsalInvite === 'self-rehearsals'
+      ) {
         const { data: rehearsalRow, error: rehearsalError } = await adminClient
           .from('rehearsals')
           .select('id')
@@ -796,7 +801,9 @@ export const handleIssueTicketsRequest = async (
         if (!rehearsalRow) {
           throw new HttpError(
             403,
-            'この設定では公開リハーサルのみ発券できます。',
+            ticketIssueControls.rehearsalInvite === 'self-rehearsals'
+              ? 'この設定では自主リハーサルのみ発券できます。'
+              : 'この設定では公開リハーサルのみ発券できます。',
           );
         }
       }
