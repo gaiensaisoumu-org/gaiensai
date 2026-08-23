@@ -107,12 +107,12 @@ const userHtml = `<!doctype html>
   <!--
     - 外苑祭チケットシステム
     - Web Site: ${baseUrl}/
-    - Git Repository: https://github.com/Rio-Gunawan/gaiensai
+    - Git Repository: https://github.com/gaiensaisumu-org/gaiensai
 
     - Copyright (c) 2026 Rio Gunawan(aoym 79th)
     -  and Gaiensai Festival General Affairs Committee, Tokyo Metropolitan Aoyama High School
     - Released under the MIT license.
-    - See https://github.com/Rio-Gunawan/gaiensai/blob/main/LICENSE
+    - See https://github.com/gaiensaisoumu-org/gaiensai/blob/main/LICENSE
   -->
 
   <meta charset="UTF-8" />

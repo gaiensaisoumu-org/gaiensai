@@ -856,7 +856,7 @@ const FAQ = () => {
         <>
           このサイトのソースコードはMITライセンスで公開されており、誰でも自由に使用、改変、配布することができます。使用の際に事前連絡は不要です。詳細は
           <a
-            href='https://github.com/gaiensaisoumu/gaiensai'
+            href='https://github.com/gaiensaisoumu-org/gaiensai'
             target='_blank'
             rel='noopener noreferrer'
           >
