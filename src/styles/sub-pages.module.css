@@ -114,6 +114,57 @@
   box-sizing: border-box;
 }
 
+.faqItem {
+  border-bottom: 1px solid var(--table-border-color);
+}
+
+.faqItem summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 0.5rem;
+  cursor: pointer;
+  font-weight: 700;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqToggleIcon {
+  display: grid;
+  flex: 0 0 auto;
+  color: var(--link-text-color);
+  font-size: 1.25rem;
+}
+
+.faqToggleIcon svg {
+  grid-area: 1 / 1;
+}
+
+.faqAngleUp,
+.faqItem[open] .faqAngleDown {
+  display: none;
+}
+
+.faqItem[open] .faqAngleUp {
+  display: block;
+}
+
+.faqAnswer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  padding: 0 0.5rem 1rem;
+  line-height: 1.65;
+}
+
+.faqAnswer > div > :first-child {
+  margin-top: 0;
+}
+
 .removeButton {
   background: transparent;
   color: var(--error-text-color);

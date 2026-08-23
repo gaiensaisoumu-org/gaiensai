@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { FaAngleDown, FaAngleUp } from 'react-icons/fa6';
 import NormalSection from '../../components/ui/NormalSection';
 import { useEventConfig } from '../../hooks/useEventConfig';
 import { useTitle } from '../../hooks/useTitle';
@@ -944,10 +945,19 @@ const FAQ = () => {
         <NormalSection key={category}>
           <h2>{category}</h2>
           {items.map((item, index) => (
-            <div key={`${category}-${index}`}>
-              <h3>Q. {item.question}</h3>
-              <p>{getAnswer(item)}</p>
-            </div>
+            <details className={styles.faqItem} key={`${category}-${index}`}>
+              <summary>
+                <span>Q. {item.question}</span>
+                <span className={styles.faqToggleIcon} aria-hidden='true'>
+                  <FaAngleDown className={styles.faqAngleDown} />
+                  <FaAngleUp className={styles.faqAngleUp} />
+                </span>
+              </summary>
+              <div className={styles.faqAnswer}>
+                <strong>A.</strong>
+                <div>{getAnswer(item)}</div>
+              </div>
+            </details>
           ))}
         </NormalSection>
       ))}
