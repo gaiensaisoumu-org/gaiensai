@@ -320,7 +320,7 @@ const Home = () => {
             onMouseEnter={() => preload(Performances)}
           >
             <PiMicrophoneStageFill />
-            公演一覧
+            演目一覧
           </a>
           <a href='/timetable' className={styles.buttonLink}>
             <GrSchedulePlay />

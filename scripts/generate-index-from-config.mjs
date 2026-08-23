@@ -84,7 +84,7 @@ const operatingOrganization = String(
 const catchCopy = String(parsed.catchCopy ?? '熱狂が、幕を開ける。').trim();
 const metaDescription = String(
   parsed.meta_description ??
-    `${school}${eventName}公式サイト。このサイトでは、${eventName}について知り、公演一覧やタイムスケジュールを見ることができます。また、もらった招待券を表示したり、青高生は招待券を発行することもできます。`,
+  `${school}${eventName}公式サイト。このサイトでは、${eventName}について知り、演目一覧やタイムスケジュールを見ることができます。また、もらった招待券を表示したり、青高生は招待券を発行することもできます。`,
 ).trim();
 
 if (!siteUrl) {
@@ -141,8 +141,8 @@ const userHtml = `<!doctype html>
   <meta property="og:description" content="${escapeHtml(metaDescription)}" />
   <meta property="og:locale" content="ja_JP" />
   <meta name="keywords" content="${escapeHtml(
-    `${eventName},${school},文化祭,高校,${catchCopy}`,
-  )}" />
+  `${eventName},${school},文化祭,高校,${catchCopy}`,
+)}" />
   <script type="module" src="/src/main.tsx"></script>
 </head>
 

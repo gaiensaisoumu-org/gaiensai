@@ -27,7 +27,7 @@ const Availability = () => {
       </p>
       <nav className={styles.pageNavigation} aria-label='関連ページ'>
         <a className={styles.openButton} href='/performances'>
-          公演一覧を見る
+          演目一覧を見る
         </a>
         <a className={styles.openButton} href='/timetable'>
           タイムテーブルを見る
@@ -68,9 +68,7 @@ const Availability = () => {
             aria-modal='true'
             aria-labelledby='availability-mode-title'
           >
-            <h2 id='availability-mode-title'>
-              どの枠の空き状況を見ますか？
-            </h2>
+            <h2 id='availability-mode-title'>どの枠の空き状況を見ますか？</h2>
             <div className={pageStyles.modeModalActions}>
               <button
                 type='button'

@@ -294,8 +294,8 @@ const FAQ_DATA: FAQItem[] = [
   {
     category: '電子チケットの使い方(青高生用)',
     question: '各クラスの公演で、何を上演するのかや、時間を知りたいです。',
-    answer: '公演一覧やタイムテーブルをご覧ください。',
-    searchText: '公演一覧やタイムテーブルをご覧ください。',
+    answer: '演目一覧やタイムテーブルをご覧ください。',
+    searchText: '演目一覧やタイムテーブルをご覧ください。',
   },
   {
     category: '電子チケットの使い方(青高生用)',
@@ -456,7 +456,7 @@ const FAQ_DATA: FAQItem[] = [
   {
     category: '中学生の方へ',
     question: '各クラスの公演で、何を上演するのかや、時間を知りたいです。',
-    answer: '公演一覧やタイムテーブルをご覧ください。',
+    answer: '演目一覧やタイムテーブルをご覧ください。',
   },
   {
     category: '中学生の方へ',
@@ -773,7 +773,7 @@ const FAQ = () => {
     ) {
       return (
         <>
-          <a href='/performances'>公演一覧</a>や
+          <a href='/performances'>演目一覧</a>や
           <a href='/timetable'>タイムテーブル</a>をご覧ください。
         </>
       );

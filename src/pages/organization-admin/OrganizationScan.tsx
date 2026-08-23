@@ -209,7 +209,7 @@ const OrganizationScan = ({
   const entryTarget = activeAutoSlot?.target ?? selection;
 
   useEffect(() => {
-    // 受付中は時刻更新で公演一覧が再計算されても、準備中へ戻さない。
+    // 受付中は時刻更新で演目一覧が再計算されても、準備中へ戻さない。
     if (!isAutoMode || isAutoScanning) {
       return;
     }

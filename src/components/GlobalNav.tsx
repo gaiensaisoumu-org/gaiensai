@@ -38,7 +38,7 @@ const GlobalNav = () => {
         </li>
         <li>
           <a href='/performances' onMouseEnter={() => preload(Performances)}>
-            公演一覧
+            演目一覧
           </a>
         </li>
         <li>

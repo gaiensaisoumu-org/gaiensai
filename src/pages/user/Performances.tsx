@@ -148,7 +148,7 @@ const Performances = () => {
   useEffect(() => {
     window.localStorage.setItem('performances.clubSortMode', clubSortMode);
   }, [clubSortMode]);
-  useTitle('公演一覧');
+  useTitle('演目一覧');
   const classData = useMemo(() => snapshot.performances ?? [], []);
   const gymData = useMemo(() => {
     // 【重複除去ロジック】
@@ -275,7 +275,7 @@ const Performances = () => {
   return (
     <>
       <Modal2 />
-      <h1 className={baseStyles.pageTitle}>公演一覧</h1>
+      <h1 className={baseStyles.pageTitle}>演目一覧</h1>
       <nav className={baseStyles.pageNavigation} aria-label='関連ページ'>
         <a className={baseStyles.openButton} href='/availability'>
           公演空き状況を見る
@@ -417,9 +417,7 @@ const Performances = () => {
                   <DescriptionPreview
                     description={perf.description || '説明はありません。'}
                     href={`/performances/class/${perf.id}`}
-                    onNavigate={() =>
-                      savePerformanceListScrollPosition()
-                    }
+                    onNavigate={() => savePerformanceListScrollPosition()}
                   />
 
                   <div className={styles.footer}>
@@ -531,9 +529,7 @@ const Performances = () => {
                   <DescriptionPreview
                     description={perf.description || '公演説明はありません。'}
                     href={`/performances/gym/${perf.id}`}
-                    onNavigate={() =>
-                      savePerformanceListScrollPosition()
-                    }
+                    onNavigate={() => savePerformanceListScrollPosition()}
                   />
 
                   <div className={styles.footer}>
@@ -626,9 +622,7 @@ const Performances = () => {
                   <DescriptionPreview
                     description={club.description || '展示説明はありません。'}
                     href={`/performances/club/${club.id}`}
-                    onNavigate={() =>
-                      savePerformanceListScrollPosition()
-                    }
+                    onNavigate={() => savePerformanceListScrollPosition()}
                   />
                 </div>
               </NormalSection>

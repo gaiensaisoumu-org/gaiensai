@@ -58,7 +58,7 @@ const TimeTable = () => {
       <h1 className={styles.pageTitle}>タイムテーブル</h1>
       <nav className={styles.pageNavigation} aria-label='関連ページ'>
         <a className={styles.openButton} href='/performances'>
-          公演一覧を見る
+          演目一覧を見る
         </a>
         <a className={styles.openButton} href='/availability'>
           公演空き状況を見る
