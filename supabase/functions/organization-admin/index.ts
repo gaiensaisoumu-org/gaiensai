@@ -69,7 +69,10 @@ const externalLinks = (value: unknown) => {
       }
       return parsed.toString();
     } catch {
-      throw new HttpError(400, `${name}はhttp:// または https:// で入力してください。`);
+      throw new HttpError(
+        400,
+        `${name}はhttp:// または https:// で入力してください。`,
+      );
     }
   };
   if (!Array.isArray(raw.others) || raw.others.length > 3) {
@@ -79,7 +82,9 @@ const externalLinks = (value: unknown) => {
     instagram: url(raw.instagram, 'Instagram'),
     x: url(raw.x, 'X'),
     tiktok: url(raw.tiktok, 'TikTok'),
-    others: raw.others.map((item) => url(item, 'その他のリンク')).filter(Boolean),
+    others: raw.others
+      .map((item) => url(item, 'その他のリンク'))
+      .filter(Boolean),
   };
 };
 
@@ -166,7 +171,9 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
   if (admin.exhibition_club_id) {
     const { data, error } = await client
       .from('exhibition_clubs')
-      .select('id, group_name, description, image_path, gallery_paths, external_links, location')
+      .select(
+        'id, group_name, description, image_path, gallery_paths, external_links, location',
+      )
       .eq('id', admin.exhibition_club_id)
       .maybeSingle();
     if (error) {
@@ -412,7 +419,24 @@ Deno.serve(async (req) => {
       if (error) {
         throw error;
       }
-      const issuedPeople = (ticketLinks ?? []).reduce((total, link) => {
+      const { data: rehearsalTicketType, error: rehearsalTicketTypeError } =
+        own.kind === 'class'
+          ? await client
+              .from('ticket_types')
+              .select('id')
+              .eq('name', 'クラス公演(リハーサル)')
+              .maybeSingle()
+          : { data: null, error: null };
+      if (rehearsalTicketTypeError) throw rehearsalTicketTypeError;
+      const dailyTicketLinks =
+        own.kind === 'class'
+          ? (ticketLinks ?? []).filter(
+              (link) =>
+                (link.tickets as { ticket_type?: number } | null)
+                  ?.ticket_type !== rehearsalTicketType?.id,
+            )
+          : (ticketLinks ?? []);
+      const performanceIssuedPeople = dailyTicketLinks.reduce((total, link) => {
         const ticket = (link as { tickets?: { person_count?: unknown } })
           .tickets;
         const personCount = Number(ticket?.person_count ?? 0);
@@ -440,7 +464,7 @@ Deno.serve(async (req) => {
         ),
       );
       const targetCountByIssuer = new Map<string, number>();
-      for (const link of ticketLinks ?? []) {
+      for (const link of dailyTicketLinks) {
         const ticket = (
           link as {
             tickets?: { issued_by_user_id?: string };
@@ -534,7 +558,7 @@ Deno.serve(async (req) => {
             status: {
               ...status,
               performanceCapacity: {
-                completed: issuedPeople,
+                completed: performanceIssuedPeople,
                 total: own.performances.reduce(
                   (total, performance) =>
                     total + Number(performance.capacity ?? 0),
@@ -573,13 +597,6 @@ Deno.serve(async (req) => {
         .eq('type', 'unofficial')
         .order('start_time');
       if (rehearsalError) throw rehearsalError;
-      const { data: rehearsalTicketType, error: rehearsalTicketTypeError } =
-        await client
-          .from('ticket_types')
-          .select('id')
-          .eq('name', 'クラス公演(リハーサル)')
-          .maybeSingle();
-      if (rehearsalTicketTypeError) throw rehearsalTicketTypeError;
       const rehearsalRoundNames = new Map(
         (rehearsals ?? []).map((rehearsal) => [
           rehearsal.round_id,
@@ -600,7 +617,7 @@ Deno.serve(async (req) => {
           status: {
             ...status,
             performanceCapacity: {
-              completed: issuedPeople,
+              completed: performanceIssuedPeople,
               total:
                 Number(own.performance.total_capacity ?? 0) *
                 (schedules ?? []).length,
@@ -692,13 +709,13 @@ Deno.serve(async (req) => {
         const title = text(body.title, '公演タイトル', 200);
         const { error } = await client
           .from('class_performances')
-        .update({
-          title,
-          description,
-          external_links: links,
-          is_accepting: isAccepting,
-          year,
-        })
+          .update({
+            title,
+            description,
+            external_links: links,
+            is_accepting: isAccepting,
+            year,
+          })
           .eq('id', own.performance.id);
         if (error) {
           throw error;
@@ -1045,7 +1062,10 @@ Deno.serve(async (req) => {
       const contentType = body.contentType;
       const base64 = body.base64;
       if (contentType !== 'image/webp') {
-        throw new HttpError(400, 'ギャラリー画像はWebP形式でアップロードしてください。');
+        throw new HttpError(
+          400,
+          'ギャラリー画像はWebP形式でアップロードしてください。',
+        );
       }
       if (typeof base64 !== 'string' || base64.length === 0) {
         throw new HttpError(400, '画像データが不正です。');
@@ -1089,7 +1109,10 @@ Deno.serve(async (req) => {
         .update({ gallery_paths: [...paths, path], year });
       const { error: updateError } =
         own.kind === 'gym'
-          ? await update.in('id', own.performances.map((performance) => performance.id))
+          ? await update.in(
+              'id',
+              own.performances.map((performance) => performance.id),
+            )
           : await update.eq('id', own.performance.id);
       if (updateError) {
         throw updateError;
@@ -1119,10 +1142,15 @@ Deno.serve(async (req) => {
               ? 'gym_performances'
               : 'exhibition_clubs',
         )
-        .update({ gallery_paths: paths.filter((path) => path !== galleryPath) });
+        .update({
+          gallery_paths: paths.filter((path) => path !== galleryPath),
+        });
       const { error: updateError } =
         own.kind === 'gym'
-          ? await update.in('id', own.performances.map((performance) => performance.id))
+          ? await update.in(
+              'id',
+              own.performances.map((performance) => performance.id),
+            )
           : await update.eq('id', own.performance.id);
       if (updateError) {
         throw updateError;

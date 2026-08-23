@@ -98,9 +98,12 @@ const exportRosterXlsx = async (
   generalCapacity: number,
   namesByAffiliation: NameDirectory,
 ) => {
+  const nonRehearsalTickets = tickets.filter(
+    (ticket) => ticket.is_rehearsal !== true,
+  );
   const performances = [
     ...rounds,
-    ...tickets
+    ...nonRehearsalTickets
       .filter((ticket) => !rounds.some((round) => round.id === ticket.round_id))
       .map((ticket) => ({
         id: ticket.round_id ?? -1,
@@ -118,7 +121,7 @@ const exportRosterXlsx = async (
       {
         name: organizationName,
         rounds: performances,
-        tickets: tickets.map((ticket) => ({
+        tickets: nonRehearsalTickets.map((ticket) => ({
           affiliation: ticket.tickets.users?.affiliation ?? null,
           name:
             namesByAffiliation[
@@ -1501,11 +1504,23 @@ const OrganizationAdmin = () => {
               JPEG・PNG・WebPは横幅600pxのWebPに変換してアップロードします。変換後は5MB以下です。
             </p>
           </div>
+          {messageScope === 'image' && error && (
+            <Alert type='error'>{error}</Alert>
+          )}
+          {messageScope === 'image' && notice && (
+            <Alert type='info'>{notice}</Alert>
+          )}
+        </NormalSection>
+        <NormalSection>
+          <h2>ギャラリー画像追加</h2>
           <div className={styles.gallerySettings}>
-            <h3>ギャラリー</h3>
             <p className={styles.imageHint}>
               準備や練習中の風景、ビラの画像など、好きな画像を自由に追加することができます。
             </p>
+
+            <Alert>
+              画像は誰でも見れるようになるので、肖像権等に十分ご注意ください。
+            </Alert>
             {galleryPaths.length > 0 && (
               <div className={styles.galleryPreview}>
                 {galleryPaths.map((path) => (
@@ -1529,9 +1544,6 @@ const OrganizationAdmin = () => {
                 ))}
               </div>
             )}
-            <Alert>
-              画像は誰でも見れるようになるので、肖像権等に十分ご注意ください。
-            </Alert>
             <label className={styles.imageUploadLabel}>
               {isUploadingImage ? 'アップロード中...' : 'ギャラリー画像を追加'}
               <input
@@ -1546,12 +1558,6 @@ const OrganizationAdmin = () => {
               最大20枚。画像は横幅600pxのWebPに自動圧縮されます。 動画非対応。
             </p>
           </div>
-          {messageScope === 'image' && error && (
-            <Alert type='error'>{error}</Alert>
-          )}
-          {messageScope === 'image' && notice && (
-            <Alert type='info'>{notice}</Alert>
-          )}
         </NormalSection>
         {dashboard.kind !== 'exhibition' && (
           <>

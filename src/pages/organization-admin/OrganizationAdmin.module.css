@@ -311,8 +311,6 @@
   max-width: 640px;
   margin: 1.5rem auto 0;
   gap: 0.75rem;
-  border-top: 1px solid var(--settings-border-color);
-  padding-top: 1rem;
 }
 
 .gallerySettings h3 {
