@@ -8,3 +8,43 @@
   font-size: 0.9rem;
   line-height: 1.6;
 }
+
+.modeModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.modeModal {
+  width: min(90%, 420px);
+  border-radius: 12px;
+  padding: 1.2rem;
+  background: var(--main-bg-color);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modeModal h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.modeModalActions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.modeModalActions button {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem;
+  background: var(--primary-color);
+  color: #fff;
+  font: inherit;
+}

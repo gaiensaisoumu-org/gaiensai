@@ -571,8 +571,8 @@ const PerformancesTable = ({
                   )
                 }
               >
-                <option value='general'>一般のみ</option>
-                <option value='total'>一般＋ジュニア</option>
+                <option value='general'>招待券枠のみ</option>
+                <option value='total'>招待券枠＋中学生枠</option>
               </select>
             </label>
           )}
@@ -638,9 +638,9 @@ const PerformancesTable = ({
                 )
               }
             >
-              <option value='general'>一般のみ</option>
+              <option value='general'>招待券枠のみ</option>
               <option value='junior'>中学生のみ</option>
-              <option value='total'>一般＋中学生</option>
+              <option value='total'>招待券枠＋中学生枠</option>
             </select>
           </label>
         )}
