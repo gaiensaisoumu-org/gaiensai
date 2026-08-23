@@ -1,4 +1,4 @@
-const PERFORMANCE_IMAGE_WIDTH = 560;
+const PERFORMANCE_IMAGE_WIDTH = 600;
 const WEBP_QUALITY = 0.8;
 
 const loadImage = (file: File) =>
@@ -32,11 +32,11 @@ const canvasToWebp = (canvas: HTMLCanvasElement) =>
   });
 
 export const preparePerformanceImage = async (file: File): Promise<File> => {
-  if (file.type === 'image/webp') {
-    return file;
-  }
-
-  if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+  if (
+    file.type !== 'image/jpeg' &&
+    file.type !== 'image/png' &&
+    file.type !== 'image/webp'
+  ) {
     throw new Error('JPEG・PNG・WebP形式の画像を選択してください。');
   }
 

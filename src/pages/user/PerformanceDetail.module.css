@@ -35,6 +35,44 @@
   line-height: 1.65;
 }
 
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.gallery img {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  border-radius: 0.5rem;
+  object-fit: contain;
+}
+
+.externalLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.externalLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--table-border-color);
+  border-radius: 999px;
+  color: var(--link-text-color);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.externalLinks svg {
+  font-size: 1.2rem;
+}
+
 .mapLink {
   color: var(--link-text-color);
 }

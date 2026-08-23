@@ -46,6 +46,43 @@ const text = (value: unknown, name: string, max = 2000) => {
   return normalized;
 };
 
+const externalLinks = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new HttpError(400, '外部リンクが不正です。');
+  }
+  const raw = value as Record<string, unknown>;
+  const url = (item: unknown, name: string) => {
+    if (typeof item !== 'string') {
+      throw new HttpError(400, `${name}のURLが不正です。`);
+    }
+    const normalized = item.trim();
+    if (!normalized) {
+      return '';
+    }
+    if (normalized.length > 2000) {
+      throw new HttpError(400, `${name}のURLが長すぎます。`);
+    }
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        throw new Error();
+      }
+      return parsed.toString();
+    } catch {
+      throw new HttpError(400, `${name}はhttp:// または https:// で入力してください。`);
+    }
+  };
+  if (!Array.isArray(raw.others) || raw.others.length > 3) {
+    throw new HttpError(400, 'その他のリンクは3件までです。');
+  }
+  return {
+    instagram: url(raw.instagram, 'Instagram'),
+    x: url(raw.x, 'X'),
+    tiktok: url(raw.tiktok, 'TikTok'),
+    others: raw.others.map((item) => url(item, 'その他のリンク')).filter(Boolean),
+  };
+};
+
 const eventYear = async (client: SupabaseClient) => {
   const { data, error } = await client
     .from('configs')
@@ -114,7 +151,7 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
     const { data, error } = await client
       .from('class_performances')
       .select(
-        'id, class_name, title, description, image_path, is_accepting, total_capacity, junior_capacity, max_tickets_per_user',
+        'id, class_name, title, description, image_path, gallery_paths, external_links, is_accepting, total_capacity, junior_capacity, max_tickets_per_user',
       )
       .eq('id', admin.class_performance_id)
       .maybeSingle();
@@ -129,7 +166,7 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
   if (admin.exhibition_club_id) {
     const { data, error } = await client
       .from('exhibition_clubs')
-      .select('id, group_name, description, image_path, location')
+      .select('id, group_name, description, image_path, gallery_paths, external_links, location')
       .eq('id', admin.exhibition_club_id)
       .maybeSingle();
     if (error) {
@@ -143,7 +180,7 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
   const { data, error } = await client
     .from('gym_performances')
     .select(
-      'id, group_name, round_name, description, image_path, start_at, end_at, is_accepting, capacity, junior_capacity',
+      'id, group_name, round_name, description, image_path, gallery_paths, external_links, start_at, end_at, is_accepting, capacity, junior_capacity',
     )
     .eq('id', admin.gym_performance_id)
     .maybeSingle();
@@ -156,7 +193,7 @@ const ownPerformance = async (client: SupabaseClient, admin: Admin) => {
   const { data: groupPerformances, error: groupError } = await client
     .from('gym_performances')
     .select(
-      'id, group_name, round_name, description, image_path, start_at, end_at, is_accepting, capacity, junior_capacity',
+      'id, group_name, round_name, description, image_path, gallery_paths, external_links, start_at, end_at, is_accepting, capacity, junior_capacity',
     )
     .eq('group_name', data.group_name)
     .order('start_at');
@@ -628,6 +665,7 @@ Deno.serve(async (req) => {
     if (action === 'updatePerformance') {
       const own = await ownPerformance(client, admin);
       const description = text(body.description, '公演説明');
+      const links = externalLinks(body.externalLinks);
       const year = await eventYear(client);
       if (own.kind === 'exhibition') {
         const location = text(body.location, '場所', 200);
@@ -636,6 +674,7 @@ Deno.serve(async (req) => {
           .update({
             description,
             location,
+            external_links: links,
             year,
             updated_at: new Date().toISOString(),
           })
@@ -653,7 +692,13 @@ Deno.serve(async (req) => {
         const title = text(body.title, '公演タイトル', 200);
         const { error } = await client
           .from('class_performances')
-          .update({ title, description, is_accepting: isAccepting, year })
+        .update({
+          title,
+          description,
+          external_links: links,
+          is_accepting: isAccepting,
+          year,
+        })
           .eq('id', own.performance.id);
         if (error) {
           throw error;
@@ -662,7 +707,12 @@ Deno.serve(async (req) => {
         if (!Array.isArray(body.scheduleTimes)) {
           const { error } = await client
             .from('gym_performances')
-            .update({ description, is_accepting: isAccepting, year })
+            .update({
+              description,
+              external_links: links,
+              is_accepting: isAccepting,
+              year,
+            })
             .in(
               'id',
               own.performances.map((performance) => performance.id),
@@ -725,6 +775,7 @@ Deno.serve(async (req) => {
               .from('gym_performances')
               .update({
                 description,
+                external_links: links,
                 is_accepting: isAccepting,
                 year,
                 start_at: schedule.startAt,
@@ -987,6 +1038,102 @@ Deno.serve(async (req) => {
         throw updateError;
       }
       return json({ updated: true, imagePath: path }, corsHeaders);
+    }
+
+    if (action === 'uploadGalleryImage') {
+      const own = await ownPerformance(client, admin);
+      const contentType = body.contentType;
+      const base64 = body.base64;
+      if (contentType !== 'image/webp') {
+        throw new HttpError(400, 'ギャラリー画像はWebP形式でアップロードしてください。');
+      }
+      if (typeof base64 !== 'string' || base64.length === 0) {
+        throw new HttpError(400, '画像データが不正です。');
+      }
+      if (base64.length > 7_000_000) {
+        throw new HttpError(400, '画像ファイルは5MB以下にしてください。');
+      }
+      const bytes = Uint8Array.from(atob(base64), (character) =>
+        character.charCodeAt(0),
+      );
+      if (bytes.byteLength > 5 * 1024 * 1024) {
+        throw new HttpError(400, '画像ファイルは5MB以下にしてください。');
+      }
+      const paths = Array.isArray(own.performance.gallery_paths)
+        ? own.performance.gallery_paths.filter(
+            (path): path is string => typeof path === 'string',
+          )
+        : [];
+      if (paths.length >= 20) {
+        throw new HttpError(400, 'ギャラリー画像は20枚までです。');
+      }
+      const path = `organization/gallery/${own.kind}-${own.performance.id}-${crypto.randomUUID()}.webp`;
+      const { error: uploadError } = await client.storage
+        .from('performance-images')
+        .upload(path, bytes, {
+          contentType: 'image/webp',
+          cacheControl: '3600',
+        });
+      if (uploadError) {
+        throw uploadError;
+      }
+      const year = await eventYear(client);
+      const update = client
+        .from(
+          own.kind === 'class'
+            ? 'class_performances'
+            : own.kind === 'gym'
+              ? 'gym_performances'
+              : 'exhibition_clubs',
+        )
+        .update({ gallery_paths: [...paths, path], year });
+      const { error: updateError } =
+        own.kind === 'gym'
+          ? await update.in('id', own.performances.map((performance) => performance.id))
+          : await update.eq('id', own.performance.id);
+      if (updateError) {
+        throw updateError;
+      }
+      return json({ updated: true, galleryPath: path }, corsHeaders);
+    }
+
+    if (action === 'deleteGalleryImage') {
+      const own = await ownPerformance(client, admin);
+      const galleryPath = body.galleryPath;
+      if (typeof galleryPath !== 'string') {
+        throw new HttpError(400, '削除する画像が不正です。');
+      }
+      const paths = Array.isArray(own.performance.gallery_paths)
+        ? own.performance.gallery_paths.filter(
+            (path): path is string => typeof path === 'string',
+          )
+        : [];
+      if (!paths.includes(galleryPath)) {
+        throw new HttpError(404, 'ギャラリー画像が見つかりません。');
+      }
+      const update = client
+        .from(
+          own.kind === 'class'
+            ? 'class_performances'
+            : own.kind === 'gym'
+              ? 'gym_performances'
+              : 'exhibition_clubs',
+        )
+        .update({ gallery_paths: paths.filter((path) => path !== galleryPath) });
+      const { error: updateError } =
+        own.kind === 'gym'
+          ? await update.in('id', own.performances.map((performance) => performance.id))
+          : await update.eq('id', own.performance.id);
+      if (updateError) {
+        throw updateError;
+      }
+      const { error: removeError } = await client.storage
+        .from('performance-images')
+        .remove([galleryPath]);
+      if (removeError) {
+        throw removeError;
+      }
+      return json({ updated: true }, corsHeaders);
     }
 
     if (action === 'changePassword') {

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
-import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from 'react-icons/ri';
+import {
+  RiCircleLine,
+  RiCloseLargeLine,
+  RiInstagramLine,
+  RiTiktokFill,
+  RiTriangleLine,
+  RiTwitterXFill,
+} from 'react-icons/ri';
+import { IoMdLink } from 'react-icons/io';
 import performancesSnapshot from '../../generated/performances-static.json';
 import BackButton from '../../components/ui/BackButton';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -27,6 +35,8 @@ type ClassPerformance = {
   title: string | null;
   description: string | null;
   image_path: string | null;
+  gallery_paths?: string[] | null;
+  external_links?: ExternalLinks | null;
   like?: number;
   total_capacity: number | null;
   junior_capacity: number | null;
@@ -41,6 +51,8 @@ type GymPerformance = {
   junior_capacity: number | null;
   description: string | null;
   image_path: string | null;
+  gallery_paths?: string[] | null;
+  external_links?: ExternalLinks | null;
   like?: number;
 };
 type ExhibitionClub = {
@@ -48,8 +60,16 @@ type ExhibitionClub = {
   group_name: string;
   description: string | null;
   image_path: string | null;
+  gallery_paths?: string[] | null;
+  external_links?: ExternalLinks | null;
   like?: number;
   location?: string | null;
+};
+type ExternalLinks = {
+  instagram?: string;
+  x?: string;
+  tiktok?: string;
+  others?: string[];
 };
 type Schedule = { id: number; round_name: string; start_at?: string | null };
 type Counter = {
@@ -88,6 +108,22 @@ const formatDay = (date: Date) =>
     day: 'numeric',
     weekday: 'short',
   }).format(date);
+
+const socialAccountName = (href: string) => {
+  try {
+    const url = new URL(href);
+    const segments = url.pathname.split('/').filter(Boolean);
+    const account =
+      segments.find((segment) => segment.startsWith('@')) ?? segments[0];
+    if (account) {
+      const decoded = decodeURIComponent(account);
+      return decoded.startsWith('@') ? decoded : `@${decoded}`;
+    }
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return href;
+  }
+};
 
 const PerformanceDetail = ({
   type,
@@ -310,6 +346,27 @@ const PerformanceDetail = ({
               acceptance?.get(`gym:${performance.id}`) === true,
           )
         : null;
+  const galleryPaths = Array.isArray(details.gallery_paths)
+    ? details.gallery_paths.filter(
+        (path): path is string => typeof path === 'string',
+      )
+    : [];
+  const externalLinks = details.external_links ?? {};
+  const socialLinks = [
+    { key: 'instagram', label: 'Instagram', icon: <RiInstagramLine /> },
+    { key: 'x', label: 'X', icon: <RiTwitterXFill /> },
+    { key: 'tiktok', label: 'TikTok', icon: <RiTiktokFill /> },
+  ].flatMap(({ key, label, icon }) => {
+    const href = externalLinks[key as keyof ExternalLinks];
+    return typeof href === 'string' && href
+      ? [{ href, label, account: socialAccountName(href), icon }]
+      : [];
+  });
+  const otherLinks = Array.isArray(externalLinks.others)
+    ? externalLinks.others.filter(
+        (href): href is string => typeof href === 'string',
+      )
+    : [];
   return (
     <>
       <BackButton href='/performances' />
@@ -359,6 +416,52 @@ const PerformanceDetail = ({
               ? '説明はありません。'
               : '公演説明はありません。')}
         </p>
+
+        {(socialLinks.length > 0 || otherLinks.length > 0) && (
+          <>
+            <h2 className={baseStyles.linedH2}>外部リンク</h2>
+            <nav className={styles.externalLinks} aria-label='外部リンク'>
+              {socialLinks.map(({ href, label, account, icon }) => (
+                <a
+                  key={href}
+                  href={href}
+                  target='_blank'
+                  rel='noreferrer'
+                  aria-label={label}
+                >
+                  {icon}
+                  <span>{account}</span>
+                </a>
+              ))}
+              {otherLinks.map((href, index) => (
+                <a
+                  key={href}
+                  href={href}
+                  target='_blank'
+                  rel='noreferrer'
+                  aria-label={`その他のリンク ${index + 1}`}
+                >
+                  <IoMdLink />
+                  <span>{href}</span>
+                </a>
+              ))}
+            </nav>
+          </>
+        )}
+        {galleryPaths.length > 0 && (
+          <>
+            <h2 className={baseStyles.linedH2}>ギャラリー</h2>
+            <div className={styles.gallery} aria-label='ギャラリー'>
+              {galleryPaths.map((path, index) => (
+                <img
+                  key={path}
+                  src={getPerformanceImageUrl(path, snapshot.generatedAt)}
+                  alt={`${classDetails?.title || gymDetails?.group_name || clubDetails?.group_name || '公演'}のギャラリー画像 ${index + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </section>
       {clubDetails ? (
         <section className={styles.detail}>

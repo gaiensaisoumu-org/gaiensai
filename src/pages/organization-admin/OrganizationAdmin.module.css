@@ -158,6 +158,20 @@
   font-weight: 600;
 }
 
+.externalLinksForm {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--settings-border-color);
+  border-radius: 8px;
+}
+
+.externalLinksForm legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+}
+
 .scheduleTimeRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(2, minmax(150px, 1fr));
@@ -290,6 +304,51 @@
   margin: 0;
   color: var(--sub-text-color);
   font-size: 0.85rem;
+}
+
+.gallerySettings {
+  display: grid;
+  max-width: 640px;
+  margin: 1.5rem auto 0;
+  gap: 0.75rem;
+  border-top: 1px solid var(--settings-border-color);
+  padding-top: 1rem;
+}
+
+.gallerySettings h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.galleryPreview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.galleryPreview figure {
+  display: grid;
+  margin: 0;
+  gap: 0.4rem;
+}
+
+.galleryPreview img {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--settings-border-color);
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.galleryDelete {
+  padding: 0.35rem;
+  border: 1px solid var(--settings-border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--main-text-color);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
 .inlineEditButton {

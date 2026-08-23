@@ -54,6 +54,12 @@ type GymScheduleDraft = {
   startAt: string;
   endAt: string;
 };
+type ExternalLinksDraft = {
+  instagram: string;
+  x: string;
+  tiktok: string;
+  others: [string, string, string];
+};
 type Rehearsal = {
   id: number;
   round_id: number;
@@ -235,6 +241,22 @@ const toDateTimeLocal = (value: unknown) => {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
 };
 
+const externalLinksDraft = (value: unknown): ExternalLinksDraft => {
+  const links =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const others = Array.isArray(links.others)
+    ? links.others.filter((item): item is string => typeof item === 'string')
+    : [];
+  return {
+    instagram: typeof links.instagram === 'string' ? links.instagram : '',
+    x: typeof links.x === 'string' ? links.x : '',
+    tiktok: typeof links.tiktok === 'string' ? links.tiktok : '',
+    others: [others[0] ?? '', others[1] ?? '', others[2] ?? ''],
+  };
+};
+
 const OrganizationAdmin = () => {
   useTitle('クラス・部活管理');
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -248,6 +270,12 @@ const OrganizationAdmin = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
+  const [externalLinks, setExternalLinks] = useState<ExternalLinksDraft>({
+    instagram: '',
+    x: '',
+    tiktok: '',
+    others: ['', '', ''],
+  });
   const [isAccepting, setIsAccepting] = useState(false);
   const [capacity, setCapacity] = useState('');
   const [juniorCapacity, setJuniorCapacity] = useState('');
@@ -365,6 +393,7 @@ const OrganizationAdmin = () => {
     setTitle(String(next.performance.title ?? ''));
     setDescription(String(next.performance.description ?? ''));
     setLocation(String(next.performance.location ?? ''));
+    setExternalLinks(externalLinksDraft(next.performance.external_links));
     setIsAccepting(Boolean(next.performance.is_accepting));
     setCapacity(
       String(
@@ -545,6 +574,7 @@ const OrganizationAdmin = () => {
             title,
             description,
             location,
+            externalLinks,
             ...(dashboard?.kind === 'exhibition' ? {} : { isAccepting }),
             ...(dashboard?.kind === 'gym'
               ? {
@@ -617,6 +647,98 @@ const OrganizationAdmin = () => {
     } finally {
       setIsUploadingImage(false);
       (event.target as HTMLInputElement).value = '';
+    }
+  };
+
+  const uploadGalleryImages = async (event: Event) => {
+    const files = Array.from((event.target as HTMLInputElement).files ?? []);
+    if (files.length === 0) {
+      return;
+    }
+    const currentGalleryCount = Array.isArray(
+      dashboard?.performance.gallery_paths,
+    )
+      ? dashboard.performance.gallery_paths.length
+      : 0;
+    if (currentGalleryCount + files.length > 20) {
+      setMessageScope('image');
+      setError('ギャラリー画像は20枚までです。');
+      (event.target as HTMLInputElement).value = '';
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setMessageScope('image');
+    setIsUploadingImage(true);
+    try {
+      for (const file of files) {
+        const uploadFile = await preparePerformanceImage(file);
+        if (uploadFile.size > 5 * 1024 * 1024) {
+          throw new Error('変換後の画像ファイルは5MB以下にしてください。');
+        }
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () =>
+            reject(new Error('画像の読み込みに失敗しました。'));
+          reader.readAsDataURL(uploadFile);
+        });
+        const { error: invokeError } = await supabase.functions.invoke(
+          'organization-admin',
+          {
+            body: {
+              action: 'uploadGalleryImage',
+              contentType: uploadFile.type,
+              base64: dataUrl.split(',')[1],
+            },
+            headers: sessionHeaders(),
+          },
+        );
+        if (invokeError) {
+          throw invokeError;
+        }
+      }
+      await load();
+      setImageVersion((version) => version + 1);
+      await triggerRedeploy();
+      setNotice(
+        `${files.length}枚のギャラリー画像を追加し、再デプロイを開始しました。`,
+      );
+    } catch (cause) {
+      setError(await readErrorMessage(cause));
+    } finally {
+      setIsUploadingImage(false);
+      (event.target as HTMLInputElement).value = '';
+    }
+  };
+
+  const deleteGalleryImage = async (galleryPath: string) => {
+    if (!window.confirm('このギャラリー画像を削除しますか？')) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setMessageScope('image');
+    setIsUploadingImage(true);
+    try {
+      const { error: invokeError } = await supabase.functions.invoke(
+        'organization-admin',
+        {
+          body: { action: 'deleteGalleryImage', galleryPath },
+          headers: sessionHeaders(),
+        },
+      );
+      if (invokeError) {
+        throw invokeError;
+      }
+      await load();
+      setImageVersion((version) => version + 1);
+      await triggerRedeploy();
+      setNotice('ギャラリー画像を削除し、再デプロイを開始しました。');
+    } catch (cause) {
+      setError(await readErrorMessage(cause));
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -999,6 +1121,11 @@ const OrganizationAdmin = () => {
     dashboard.kind === 'class'
       ? `${dashboard.performance.class_name} ${dashboard.performance.title || ''}`
       : String(dashboard.performance.group_name ?? '');
+  const galleryPaths = Array.isArray(dashboard.performance.gallery_paths)
+    ? dashboard.performance.gallery_paths.filter(
+        (path): path is string => typeof path === 'string',
+      )
+    : [];
   const organizationPerformanceId = Number(
     dashboard.kind === 'gym'
       ? (dashboard.performances[0]?.id ?? dashboard.performance.id)
@@ -1042,6 +1169,14 @@ const OrganizationAdmin = () => {
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
       <div className={styles.shell} key='organization-admin-dashboard'>
+        <Alert type='info'>
+          <ul>
+            <li>自主リハーサル機能を追加しました</li>
+            <li>
+              公演詳細ページにリンク・ギャラリーを追加できるようにしました。
+            </li>
+          </ul>
+        </Alert>
         <div className={styles.heading}>
           <div>
             <h2 className={subPageStyles.linedH2}>{name}</h2>
@@ -1074,9 +1209,7 @@ const OrganizationAdmin = () => {
             <Alert type='info'>
               <p>
                 チケットのスキャンは
-                <a href={organizationScanHref}>
-                  カメラ使用のスキャンページ
-                </a>
+                <a href={organizationScanHref}>カメラ使用のスキャンページ</a>
                 から、公演回で登録したリハーサルを選択してご利用ください。(自動モードはリハーサル非対応)
               </p>
             </Alert>
@@ -1214,6 +1347,72 @@ const OrganizationAdmin = () => {
                 />
               </label>
             )}
+            <fieldset className={styles.externalLinksForm}>
+              <legend>外部リンク</legend>
+              <label>
+                Instagram
+                <input
+                  type='url'
+                  value={externalLinks.instagram}
+                  placeholder='https://www.instagram.com/...'
+                  onInput={(event) =>
+                    setExternalLinks((current) => ({
+                      ...current,
+                      instagram: (event.target as HTMLInputElement).value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                X
+                <input
+                  type='url'
+                  value={externalLinks.x}
+                  placeholder='https://x.com/...'
+                  onInput={(event) =>
+                    setExternalLinks((current) => ({
+                      ...current,
+                      x: (event.target as HTMLInputElement).value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                TikTok
+                <input
+                  type='url'
+                  value={externalLinks.tiktok}
+                  placeholder='https://www.tiktok.com/...'
+                  onInput={(event) =>
+                    setExternalLinks((current) => ({
+                      ...current,
+                      tiktok: (event.target as HTMLInputElement).value,
+                    }))
+                  }
+                />
+              </label>
+              {externalLinks.others.map((url, index) => (
+                <label key={index}>
+                  その他 {index + 1}
+                  <input
+                    type='url'
+                    value={url}
+                    placeholder='https://...'
+                    onInput={(event) =>
+                      setExternalLinks((current) => {
+                        const others = [
+                          ...current.others,
+                        ] as ExternalLinksDraft['others'];
+                        others[index] = (
+                          event.target as HTMLInputElement
+                        ).value;
+                        return { ...current, others };
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </fieldset>
             {dashboard.kind === 'gym' && (
               <fieldset className={styles.scheduleTimes}>
                 <legend>公演時間</legend>
@@ -1299,7 +1498,49 @@ const OrganizationAdmin = () => {
               />
             </label>
             <p className={styles.imageHint}>
-              JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。
+              JPEG・PNG・WebPは横幅600pxのWebPに変換してアップロードします。変換後は5MB以下です。
+            </p>
+          </div>
+          <div className={styles.gallerySettings}>
+            <h3>ギャラリー</h3>
+            {galleryPaths.length > 0 && (
+              <div className={styles.galleryPreview}>
+                {galleryPaths.map((path) => (
+                  <figure key={path}>
+                    <img
+                      src={getPerformanceImageUrl(
+                        path,
+                        imageVersion || undefined,
+                      )}
+                      alt='ギャラリー画像'
+                    />
+                    <button
+                      type='button'
+                      className={styles.galleryDelete}
+                      onClick={() => void deleteGalleryImage(path)}
+                      disabled={isUploadingImage}
+                    >
+                      削除
+                    </button>
+                  </figure>
+                ))}
+              </div>
+            )}
+            <Alert>
+              画像は誰でも見れるようになるので、肖像権等に十分ご注意ください。
+            </Alert>
+            <label className={styles.imageUploadLabel}>
+              {isUploadingImage ? 'アップロード中...' : 'ギャラリー画像を追加'}
+              <input
+                type='file'
+                accept='image/jpeg,image/png,image/webp'
+                multiple
+                onChange={uploadGalleryImages}
+                disabled={isUploadingImage || galleryPaths.length >= 20}
+              />
+            </label>
+            <p className={styles.imageHint}>
+              最大20枚。画像は横幅600pxのWebPに自動圧縮されます。 動画非対応。
             </p>
           </div>
           {messageScope === 'image' && error && (
