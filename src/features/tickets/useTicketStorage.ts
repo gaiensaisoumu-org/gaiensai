@@ -17,6 +17,7 @@ export interface TicketStorageMetadata {
   scheduleDate: string;
   scheduleTime: string;
   scheduleEndTime: string;
+  rehearsalEndAt?: string | null;
   ticketTypeLabel: string;
   relationshipName: string;
   relationshipId: number;
@@ -55,6 +56,7 @@ export const useTicketStorage = () => {
           scheduleDate: metadata.scheduleDate,
           scheduleTime: metadata.scheduleTime,
           scheduleEndTime: metadata.scheduleEndTime,
+          rehearsalEndAt: metadata.rehearsalEndAt ?? null,
           ticketTypeLabel: metadata.ticketTypeLabel,
           relationshipName:
             resolveJuniorRelationshipName(

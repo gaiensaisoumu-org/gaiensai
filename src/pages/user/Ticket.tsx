@@ -57,6 +57,7 @@ type TicketDisplay = TicketDecodedDisplaySeed & {
   scheduleDate: string;
   scheduleTime: string;
   scheduleEndTime: string;
+  rehearsalEndAt?: string | null;
   ticketTypeLabel: string;
   relationshipName: string;
   ticketName: string | null;
@@ -533,6 +534,8 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                   minute: '2-digit',
                 })
               : '';
+            updatedTicket.rehearsalEndAt =
+              rehearsalResult.data.end_time ?? null;
             hasUpdates = true;
           }
 
@@ -939,6 +942,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               scheduleDate: updatedScheduleDate,
               scheduleTime: updatedScheduleTime,
               scheduleEndTime: updatedScheduleEndTime,
+              rehearsalEndAt: isRehearsalTicket
+                ? (rehearsalRes.data?.end_time ?? null)
+                : null,
               ticketTypeLabel: resolveTicketTypeLabel({
                 ticketTypeId: decoded.ticketTypeId,
                 name: ticketTypeRes.data.name,
@@ -958,6 +964,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 scheduleDate: updatedTicket.scheduleDate,
                 scheduleTime: updatedTicket.scheduleTime,
                 scheduleEndTime: updatedTicket.scheduleEndTime,
+                rehearsalEndAt: updatedTicket.rehearsalEndAt,
                 ticketTypeLabel: updatedTicket.ticketTypeLabel,
                 relationshipName: updatedTicket.relationshipName,
                 relationshipId: updatedTicket.relationshipId,

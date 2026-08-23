@@ -6,9 +6,10 @@ import {
   listTicketDisplayCache,
   subscribeTicketDisplayCacheUpdated,
 } from '../../features/tickets/ticketDisplayCache';
-import type {
-  TicketCardItem,
-  TicketListSortMode,
+import {
+  isEndedPerformanceTicket,
+  type TicketCardItem,
+  type TicketListSortMode,
 } from '../../features/tickets/IssuedTicketCardList';
 import { useDecodedSerialTickets } from '../../features/tickets/useDecodedSerialTickets';
 import pageStyles from '../../styles/sub-pages.module.css';
@@ -17,6 +18,7 @@ import { useTitle } from '../../hooks/useTitle';
 
 const TicketHistory = () => {
   const [cacheVersion, setCacheVersion] = useState(0);
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
   const [validSortMode, setValidSortMode] = useState<TicketListSortMode>(() => {
     try {
@@ -52,8 +54,27 @@ const TicketHistory = () => {
       return 'recent';
     }
   });
+  const [endedPerformanceSortMode, setEndedPerformanceSortMode] =
+    useState<TicketListSortMode>(() => {
+      try {
+        return (
+          (localStorage.getItem(
+            'ticketListSortMode.ended-performance',
+          ) as TicketListSortMode) || 'recent'
+        );
+      } catch {
+        return 'recent';
+      }
+    });
 
   useTitle('チケット表示履歴');
+
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTime(new Date());
+    updateCurrentTime();
+    const intervalId = window.setInterval(updateCurrentTime, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     try {
@@ -80,6 +101,17 @@ const TicketHistory = () => {
   }, [otherSortMode]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(
+        'ticketListSortMode.ended-performance',
+        endedPerformanceSortMode,
+      );
+    } catch {
+      // Ignore errors
+    }
+  }, [endedPerformanceSortMode]);
+
+  useEffect(() => {
     const refresh = () => setCacheVersion((previous) => previous + 1);
     const unsubscribe = subscribeTicketDisplayCacheUpdated(() => {
       refresh();
@@ -97,8 +129,22 @@ const TicketHistory = () => {
   );
   const tickets = useDecodedSerialTickets<TicketCardItem>(cachedTickets);
   const validTickets = useMemo(
-    () => tickets.filter((ticket) => ticket.status === 'valid'),
-    [tickets],
+    () =>
+      tickets.filter(
+        (ticket) =>
+          ticket.status === 'valid' &&
+          !isEndedPerformanceTicket(ticket, currentTime),
+      ),
+    [tickets, currentTime],
+  );
+  const endedPerformanceTickets = useMemo(
+    () =>
+      tickets.filter(
+        (ticket) =>
+          ticket.status === 'valid' &&
+          isEndedPerformanceTicket(ticket, currentTime),
+      ),
+    [tickets, currentTime],
   );
   const cancelledTickets = useMemo(
     () => tickets.filter((ticket) => ticket.status === 'cancelled'),
@@ -139,6 +185,17 @@ const TicketHistory = () => {
           onSortModeChange={setValidSortMode}
           tickets={validTickets}
           emptyMessage='この端末で開いたことがある有効なチケットはまだありません。'
+        />
+      </section>
+      <section>
+        <h2>終了済み</h2>
+        <TicketListContent
+          embedded={false}
+          showSortControl
+          sortMode={endedPerformanceSortMode}
+          onSortModeChange={setEndedPerformanceSortMode}
+          tickets={endedPerformanceTickets}
+          emptyMessage='終了済みの公演チケットはまだありません。'
         />
       </section>
       <section>

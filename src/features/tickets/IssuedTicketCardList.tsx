@@ -15,6 +15,10 @@ export type TicketCardItem = {
   performanceName: string;
   performanceTitle?: string | null;
   scheduleName: string;
+  scheduleDate?: string;
+  scheduleTime?: string;
+  scheduleEndTime?: string;
+  rehearsalEndAt?: string | null;
   ticketTypeLabel: string;
   relationshipName: string;
   ticketName?: string | null;
@@ -56,6 +60,38 @@ export const getTicketDisplayName = (
   ]
     .filter(Boolean)
     .join(' ');
+
+export const isEndedPerformanceTicket = (
+  ticket: Pick<
+    TicketCardItem,
+    'scheduleDate' | 'scheduleEndTime' | 'rehearsalEndAt'
+  >,
+  now: Date | null,
+): boolean => {
+  if (!now) {
+    return false;
+  }
+
+  if (ticket.rehearsalEndAt) {
+    const endAt = new Date(ticket.rehearsalEndAt);
+    return !Number.isNaN(endAt.getTime()) && endAt.getTime() <= now.getTime();
+  }
+
+  const date = ticket.scheduleDate?.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  const time = ticket.scheduleEndTime?.match(/^(\d{1,2}):(\d{2})$/);
+  if (!date || !time) {
+    return false;
+  }
+
+  const endAt = new Date(
+    Number(date[1]),
+    Number(date[2]) - 1,
+    Number(date[3]),
+    Number(time[1]),
+    Number(time[2]),
+  );
+  return !Number.isNaN(endAt.getTime()) && endAt.getTime() <= now.getTime();
+};
 
 export const compareTicketCardItem = (
   a: TicketCardItem,
@@ -107,6 +143,41 @@ export const compareTicketByPerformance = (
   }
 
   return a.code.localeCompare(b.code, 'ja');
+};
+
+const getScheduleStartTimestamp = (ticket: TicketCardItem): number | null => {
+  const date = ticket.scheduleDate?.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+  const time = ticket.scheduleTime?.match(/^(\d{1,2}):(\d{2})$/);
+  if (!date || !time) {
+    return null;
+  }
+
+  const startAt = new Date(
+    Number(date[1]),
+    Number(date[2]) - 1,
+    Number(date[3]),
+    Number(time[1]),
+    Number(time[2]),
+  ).getTime();
+  return Number.isNaN(startAt) ? null : startAt;
+};
+
+export const compareTicketByScheduleTime = (
+  a: TicketCardItem,
+  b: TicketCardItem,
+): number => {
+  const aStartAt = getScheduleStartTimestamp(a);
+  const bStartAt = getScheduleStartTimestamp(b);
+  if (aStartAt !== null && bStartAt !== null && aStartAt !== bStartAt) {
+    return aStartAt - bStartAt;
+  }
+  if (aStartAt !== null && bStartAt === null) {
+    return -1;
+  }
+  if (aStartAt === null && bStartAt !== null) {
+    return 1;
+  }
+  return compareTicketByPerformance(a, b);
 };
 
 export const compareTicketByRecentOpen = (
@@ -187,7 +258,7 @@ const IssuedTicketCardList = ({
     if (resolvedSortMode === 'class') {
       return [...tickets].sort(compareTicketCardItem);
     }
-    return [...tickets].sort(compareTicketByPerformance);
+    return [...tickets].sort(compareTicketByScheduleTime);
   }, [tickets, resolvedSortMode]);
 
   useEffect(() => {

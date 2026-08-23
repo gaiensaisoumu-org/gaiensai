@@ -15,6 +15,7 @@ import { useEventConfig } from '../../../hooks/useEventConfig';
 import type { UserData } from '../../../types/types';
 import NormalSection from '../../../components/ui/NormalSection';
 import {
+  isEndedPerformanceTicket,
   type TicketCardItem,
   type TicketListSortMode,
 } from '../../../features/tickets/IssuedTicketCardList';
@@ -98,11 +99,19 @@ type TicketSnapshot = {
 const ticketSnapshot = performancesSnapshot as TicketSnapshot;
 
 const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const { config } = useEventConfig();
   const { saveTicketToCache } = useTicketStorage();
   const [ticketCards, setTicketCards] = useState<
     (TicketCardItem & { relationshipId: number; affiliation: string })[]
   >([]);
+
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTime(new Date());
+    updateCurrentTime();
+    const intervalId = window.setInterval(updateCurrentTime, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
   const [issuedTicketNumber, setIssuedTicketNumber] = useState(0);
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
@@ -656,8 +665,24 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           !isGymPerformance && decoded
             ? scheduleMap.get(decoded.scheduleId)
             : undefined;
+        const scheduleTimes =
+          !isGymPerformance && decoded
+            ? scheduleTimesMap.get(decoded.scheduleId)
+            : undefined;
         const isAdmissionOnly =
           decoded?.performanceId === 0 && decoded?.scheduleId === 0;
+        const rehearsalStartAt = rehearsal?.start_time
+          ? new Date(rehearsal.start_time)
+          : null;
+        const rehearsalEndAt = rehearsal?.end_time
+          ? new Date(rehearsal.end_time)
+          : null;
+        const gymStartAt = gymPerformance?.start_at
+          ? new Date(gymPerformance.start_at)
+          : null;
+        const gymEndAt = gymPerformance?.end_at
+          ? new Date(gymPerformance.end_at)
+          : null;
 
         return {
           code: ticket.code,
@@ -679,6 +704,42 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
               : isRehearsalTicket
                 ? (rehearsal?.round_name ?? '不明なリハーサル')
                 : (schedule?.round_name ?? '-'),
+          scheduleDate: rehearsalStartAt
+            ? rehearsalStartAt.toLocaleDateString('ja-JP', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              })
+            : gymStartAt
+              ? gymStartAt.toLocaleDateString('ja-JP', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                })
+              : scheduleTimes?.scheduleDate,
+          scheduleTime: rehearsalStartAt
+            ? rehearsalStartAt.toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : gymStartAt
+              ? gymStartAt.toLocaleTimeString('ja-JP', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : scheduleTimes?.scheduleTime,
+          scheduleEndTime: rehearsalEndAt
+            ? rehearsalEndAt.toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : gymEndAt
+              ? gymEndAt.toLocaleTimeString('ja-JP', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : scheduleTimes?.scheduleEndTime,
+          rehearsalEndAt: rehearsal?.end_time ?? null,
           ticketTypeLabel: decoded
             ? (ticketTypeMap.get(decoded.ticketTypeId) ??
               `券種${decoded.ticketTypeId}`)
@@ -841,6 +902,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
               scheduleDate,
               scheduleTime,
               scheduleEndTime,
+              rehearsalEndAt: rehearsal?.end_time ?? null,
               ticketTypeLabel: decoded
                 ? (ticketTypeMap.get(decoded.ticketTypeId) ??
                   `券種${decoded.ticketTypeId}`)
@@ -882,14 +944,20 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   const ownUseTickets = useMemo(() => {
     return ticketCardsWithLastOpenedAt.filter(
       (ticket) =>
-        (ticket.relationshipId === 1 && ticket.affiliation === myAffiliation) ||
-        (ticket.relationshipId === 3 && ticket.affiliation !== myAffiliation),
+        !isEndedPerformanceTicket(ticket, currentTime) &&
+        ((ticket.relationshipId === 1 &&
+          ticket.affiliation === myAffiliation) ||
+          (ticket.relationshipId === 3 &&
+            ticket.affiliation !== myAffiliation)),
     );
-  }, [ticketCardsWithLastOpenedAt, myAffiliation]);
+  }, [ticketCardsWithLastOpenedAt, myAffiliation, currentTime]);
 
   const guestTickets = useMemo(
     () =>
       ticketCardsWithLastOpenedAt.filter((ticket) => {
+        if (isEndedPerformanceTicket(ticket, currentTime)) {
+          return false;
+        }
         const affiliation = ticket.affiliation;
         // Include tickets from current user with relationshipId !== 1 (original guest tickets)
         if (affiliation === myAffiliation && ticket.relationshipId !== 1) {
@@ -906,7 +974,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         }
         return false;
       }),
-    [ticketCardsWithLastOpenedAt, myAffiliation],
+    [ticketCardsWithLastOpenedAt, myAffiliation, currentTime],
   );
 
   const handleLogout = async () => {
