@@ -6,7 +6,7 @@ RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO public, auth
 AS $$
-  WITH current_user AS (
+  WITH current_user_data AS (
     SELECT affiliation, coalesce(clubs, '{}'::text[]) AS clubs
     FROM public.users
     WHERE id = auth.uid() AND role = 'student'
@@ -36,7 +36,7 @@ AS $$
         )
       )
       FROM public.class_performances cp
-      CROSS JOIN current_user u
+      CROSS JOIN current_user_data u
       CROSS JOIN config cfg
       LEFT JOIN public.student_ticket_issue_counters counter
         ON counter.performance_id = cp.id
@@ -68,7 +68,7 @@ AS $$
         )
       )
       FROM public.gym_performances gp
-      CROSS JOIN current_user u
+      CROSS JOIN current_user_data u
       CROSS JOIN config cfg
     ), '{}'::jsonb),
     'class_names', coalesce(
