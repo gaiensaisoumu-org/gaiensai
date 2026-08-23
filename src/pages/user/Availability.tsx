@@ -86,7 +86,7 @@ const Availability = () => {
                 type='button'
                 onClick={() => selectRemainingMode('total')}
               >
-                招待券・中学生枠
+                招待券・中学券枠合計
               </button>
             </div>
           </section>
