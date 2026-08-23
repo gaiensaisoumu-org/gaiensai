@@ -322,7 +322,8 @@
   border-color: var(--settings-border-color);
   transform: translateY(1px);
   z-index: 3;
-  box-shadow: 0 -4px 12px color-mix(in srgb, var(--primary-color) 10%, transparent);
+  box-shadow: 0 -4px 12px
+    color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
 .tabContent {

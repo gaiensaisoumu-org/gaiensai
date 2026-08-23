@@ -49,7 +49,9 @@ export const preparePerformanceImage = async (file: File): Promise<File> => {
   canvas.width = PERFORMANCE_IMAGE_WIDTH;
   canvas.height = Math.max(
     1,
-    Math.round((image.naturalHeight / image.naturalWidth) * PERFORMANCE_IMAGE_WIDTH),
+    Math.round(
+      (image.naturalHeight / image.naturalWidth) * PERFORMANCE_IMAGE_WIDTH,
+    ),
   );
   const context = canvas.getContext('2d');
   if (!context) {

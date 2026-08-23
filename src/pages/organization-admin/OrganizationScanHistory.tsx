@@ -275,7 +275,9 @@ const OrganizationScanHistory = () => {
   const refreshFromLocalStorage = () => {
     try {
       const raw = localStorage.getItem(SCAN_RECORDS_STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as { records?: ScanRecord[] }) : null;
+      const parsed = raw
+        ? (JSON.parse(raw) as { records?: ScanRecord[] })
+        : null;
       const localRecords = Array.isArray(parsed?.records)
         ? parsed.records
             .filter(
@@ -338,7 +340,6 @@ const OrganizationScanHistory = () => {
       cancelled = true;
     };
   }, []);
-
 
   const decodeTargets = useMemo(() => {
     const merged = new Set<string>();
@@ -588,7 +589,6 @@ const OrganizationScanHistory = () => {
     );
   };
 
-
   return (
     <div className={`${baseStyles.subPageShell} ${styles.pageShell}`}>
       <BackButton />
@@ -634,9 +634,7 @@ const OrganizationScanHistory = () => {
         {activeTab === 'records' && (
           <section className={styles.tabContent}>
             {rows.length === 0 ? (
-              <p className={styles.emptyText}>
-                読み取り履歴がまだありません。
-              </p>
+              <p className={styles.emptyText}>読み取り履歴がまだありません。</p>
             ) : (
               <>
                 <div className={styles.tableToolbar}>
@@ -697,10 +695,7 @@ const OrganizationScanHistory = () => {
                                   type='button'
                                   className={styles.recordCountButton}
                                   onClick={() =>
-                                    handleRecordCountChange(
-                                      record.id,
-                                      -1,
-                                    )
+                                    handleRecordCountChange(record.id, -1)
                                   }
                                   aria-label='人数を減らす'
                                 >
@@ -714,10 +709,7 @@ const OrganizationScanHistory = () => {
                                   type='button'
                                   className={styles.recordCountButton}
                                   onClick={() =>
-                                    handleRecordCountChange(
-                                      record.id,
-                                      1,
-                                    )
+                                    handleRecordCountChange(record.id, 1)
                                   }
                                   aria-label='人数を増やす'
                                 >
@@ -750,9 +742,7 @@ const OrganizationScanHistory = () => {
         {activeTab === 'tickets' && (
           <section className={styles.tabContent}>
             {ticketRows.length === 0 ? (
-              <p className={styles.emptyText}>
-                チケット履歴がまだありません。
-              </p>
+              <p className={styles.emptyText}>チケット履歴がまだありません。</p>
             ) : (
               <>
                 <div className={styles.tableToolbar}>

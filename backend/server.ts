@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const source = Array.isArray(body?.tickets) ? body.tickets : [];
     const rows = source
-      .map((item: { code: string; status: string; }) => {
+      .map((item: { code: string; status: string }) => {
         if (!item || typeof item !== 'object') {
           return null;
         }
@@ -229,7 +229,11 @@ Deno.serve(async (req) => {
         }
         return { code, status };
       })
-      .filter((row: { code: string; status: string } | null): row is { code: string; status: string } => row !== null);
+      .filter(
+        (
+          row: { code: string; status: string } | null,
+        ): row is { code: string; status: string } => row !== null,
+      );
 
     const result = replaceTicketStatusCache(rows);
     logOperation(
@@ -286,7 +290,7 @@ Deno.serve(async (req) => {
         '結果:',
         result.ok ? '成功' : '失敗',
         'このチケットの残り読み取り履歴数:',
-        result.remaining
+        result.remaining,
       );
       return new Response(JSON.stringify(result), {
         headers: {

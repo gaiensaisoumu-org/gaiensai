@@ -72,8 +72,10 @@ export const MANUAL_CODE_LENGTH = 8;
 
 export function isDayTicketAffiliation(affiliationBits: number): boolean {
   const grade =
-    (affiliationBits >> Number(AFFILIATION_GRADE_SHIFT)) & Number(AFFILIATION_GRADE_MAX);
+    (affiliationBits >> Number(AFFILIATION_GRADE_SHIFT)) &
+    Number(AFFILIATION_GRADE_MAX);
   const classNum =
-    (affiliationBits >> Number(AFFILIATION_CLASS_SHIFT)) & Number(AFFILIATION_CLASS_MAX);
+    (affiliationBits >> Number(AFFILIATION_CLASS_SHIFT)) &
+    Number(AFFILIATION_CLASS_MAX);
   return grade === DAY_TICKET_FLAG_GRADE && classNum === DAY_TICKET_FLAG_CLASS;
 }

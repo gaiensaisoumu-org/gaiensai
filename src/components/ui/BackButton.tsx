@@ -32,7 +32,11 @@ const BackButton = ({ href, fallbackHref = '/', onClick }: BackButtonProps) => {
 
   return (
     <div className={styles.topActions}>
-      <button type='button' className={styles.topBackButton} onClick={handleBack}>
+      <button
+        type='button'
+        className={styles.topBackButton}
+        onClick={handleBack}
+      >
         <MdArrowBack />
         戻る
       </button>

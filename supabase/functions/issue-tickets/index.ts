@@ -336,7 +336,11 @@ export const handleIssueTicketsRequest = async (
       allTicketTypes?.find((t) => t.name === name && t.type === type)?.id;
 
     const classInviteId = findIdByName('クラス公演(当日)', '招待券');
-    const rehearsalInviteId = findIdByName('クラス公演(リハーサル)', '招待券');
+    const rehearsalTicketTypeIds = (allTicketTypes ?? [])
+      .filter((ticketType) => ticketType.name === 'クラス公演(リハーサル)')
+      .map((ticketType) => Number(ticketType.id));
+    const rehearsalTicketTypeIdsForFilter =
+      rehearsalTicketTypeIds.length > 0 ? rehearsalTicketTypeIds : [-1];
     const gymInviteId = findIdByName('体育館公演', '招待券');
     const entryOnlyId = findIdByName('入場専用券', '招待券');
     const juniorEntryOnlyId = findIdByName('入場専用券', '中学生券');
@@ -459,12 +463,11 @@ export const handleIssueTicketsRequest = async (
     // 通常発券と、生徒アカウントによる間柄変更では、ログイン中の生徒を
     // チケット利用者として扱う。中学生・未ログインの間柄変更は後で旧コードの
     // affiliation を引き継ぐ。
-    let affiliation =
-      isAuthenticatedStudent
-        ? Number(userRow?.affiliation ?? -1)
-        : isDayTicket
-          ? DAY_TICKET_ANONYMOUS_AFFILIATION
-          : ANONYMOUS_AFFILIATION;
+    let affiliation = isAuthenticatedStudent
+      ? Number(userRow?.affiliation ?? -1)
+      : isDayTicket
+        ? DAY_TICKET_ANONYMOUS_AFFILIATION
+        : ANONYMOUS_AFFILIATION;
 
     if (isAuthenticatedStudent) {
       if (!Number.isInteger(affiliation)) {
@@ -504,10 +507,24 @@ export const handleIssueTicketsRequest = async (
       }
     }
 
-    const issueMode = validatePerformanceAndSchedule(
-      body,
-      admissionOnlyTicketTypeIds,
+    const isRehearsalTicket = rehearsalTicketTypeIds.includes(
+      body.ticketTypeId,
     );
+    if (
+      isRehearsalTicket &&
+      (body.performanceId < 1 ||
+        body.scheduleId < 0 ||
+        body.relationshipId !== SELF_RELATIONSHIP_ID ||
+        body.cancelCode)
+    ) {
+      throw new HttpError(
+        400,
+        '自主リハーサルは本人分のみ発券でき、差し替え発券には対応していません。',
+      );
+    }
+    const issueMode = isRehearsalTicket
+      ? ('rehearsal' as const)
+      : validatePerformanceAndSchedule(body, admissionOnlyTicketTypeIds);
     const issueUserId = user?.id ?? DAY_TICKET_GUEST_USER_ID;
     const ensureNoOtherClassSelfTicketInSameRound = async () => {
       const { data: existingSelfTicket, error: existingSelfTicketError } =
@@ -519,6 +536,11 @@ export const handleIssueTicketsRequest = async (
           .eq('relationship', SELF_RELATIONSHIP_ID)
           .eq('class_tickets.round_id', body.scheduleId)
           .neq('class_tickets.class_id', body.performanceId)
+          .not(
+            'ticket_type',
+            'in',
+            `(${rehearsalTicketTypeIdsForFilter.join(',')})`,
+          )
           .limit(1)
           .maybeSingle();
 
@@ -655,6 +677,25 @@ export const handleIssueTicketsRequest = async (
       ) {
         throw new HttpError(403, '選択された公演回は現在無効化されています。');
       }
+    } else if (issueMode === 'rehearsal') {
+      if (isJuniorUser) {
+        throw new HttpError(
+          403,
+          '中学生は自主リハーサルのチケットを取得できません。',
+        );
+      }
+      const { data: rehearsal, error: rehearsalError } = await adminClient
+        .from('rehearsals')
+        .select('id')
+        .eq('class_id', body.performanceId)
+        .eq('round_id', body.scheduleId)
+        .eq('type', 'unofficial')
+        .eq('is_active', true)
+        .gt('start_time', new Date().toISOString())
+        .maybeSingle();
+      if (rehearsalError || !rehearsal) {
+        throw new HttpError(403, 'この自主リハーサルは現在発券できません。');
+      }
     } else if (issueMode === 'gym') {
       const { data: perfData, error: perfError } = await adminClient
         .from('gym_performances')
@@ -732,10 +773,7 @@ export const handleIssueTicketsRequest = async (
           );
         }
       }
-    } else if (
-      rehearsalInviteId !== undefined &&
-      body.ticketTypeId === rehearsalInviteId
-    ) {
+    } else if (isRehearsalTicket) {
       if (ticketIssueControls.rehearsalInvite === 'off') {
         throw new HttpError(409, 'リハーサル招待券の受付は停止中です。');
       }
@@ -936,7 +974,9 @@ export const handleIssueTicketsRequest = async (
           ? isOwnClass
             ? Number(selectedClassPerformance?.data?.max_tickets_per_user)
             : Number(configRow.max_tickets_per_other_class_user)
-          : 0;
+          : issueMode === 'rehearsal'
+            ? 1
+            : 0;
     const configuredYear = Number(configRow.event_year);
     if (!Number.isInteger(configuredYear) || configuredYear < 0) {
       throw new HttpError(
@@ -948,6 +988,7 @@ export const handleIssueTicketsRequest = async (
     if (
       !isDayTicket &&
       !isAdmissionOnlyTicket &&
+      !isRehearsalTicket &&
       body.issueCount > maxTicketsPerUser
     ) {
       throw new HttpError(
@@ -1085,6 +1126,11 @@ export const handleIssueTicketsRequest = async (
             .eq('user_id', issueUserId)
             .eq('status', 'valid')
             .eq('class_tickets.class_id', body.performanceId)
+            .not(
+              'ticket_type',
+              'in',
+              `(${rehearsalTicketTypeIdsForFilter.join(',')})`,
+            )
         : !isJuniorUser && issueMode === 'gym'
           ? await adminClient
               .from('tickets')
@@ -1187,6 +1233,11 @@ export const handleIssueTicketsRequest = async (
               .not(
                 'ticket_type',
                 'in',
+                `(${rehearsalTicketTypeIdsForFilter.join(',')})`,
+              )
+              .not(
+                'ticket_type',
+                'in',
                 `(${admissionOnlyTicketTypeIds.join(',')})`,
               ),
         otherGymIds.length === 0
@@ -1214,7 +1265,9 @@ export const handleIssueTicketsRequest = async (
     }
     // 入場専用券のリクエストまたは間柄の変更時は制限チェックをスキップする
     const isExemptLimit =
-      isAdmissionOnlyTicket || body.targetRelationshipId !== undefined;
+      isAdmissionOnlyTicket ||
+      isRehearsalTicket ||
+      body.targetRelationshipId !== undefined;
 
     if (
       !isDayTicket &&

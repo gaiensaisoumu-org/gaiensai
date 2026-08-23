@@ -166,7 +166,11 @@ const OrganizationAccountsContent = () => {
       ...gyms
         .filter((item) => {
           const group = item.group_name ?? '';
-          if (gymIds.has(item.id) || assignedGymGroups.has(group) || includedGymGroups.has(group)) {
+          if (
+            gymIds.has(item.id) ||
+            assignedGymGroups.has(group) ||
+            includedGymGroups.has(group)
+          ) {
             return false;
           }
           includedGymGroups.add(group);
@@ -374,7 +378,7 @@ const OrganizationAccountsContent = () => {
           : exhibitions.find((item) => item.id === account.exhibition_club_id);
     return account.class_performance_id !== null
       ? `${performance?.class_name ?? '不明'}：${performance?.title ?? '無題の公演'}`
-      : performance?.group_name ?? '不明';
+      : (performance?.group_name ?? '不明');
   };
 
   return (
@@ -397,9 +401,7 @@ const OrganizationAccountsContent = () => {
       </NormalSection>
       <NormalSection>
         <h2>アカウント一覧</h2>
-        <p className={styles.tableScrollHint}>
-          ← 横にスクロールできます →
-        </p>
+        <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
         <div className={styles.organizationTableWrap}>
           <table className={styles.organizationAccountTable}>
             <thead>
@@ -418,7 +420,9 @@ const OrganizationAccountsContent = () => {
                   <td>
                     {account.class_performance_id !== null
                       ? 'クラス'
-                      : account.exhibition_club_id !== null ? '展示部活' : '部活'}
+                      : account.exhibition_club_id !== null
+                        ? '展示部活'
+                        : '部活'}
                   </td>
                   <td>
                     <div className={styles.organizationActions}>

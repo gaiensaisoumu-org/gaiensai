@@ -36,7 +36,9 @@ const AdminTicketIssueContent = () => {
   const [affiliation, setAffiliation] = useState('');
   const [ticketTypeId, setTicketTypeId] = useState<number>(1);
   const [relationshipId, setRelationshipId] = useState<number | null>(null);
-  const [juniorRelationshipId, setJuniorRelationshipId] = useState<number | null>(null);
+  const [juniorRelationshipId, setJuniorRelationshipId] = useState<
+    number | null
+  >(null);
   const [selection, setSelection] = useState<SelectedPerformance>(null);
   const [count, setCount] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -58,7 +60,9 @@ const AdminTicketIssueContent = () => {
         const loaded: MasterData = {
           ...raw,
           ticketTypes: raw.ticketTypes
-            .filter((type) => !isUnsupportedRehearsalInvite(type as TicketTypeOption))
+            .filter(
+              (type) => !isUnsupportedRehearsalInvite(type as TicketTypeOption),
+            )
             .map((type) => ({ ...type, is_active: true })),
         };
         setMasters(loaded);
@@ -93,7 +97,9 @@ const AdminTicketIssueContent = () => {
     : undefined;
   const canSubmit =
     /^\d{1,6}$/.test(affiliation) &&
-    (isJuniorTicket ? juniorRelationshipId !== null : relationshipId !== null) &&
+    (isJuniorTicket
+      ? juniorRelationshipId !== null
+      : relationshipId !== null) &&
     (admissionOnly || selection !== null);
 
   const submit = async (event: Event) => {

@@ -13,7 +13,7 @@ export type IssueWithRollbackInput = {
   adminClient: RpcClient;
   userId: string;
   issueCount: number;
-  issueMode: 'class' | 'gym' | 'admission';
+  issueMode: 'class' | 'gym' | 'admission' | 'rehearsal';
   ticketTypeId: number;
   relationshipId: number;
   performanceId: number;
@@ -79,21 +79,36 @@ export const issueWithRollback = async ({
     const issueRpcName =
       issueMode === 'gym'
         ? 'issue_gym_tickets_with_codes'
-        : 'issue_class_tickets_with_codes';
+        : issueMode === 'rehearsal'
+          ? 'issue_rehearsal_ticket_with_code'
+          : 'issue_class_tickets_with_codes';
 
+    const args =
+      issueMode === 'rehearsal'
+        ? {
+            p_user_id: userId,
+            p_ticket_type_id: ticketTypeId,
+            p_relationship_id: relationshipId,
+            p_class_id: performanceId,
+            p_round_id: scheduleId,
+            p_issue_count: issueCount,
+            p_codes: codes,
+            p_signatures: signatures,
+          }
+        : {
+            p_user_id: userId,
+            p_ticket_type_id: ticketTypeId,
+            p_relationship_id: relationshipId,
+            p_performance_id: performanceId,
+            p_schedule_id: scheduleId,
+            p_issue_count: issueCount,
+            p_codes: codes,
+            p_signatures: signatures,
+            p_person_count: personCount,
+          };
     const { data: issuedTickets, error: issueError } = await adminClient.rpc(
       issueRpcName,
-      {
-        p_user_id: userId,
-        p_ticket_type_id: ticketTypeId,
-        p_relationship_id: relationshipId,
-        p_performance_id: performanceId,
-        p_schedule_id: scheduleId,
-        p_issue_count: issueCount,
-        p_codes: codes,
-        p_signatures: signatures,
-        p_person_count: personCount,
-      },
+      args,
     );
 
     if (issueError) {

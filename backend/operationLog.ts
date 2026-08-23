@@ -33,7 +33,14 @@ export function logOperation(
   const now = new Date().toISOString();
   const payload = details.length > 0 ? safeStringify(details) : null;
 
-  insertOperationLogStmt.run(now, location, operationType, ticketCode, message, payload);
+  insertOperationLogStmt.run(
+    now,
+    location,
+    operationType,
+    ticketCode,
+    message,
+    payload,
+  );
   console.log(message, ...details);
 }
 

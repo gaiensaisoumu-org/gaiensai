@@ -34,7 +34,9 @@ type AccountSplitState = {
 
 const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
   const [juniorUsageType, setJuniorUsageType] = useState<number>(0);
-  const [prevJuniorUsageType, setPrevJuniorUsageType] = useState<number | null>(null);
+  const [prevJuniorUsageType, setPrevJuniorUsageType] = useState<number | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [isIssuingTicket, setIsIssuingTicket] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

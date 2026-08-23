@@ -75,7 +75,9 @@ export function packTicket(data: TicketData): bigint {
 
   const grade = (affiliationBits >> 10) & 0x3;
   const isJunior =
-    affiliationBits !== 0 && grade === 0 && !isDayTicketAffiliation(affiliationBits);
+    affiliationBits !== 0 &&
+    grade === 0 &&
+    !isDayTicketAffiliation(affiliationBits);
 
   if (isJunior) {
     const juniorId = data.affiliation - JUNIOR_AFFILIATION_PREFIX;

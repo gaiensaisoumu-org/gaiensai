@@ -8,7 +8,12 @@ type Props = {
   onContinueWithoutServer: () => void;
 };
 
-export const ServerUrlModal = ({ isOpen, currentUrl, onSave, onContinueWithoutServer }: Props) => {
+export const ServerUrlModal = ({
+  isOpen,
+  currentUrl,
+  onSave,
+  onContinueWithoutServer,
+}: Props) => {
   const [tempUrl, setTempUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 

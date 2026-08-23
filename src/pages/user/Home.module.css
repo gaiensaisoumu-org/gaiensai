@@ -346,7 +346,11 @@
   border-radius: 34px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 88% 10%, var(--home-decor-peach), transparent 42%),
+    radial-gradient(
+      circle at 88% 10%,
+      var(--home-decor-peach),
+      transparent 42%
+    ),
     radial-gradient(circle at 12% 92%, var(--home-decor-gold), transparent 38%);
   box-shadow:
     inset 0 1px 0 var(--home-button-inset),
@@ -359,8 +363,16 @@
   border-radius: 32px;
   padding: 0.5rem 1rem 0.5rem;
   background:
-    radial-gradient(circle at 88% 10%, var(--visitor-decor-peach), transparent 42%),
-    radial-gradient(circle at 12% 92%, var(--visitor-decor-teal), transparent 38%);
+    radial-gradient(
+      circle at 88% 10%,
+      var(--visitor-decor-peach),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 12% 92%,
+      var(--visitor-decor-teal),
+      transparent 38%
+    );
 }
 
 .sectionDecor {

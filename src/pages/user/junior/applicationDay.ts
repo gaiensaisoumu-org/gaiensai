@@ -135,12 +135,9 @@ export const resolveJuniorApplicationDayError = (
     return 'admission_only=true のみ指定してください。';
   }
 
-  const hasOtherQuery = [
-    'class_day',
-    'gym_day',
-    'day',
-    'application_day',
-  ].some((key) => params.has(key));
+  const hasOtherQuery = ['class_day', 'gym_day', 'day', 'application_day'].some(
+    (key) => params.has(key),
+  );
   if (hasOtherQuery) {
     return 'admission_only=true と他のパラメータは併用できません。';
   }
@@ -210,8 +207,8 @@ export const getJuniorApplicationDayVisibility = (selection: {
   showClassPerformances: boolean;
   showGymPerformances: boolean;
 } => {
-  const hasAdmissionOnly = [selection.classDay, selection.gymDay].some(
-    (days) => days?.includes('admission_only'),
+  const hasAdmissionOnly = [selection.classDay, selection.gymDay].some((days) =>
+    days?.includes('admission_only'),
   );
   if (hasAdmissionOnly) {
     return {

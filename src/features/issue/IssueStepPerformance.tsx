@@ -1,15 +1,15 @@
-import NormalSection from "../../components/ui/NormalSection";
-import PerformancesTable from "../../features/performances/PerformancesTable";
-import GymPerformancesTable from "../../features/performances/GymPerformancesTable";
-import type { SelectedPerformance } from "../../types/Issue.types";
-import styles from "../../pages/user/students/Issue.module.css";
-import dashboardStyles from "../../pages/user/students/Dashboard.module.css";
+import NormalSection from '../../components/ui/NormalSection';
+import PerformancesTable from '../../features/performances/PerformancesTable';
+import GymPerformancesTable from '../../features/performances/GymPerformancesTable';
+import type { SelectedPerformance } from '../../types/Issue.types';
+import styles from '../../pages/user/students/Issue.module.css';
+import dashboardStyles from '../../pages/user/students/Dashboard.module.css';
 
 type IssueStepPerformanceProps = {
   isGymPerformanceTicket: boolean;
   selectedPerformance: SelectedPerformance;
   selectedCellKey?: string;
-  classRemainingMode?: "general" | "total" | "junior";
+  classRemainingMode?: 'general' | 'total' | 'junior';
   restrictedClassName?: string | null;
   restrictedGroupNames?: string[] | null;
   classScheduleFilter?: (
@@ -22,7 +22,7 @@ type IssueStepPerformanceProps = {
     roundName: string,
     startAt?: string | null,
   ) => boolean;
-  gymRemainingMode?: "general" | "total" | "junior";
+  gymRemainingMode?: 'general' | 'total' | 'junior';
   nonInteractiveGymPerformanceIds?: Set<number>;
   hiddenGymGroupNames?: Set<string>;
   hiddenClassPerformanceIds?: Set<number>;
@@ -36,12 +36,12 @@ const IssueStepPerformance = ({
   isGymPerformanceTicket,
   selectedPerformance,
   selectedCellKey,
-  classRemainingMode = "general",
+  classRemainingMode = 'general',
   restrictedClassName = null,
   restrictedGroupNames = null,
   classScheduleFilter,
   gymScheduleFilter,
-  gymRemainingMode = "general",
+  gymRemainingMode = 'general',
   nonInteractiveGymPerformanceIds,
   hiddenGymGroupNames,
   hiddenClassPerformanceIds,
@@ -54,10 +54,10 @@ const IssueStepPerformance = ({
     <NormalSection>
       <h2 className={styles.sectionTitle}>2. 公演の選択</h2>
       <p>下の表から、発券したい公演を選択してください。</p>
-      <a href="/performances" className={dashboardStyles.smallButtonLink}>
+      <a href='/performances' className={dashboardStyles.smallButtonLink}>
         公演の詳細はこちら
       </a>
-      <a href="/timetable" className={dashboardStyles.smallButtonLink}>
+      <a href='/timetable' className={dashboardStyles.smallButtonLink}>
         タイムテーブルはこちら
       </a>
       {isGymPerformanceTicket ? (
@@ -81,8 +81,8 @@ const IssueStepPerformance = ({
           restrictedClassName={restrictedClassName}
           onAvailableCellClick={onSelectPerformance}
           selectedCellKey={selectedCellKey}
-            filterAccepting={true}
-            filterPerformanceAccepting={!allowClosedPerformances}
+          filterAccepting={true}
+          filterPerformanceAccepting={!allowClosedPerformances}
           scheduleFilter={classScheduleFilter}
           hiddenPerformanceIds={hiddenClassPerformanceIds}
         />
@@ -91,7 +91,7 @@ const IssueStepPerformance = ({
       )}
       {selectedPerformance && (
         <p className={styles.selectedText}>
-          選択中: {selectedPerformance.performanceName} /{" "}
+          選択中: {selectedPerformance.performanceName} /{' '}
           {selectedPerformance.scheduleName}（残り
           {selectedPerformance.remaining}
           席）

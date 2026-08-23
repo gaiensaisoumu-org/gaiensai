@@ -84,7 +84,9 @@
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 2px 4px var(--translucent-b-bg-color);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   margin: 2px;
   /* カード同士がくっつかないように */
   border-left: 4px solid transparent;

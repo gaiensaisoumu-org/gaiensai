@@ -5,11 +5,7 @@ import { formatTicketCode } from './formatTicketCode';
 import styles from './IssuedTicketCardList.module.css';
 
 export type TicketCardStatus =
-  | 'valid'
-  | 'cancelled'
-  | 'used'
-  | 'missing'
-  | 'unknown';
+  'valid' | 'cancelled' | 'used' | 'missing' | 'unknown';
 
 export type TicketCardItem = {
   code: string;
@@ -123,6 +119,22 @@ export const compareTicketByRecentOpen = (
     return bLastOpenedAt - aLastOpenedAt;
   }
   return 0;
+};
+
+const ticketTypeMarkerClass = (ticketTypeLabel: string): string | null => {
+  if (ticketTypeLabel.includes('入場専用券')) {
+    return styles.markerAdmissionOnly;
+  }
+  if (ticketTypeLabel.includes('クラス公演(リハーサル)')) {
+    return styles.markerRehearsal;
+  }
+  if (ticketTypeLabel.includes('クラス公演')) {
+    return styles.markerClassSameDay;
+  }
+  if (ticketTypeLabel.includes('体育館公演')) {
+    return styles.markerGym;
+  }
+  return null;
 };
 
 const IssuedTicketCardList = ({
@@ -282,6 +294,7 @@ const IssuedTicketCardList = ({
                 ? '入場専用券'
                 : ticket.performanceName;
               const isEditingName = editingTicketCode === ticket.code;
+              const markerClass = ticketTypeMarkerClass(ticket.ticketTypeLabel);
 
               return (
                 <article
@@ -291,6 +304,12 @@ const IssuedTicketCardList = ({
                     cardRefs.current[index] = element;
                   }}
                 >
+                  {markerClass && (
+                    <span
+                      className={`${styles.ticketTypeMarker} ${markerClass}`}
+                      aria-hidden='true'
+                    />
+                  )}
                   <div className={styles.ticketHeader}>
                     <div className={styles.ticketNameArea}>
                       {isEditingName ? (
@@ -300,11 +319,11 @@ const IssuedTicketCardList = ({
                           maxLength={100}
                           aria-label='チケット名'
                           autoFocus
-                        onInput={(event) =>
-                          setTicketNameDraft(event.currentTarget.value)
-                        }
-                        onBlur={() => saveTicketName(ticket)}
-                        onKeyDown={(event) => {
+                          onInput={(event) =>
+                            setTicketNameDraft(event.currentTarget.value)
+                          }
+                          onBlur={() => saveTicketName(ticket)}
+                          onKeyDown={(event) => {
                             if (event.key === 'Escape') {
                               setEditingTicketCode(null);
                             }

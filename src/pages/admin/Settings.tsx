@@ -1802,19 +1802,28 @@ const SettingsContent = () => {
             </div>
             {settings.maintenanceMode && (
               <div className={styles.field}>
-                <label className={styles.settingLabel} htmlFor='maintenance-ends-at'>
+                <label
+                  className={styles.settingLabel}
+                  htmlFor='maintenance-ends-at'
+                >
                   終了予定日時
                 </label>
                 <input
                   id='maintenance-ends-at'
                   className={styles.fieldControl}
                   type='datetime-local'
-                  value={settings.maintenanceEndsAt ? toLocalDateTimeInputValue(settings.maintenanceEndsAt) : ''}
+                  value={
+                    settings.maintenanceEndsAt
+                      ? toLocalDateTimeInputValue(settings.maintenanceEndsAt)
+                      : ''
+                  }
                   onInput={(event) => {
                     const value = (event.target as HTMLInputElement).value;
                     setSettings((current) => ({
                       ...current,
-                      maintenanceEndsAt: value ? new Date(value).toISOString() : null,
+                      maintenanceEndsAt: value
+                        ? new Date(value).toISOString()
+                        : null,
                     }));
                   }}
                   onBlur={(event) => {
@@ -2699,11 +2708,19 @@ const SettingsContent = () => {
             aria-modal='true'
             aria-labelledby='maintenance-end-modal-title'
           >
-            <h3 id='maintenance-end-modal-title' className={styles.settingModalTitle}>
+            <h3
+              id='maintenance-end-modal-title'
+              className={styles.settingModalTitle}
+            >
               メンテナンス終了予定時刻
             </h3>
-            <p>メンテナンスモードを有効にするには終了予定時刻の設定が必要です。</p>
-            <label className={styles.settingLabel} htmlFor='maintenance-end-modal-input'>
+            <p>
+              メンテナンスモードを有効にするには終了予定時刻の設定が必要です。
+            </p>
+            <label
+              className={styles.settingLabel}
+              htmlFor='maintenance-end-modal-input'
+            >
               終了予定日時
             </label>
             <input
@@ -2712,7 +2729,9 @@ const SettingsContent = () => {
               type='datetime-local'
               value={maintenanceEndsAtDraft}
               onInput={(event) =>
-                setMaintenanceEndsAtDraft((event.target as HTMLInputElement).value)
+                setMaintenanceEndsAtDraft(
+                  (event.target as HTMLInputElement).value,
+                )
               }
               disabled={isModalSubmitting}
               required

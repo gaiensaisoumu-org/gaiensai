@@ -11,20 +11,20 @@
 }
 
 .eyebrow {
-  margin: 0 0 .2rem;
+  margin: 0 0 0.2rem;
   color: var(--accent-color);
   font-weight: 700;
-  font-size: .85rem;
+  font-size: 0.85rem;
 }
 
 .lead {
-  margin: .4rem 0 0;
+  margin: 0.4rem 0 0;
   color: var(--sub-text-color);
-  font-size: .9rem;
+  font-size: 0.9rem;
 }
 
 .subheading {
-  margin: 1.5rem 0 .5rem;
+  margin: 1.5rem 0 0.5rem;
   font-size: 1.1rem;
 }
 
@@ -32,7 +32,7 @@
   border: 1px solid var(--table-border-color);
   border-radius: 9px;
   background: var(--normal-section-bg-color);
-  padding: .55rem .9rem;
+  padding: 0.55rem 0.9rem;
   color: var(--main-text-color);
   cursor: pointer;
   font: inherit;
@@ -41,13 +41,13 @@
 .cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: .75rem;
+  gap: 0.75rem;
   margin: 1rem 0;
 }
 
-.cards>div {
+.cards > div {
   display: grid;
-  gap: .2rem;
+  gap: 0.2rem;
   padding: 1rem;
   border: 1px solid var(--table-border-color);
   border-radius: 14px;
@@ -57,7 +57,7 @@
 .cards span,
 .cards small {
   color: var(--sub-text-color);
-  font-size: .84rem;
+  font-size: 0.84rem;
 }
 
 .cards strong {
@@ -68,21 +68,27 @@
 .juniorCards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .75rem;
+  gap: 0.75rem;
   margin-top: 1rem;
 }
 
-.juniorCards>div {
+.juniorCards > div {
   display: grid;
-  gap: .2rem;
-  padding: .85rem;
+  gap: 0.2rem;
+  padding: 0.85rem;
   border: 1px solid var(--table-border-color);
   border-radius: 12px;
 }
 
 .juniorCards span,
-.juniorCards small { color: var(--sub-text-color); font-size: .8rem; }
-.juniorCards strong { color: var(--accent-color); font-size: 1.25rem; }
+.juniorCards small {
+  color: var(--sub-text-color);
+  font-size: 0.8rem;
+}
+.juniorCards strong {
+  color: var(--accent-color);
+  font-size: 1.25rem;
+}
 
 .distributions {
   display: grid;
@@ -91,12 +97,18 @@
   margin-top: 1rem;
 }
 
-.distribution { min-width: 0; }
-.distribution h3 { margin: 0; font-size: 1rem; text-align: center; }
+.distribution {
+  min-width: 0;
+}
+.distribution h3 {
+  margin: 0;
+  font-size: 1rem;
+  text-align: center;
+}
 
 .registrationGrid {
   display: grid;
-  grid-template-columns: minmax(280px, .9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
   align-items: center;
   gap: 1rem;
 }
@@ -112,7 +124,7 @@
 .tableScrollHint {
   margin: 0 0 0.5rem;
   color: var(--sub-text-color);
-  font-size: .85rem;
+  font-size: 0.85rem;
   text-align: center;
 }
 
@@ -120,12 +132,12 @@ table {
   width: 100%;
   min-width: max-content;
   border-collapse: collapse;
-  font-size: .9rem;
+  font-size: 0.9rem;
 }
 
 th,
 td {
-  padding: .65rem .5rem;
+  padding: 0.65rem 0.5rem;
   border-bottom: 1px solid var(--table-border-color);
   text-align: right;
   white-space: nowrap;
@@ -138,7 +150,7 @@ td:first-child {
 
 thead th {
   color: var(--sub-text-color);
-  font-size: .8rem;
+  font-size: 0.8rem;
 }
 
 .rankings {
@@ -150,11 +162,11 @@ thead th {
 .ranking {
   border: 1px solid var(--table-border-color);
   border-radius: 12px;
-  padding: .85rem;
+  padding: 0.85rem;
 }
 
 .ranking h3 {
-  margin: 0 0 .45rem;
+  margin: 0 0 0.45rem;
   font-size: 1rem;
 }
 
@@ -167,9 +179,9 @@ thead th {
 .rankingList li {
   display: grid;
   grid-template-columns: 1.6rem minmax(0, 1fr) auto;
-  gap: .35rem;
+  gap: 0.35rem;
   align-items: center;
-  padding: .45rem 0;
+  padding: 0.45rem 0;
   border-top: 1px solid var(--table-border-color);
 }
 
@@ -193,12 +205,12 @@ thead th {
   display: block;
   color: var(--sub-text-color);
   font-weight: 400;
-  font-size: .75rem;
+  font-size: 0.75rem;
 }
 
 .empty {
   color: var(--sub-text-color);
-  font-size: .9rem;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 760px) {
@@ -212,7 +224,9 @@ thead th {
     grid-template-columns: 1fr;
   }
 
-  .juniorCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .juniorCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .settingHint {

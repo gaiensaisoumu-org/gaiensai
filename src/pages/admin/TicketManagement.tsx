@@ -55,6 +55,11 @@ type ManagementData = {
   gymTickets: { id: string; performance_id: number }[];
   classes: Master[];
   schedules: Master[];
+  rehearsals: {
+    class_id: number;
+    round_id: number;
+    round_name: string;
+  }[];
   gyms: Master[];
 };
 
@@ -63,6 +68,11 @@ const statusLabel: Record<string, string> = {
   used: '使用済み',
   cancelled: '取消済み',
 };
+
+const formatTicketKind = (name: string | undefined) =>
+  name === 'クラス公演(リハーサル)'
+    ? name
+    : (name ?? '-').replace(/\([^)]*\)/g, '');
 
 const formatIssuedAt = (value: string) => {
   const date = new Date(value);
@@ -84,7 +94,9 @@ const displayRelationship = (
   resolveJuniorRelationshipName(
     ticket.ticket_type,
     ticket.decodedRelationshipId ?? -1,
-  ) ?? relationships.get(ticket.relationship) ?? '-';
+  ) ??
+  relationships.get(ticket.relationship) ??
+  '-';
 
 type Roster = RosterXlsxSheet & {
   id: string;
@@ -92,8 +104,12 @@ type Roster = RosterXlsxSheet & {
 
 const buildRosters = (data: ManagementData): Roster[] => {
   const users = new Map(data.users.map((user) => [user.id, user]));
-  const classTickets = new Map(data.classTickets.map((ticket) => [ticket.id, ticket]));
-  const gymTickets = new Map(data.gymTickets.map((ticket) => [ticket.id, ticket]));
+  const classTickets = new Map(
+    data.classTickets.map((ticket) => [ticket.id, ticket]),
+  );
+  const gymTickets = new Map(
+    data.gymTickets.map((ticket) => [ticket.id, ticket]),
+  );
   const validTickets = data.tickets.filter(
     (ticket) =>
       ticket.status === 'valid' &&
@@ -125,12 +141,7 @@ const buildRosters = (data: ManagementData): Roster[] => {
         if (!link || link.class_id !== performanceId) {
           return [];
         }
-        return [
-          createRosterTicket(
-            ticket,
-            link.round_id,
-          ),
-        ];
+        return [createRosterTicket(ticket, link.round_id)];
       }),
       generalCapacity: Math.max(
         0,
@@ -143,42 +154,47 @@ const buildRosters = (data: ManagementData): Roster[] => {
   const gymGroups = new Map<string, Master[]>();
   data.gyms.forEach((performance) => {
     const groupName = performance.group_name ?? '-';
-    gymGroups.set(groupName, [...(gymGroups.get(groupName) ?? []), performance]);
+    gymGroups.set(groupName, [
+      ...(gymGroups.get(groupName) ?? []),
+      performance,
+    ]);
   });
-  const gymRosters = [...gymGroups.entries()].map(([groupName, performances]) => {
-    const performanceIds = new Set(performances.map((performance) => performance.id));
-    return {
-      id: `gym:${groupName}`,
-      name: groupName,
-      rounds: performances.map((performance) => ({
-        id: performance.id,
-        name: performance.round_name ?? '-',
-      })),
-      tickets: validTickets.flatMap((ticket) => {
-        const link = gymTickets.get(ticket.id);
-        if (!link || !performanceIds.has(link.performance_id)) {
-          return [];
-        }
-        return [
-          createRosterTicket(
-            ticket,
-            link.performance_id,
+  const gymRosters = [...gymGroups.entries()].map(
+    ([groupName, performances]) => {
+      const performanceIds = new Set(
+        performances.map((performance) => performance.id),
+      );
+      return {
+        id: `gym:${groupName}`,
+        name: groupName,
+        rounds: performances.map((performance) => ({
+          id: performance.id,
+          name: performance.round_name ?? '-',
+        })),
+        tickets: validTickets.flatMap((ticket) => {
+          const link = gymTickets.get(ticket.id);
+          if (!link || !performanceIds.has(link.performance_id)) {
+            return [];
+          }
+          return [createRosterTicket(ticket, link.performance_id)];
+        }),
+        generalCapacity: Math.max(
+          0,
+          ...performances.map(
+            (performance) =>
+              Number(performance.capacity ?? 0) -
+              Number(performance.junior_capacity ?? 0),
           ),
-        ];
-      }),
-      generalCapacity: Math.max(
-        0,
-        ...performances.map((performance) =>
-          Number(performance.capacity ?? 0) -
-          Number(performance.junior_capacity ?? 0),
         ),
-      ),
-    };
-  });
+      };
+    },
+  );
 
   return [
     ...classRosters.sort(
-      (a, b) => Number(a.id.slice('class:'.length)) - Number(b.id.slice('class:'.length)),
+      (a, b) =>
+        Number(a.id.slice('class:'.length)) -
+        Number(b.id.slice('class:'.length)),
     ),
     ...gymRosters.sort(
       (a, b) =>
@@ -249,10 +265,7 @@ const TicketManagementContent = () => {
       data.relationships.map((item) => [item.id, item.name ?? '-']),
     );
     const ticketKinds = new Map(
-      data.ticketTypes.map((item) => [
-        item.id,
-        (item.name ?? '-').replace(/\([^)]*\)/g, ''),
-      ]),
+      data.ticketTypes.map((item) => [item.id, formatTicketKind(item.name)]),
     );
     const ticketTypes = new Map(
       data.ticketTypes.map((item) => [item.id, item.type ?? '-']),
@@ -266,6 +279,12 @@ const TicketManagementContent = () => {
     const schedules = new Map(
       data.schedules.map((item) => [item.id, item.round_name ?? '-']),
     );
+    const rehearsals = new Map(
+      data.rehearsals.map((item) => [
+        `${item.class_id}-${item.round_id}`,
+        item.round_name,
+      ]),
+    );
     const gyms = new Map(data.gyms.map((item) => [item.id, item]));
     const classTickets = new Map(
       data.classTickets.map((item) => [item.id, item]),
@@ -277,13 +296,20 @@ const TicketManagementContent = () => {
         const owner = users.get(ticket.user_id);
         const classTicket = classTickets.get(ticket.id);
         const gymTicket = gymTickets.get(ticket.id);
+        const isRehearsalTicket =
+          data.ticketTypes.find((item) => item.id === ticket.ticket_type)
+            ?.name === 'クラス公演(リハーサル)';
         const performance = classTicket
           ? (classes.get(classTicket.class_id) ?? '-')
           : gymTicket
             ? (gyms.get(gymTicket.performance_id)?.group_name ?? '-')
             : '入場専用';
         const schedule = classTicket
-          ? (schedules.get(classTicket.round_id) ?? '-')
+          ? isRehearsalTicket
+            ? (rehearsals.get(
+                `${classTicket.class_id}-${classTicket.round_id}`,
+              ) ?? '不明なリハーサル')
+            : (schedules.get(classTicket.round_id) ?? '-')
           : gymTicket
             ? (gyms.get(gymTicket.performance_id)?.round_name ?? '-')
             : '-';
@@ -311,7 +337,9 @@ const TicketManagementContent = () => {
         const allName = row.displayName.toLowerCase();
         return (
           (!normalizedCode ||
-            normalizeTicketCodeForSearch(row.ticket.code).includes(normalizedCode)) &&
+            normalizeTicketCodeForSearch(row.ticket.code).includes(
+              normalizedCode,
+            )) &&
           (!name || allName.includes(name.toLowerCase())) &&
           (!affiliation ||
             String(row.owner?.affiliation ?? '').includes(affiliation)) &&
@@ -363,7 +391,7 @@ const TicketManagementContent = () => {
                 ? { ...item, status: 'cancelled' }
                 : item,
             ),
-        },
+          },
       );
       setMessage({ type: 'info', text: 'チケットを取り消しました。' });
     } catch (error) {
@@ -389,7 +417,8 @@ const TicketManagementContent = () => {
   const performanceOptions = [
     ...new Set([
       ...(data?.classes ?? []).map(
-        (item) => `${item.class_name ?? ''}${item.title ? `：${item.title}` : ''}`,
+        (item) =>
+          `${item.class_name ?? ''}${item.title ? `：${item.title}` : ''}`,
       ),
       ...(data?.gyms ?? []).map((item) => item.group_name ?? '-'),
       '入場専用',
@@ -398,21 +427,30 @@ const TicketManagementContent = () => {
   const scheduleOptions = [
     ...new Set([
       ...(data?.schedules ?? []).map((item) => item.round_name ?? '-'),
+      ...(data?.rehearsals ?? []).map((item) => item.round_name ?? '-'),
       ...(data?.gyms ?? []).map((item) => item.round_name ?? '-'),
       '-',
     ]),
   ].sort();
   const ticketTypeOptions = [
-    ...new Set((data?.tickets ?? []).map((ticket) => {
-      const master = data?.ticketTypes.find((item) => item.id === ticket.ticket_type);
-      return master?.type ?? '-';
-    })),
+    ...new Set(
+      (data?.tickets ?? []).map((ticket) => {
+        const master = data?.ticketTypes.find(
+          (item) => item.id === ticket.ticket_type,
+        );
+        return master?.type ?? '-';
+      }),
+    ),
   ].sort();
   const ticketKindOptions = [
-    ...new Set((data?.tickets ?? []).map((ticket) => {
-      const master = data?.ticketTypes.find((item) => item.id === ticket.ticket_type);
-      return (master?.name ?? '-').replace(/\([^)]*\)/g, '');
-    })),
+    ...new Set(
+      (data?.tickets ?? []).map((ticket) => {
+        const master = data?.ticketTypes.find(
+          (item) => item.id === ticket.ticket_type,
+        );
+        return formatTicketKind(master?.name);
+      }),
+    ),
   ].sort();
   const relationshipOptions = useMemo(() => {
     if (!data) {
@@ -429,14 +467,14 @@ const TicketManagementContent = () => {
       ),
     ].sort((a, b) => a.localeCompare(b, 'ja'));
   }, [data]);
-  const rosters = useMemo(
-    () => (data ? buildRosters(data) : []),
-    [data],
-  );
+  const rosters = useMemo(() => (data ? buildRosters(data) : []), [data]);
 
   const downloadRosters = async (targets: Roster[]) => {
     if (targets.length === 0) {
-      setMessage({ type: 'error', text: '出力できるクラス・部活がありません。' });
+      setMessage({
+        type: 'error',
+        text: '出力できるクラス・部活がありません。',
+      });
       return;
     }
     setIsExportingRoster(true);
@@ -509,9 +547,7 @@ const TicketManagementContent = () => {
             <select
               value={selectedRosterId}
               onChange={(event) =>
-                setSelectedRosterId(
-                  (event.target as HTMLSelectElement).value,
-                )
+                setSelectedRosterId((event.target as HTMLSelectElement).value)
               }
               disabled={isExportingRoster}
             >
@@ -678,9 +714,7 @@ const TicketManagementContent = () => {
           </button>
         </div>
         <p className={styles.resultCount}>{rows.length} 件を表示</p>
-        <p className={styles.tableScrollHint}>
-          ← 横にスクロールできます →
-        </p>
+        <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
         <div className={styles.tableWrap}>
           <table>
             <thead>
@@ -712,21 +746,13 @@ const TicketManagementContent = () => {
                   <td className={styles.code}>
                     {formatTicketCode(row.ticket.code)}
                   </td>
-                  <td>
-                    {row.displayName}
-                  </td>
+                  <td>{row.displayName}</td>
                   <td>{row.owner?.affiliation ?? '-'}</td>
-                  <td>
-                    {row.performance}
-                  </td>
+                  <td>{row.performance}</td>
                   <td>{row.schedule}</td>
                   <td>{row.relationship}</td>
-                  <td>
-                    {row.ticketType}
-                  </td>
-                  <td>
-                    {row.ticketKind}
-                  </td>
+                  <td>{row.ticketType}</td>
+                  <td>{row.ticketKind}</td>
                   <td>{row.ticket.person_count} 人分</td>
                   <td>{formatIssuedAt(row.ticket.created_at)}</td>
                   <td>

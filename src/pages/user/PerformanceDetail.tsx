@@ -300,15 +300,16 @@ const PerformanceDetail = ({
   const classDetails = type === 'class' ? (details as ClassPerformance) : null;
   const gymDetails = type === 'gym' ? (details as GymPerformance) : null;
   const clubDetails = type === 'club' ? (details as ExhibitionClub) : null;
-  const isAccepting = type === 'class'
-    ? acceptance?.get(`class:${performanceId}`)
-    : type === 'gym'
-      ? (snapshot.gymPerformances ?? []).some(
-          (performance) =>
-            performance.group_name === gymDetails?.group_name &&
-            acceptance?.get(`gym:${performance.id}`) === true,
-        )
-      : null;
+  const isAccepting =
+    type === 'class'
+      ? acceptance?.get(`class:${performanceId}`)
+      : type === 'gym'
+        ? (snapshot.gymPerformances ?? []).some(
+            (performance) =>
+              performance.group_name === gymDetails?.group_name &&
+              acceptance?.get(`gym:${performance.id}`) === true,
+          )
+        : null;
   return (
     <>
       <BackButton href='/performances' />
@@ -339,7 +340,9 @@ const PerformanceDetail = ({
 
         <div className={styles.likeAction}>
           {isAccepting !== null && isAccepting !== undefined && (
-            <span className={`${listStyles.statusBadge} ${isAccepting ? listStyles.statusAccepting : listStyles.statusClosed}`}>
+            <span
+              className={`${listStyles.statusBadge} ${isAccepting ? listStyles.statusAccepting : listStyles.statusClosed}`}
+            >
               {isAccepting ? '受付中' : '受付停止中'}
             </span>
           )}

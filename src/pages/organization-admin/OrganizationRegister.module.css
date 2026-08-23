@@ -5,11 +5,14 @@
   margin: 0 auto;
   padding: 1.5rem 1.75rem;
   border-radius: 16px;
-  background: color-mix(in srgb,
-      var(--translucent-b-bg-color) 95%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--translucent-b-bg-color) 95%,
+    transparent
+  );
   border: 1px solid var(--primary-color);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  box-shadow: 0 10px 40px
+    color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 .formLabel {
@@ -31,7 +34,8 @@
 .textInput:focus-visible {
   border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--primary-color) 25%, transparent);
 }
 
 .textInputRules {
@@ -42,9 +46,11 @@
 .submitButton {
   padding: 0.85rem 1.5rem;
   border-radius: 999px;
-  background: linear-gradient(135deg,
-      var(--primary-color),
-      color-mix(in srgb, var(--primary-color) 70%, #000) 80%);
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    color-mix(in srgb, var(--primary-color) 70%, #000) 80%
+  );
   color: #fff;
   border: none;
   font-size: 1rem;
@@ -109,7 +115,8 @@
   border-radius: 16px;
   padding: 0.75rem 1rem;
   border: 1px solid var(--primary-color);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  box-shadow: 0 10px 40px
+    color-mix(in srgb, var(--primary-color) 30%, transparent);
   background: var(--main-bg-color);
   color: var(--main-text-color);
   font-weight: 700;
@@ -216,16 +223,20 @@
   border: 1px solid var(--scan-result-border-color);
   border-radius: 999px;
   font-weight: 700;
-  background: color-mix(in srgb,
-      var(--scan-result-border-color) 18%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--scan-result-border-color) 18%,
+    transparent
+  );
 }
 
 .resultCardReentry .secondaryItem {
   border-color: var(--scan-result-reentry-border-color);
-  background: color-mix(in srgb,
-      var(--scan-result-reentry-border-color) 18%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--scan-result-reentry-border-color) 18%,
+    transparent
+  );
 }
 
 .tertiaryBlock {
@@ -244,8 +255,8 @@
   margin: 0;
   font-size: 0.76rem;
   font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   opacity: 0.62;
   overflow-wrap: anywhere;
 }
@@ -320,11 +331,14 @@
 .serverSection {
   padding: 1rem 1.75rem;
   border-radius: 16px;
-  background: color-mix(in srgb,
-      var(--translucent-b-bg-color) 95%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--translucent-b-bg-color) 95%,
+    transparent
+  );
   border: 1px solid var(--primary-color);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  box-shadow: 0 10px 40px
+    color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 .offlineAlertSection {
@@ -335,11 +349,14 @@
   margin-top: 1rem;
   padding: 1rem 1.75rem;
   border-radius: 16px;
-  background: color-mix(in srgb,
-      var(--translucent-b-bg-color) 95%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--translucent-b-bg-color) 95%,
+    transparent
+  );
   border: 1px solid var(--primary-color);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  box-shadow: 0 10px 40px
+    color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 .audioSummary {
@@ -398,8 +415,8 @@
 .serverUrl {
   color: var(--main-text-color);
   font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   font-size: 0.9rem;
   display: inline-block;
   margin-left: 1em;
@@ -485,11 +502,14 @@
 .statsSection {
   padding: 1.5rem 1.75rem;
   border-radius: 16px;
-  background: color-mix(in srgb,
-      var(--translucent-b-bg-color) 95%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--translucent-b-bg-color) 95%,
+    transparent
+  );
   border: 1px solid var(--primary-color);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  box-shadow: 0 10px 40px
+    color-mix(in srgb, var(--primary-color) 30%, transparent);
   margin-top: 1rem;
 }
 
@@ -519,11 +539,14 @@
 .recordsSection {
   padding: 1.5rem 1.75rem;
   border-radius: 16px;
-  background: color-mix(in srgb,
-      var(--translucent-b-bg-color) 95%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--translucent-b-bg-color) 95%,
+    transparent
+  );
   border: 1px solid var(--primary-color);
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 30%, transparent);
+  box-shadow: 0 10px 40px
+    color-mix(in srgb, var(--primary-color) 30%, transparent);
   margin-top: 1rem;
 }
 
@@ -582,8 +605,8 @@
   color: var(--main-text-color);
   word-break: break-all;
   font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
 }
 
 .resultSuccess {

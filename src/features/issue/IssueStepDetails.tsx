@@ -15,6 +15,7 @@ type IssueStepDetailsProps = {
   maxIssueCount: number;
   selectedTicketType: TicketTypeOption | null;
   selectedPerformance: SelectedPerformance;
+  hideRelationship?: boolean;
   onSelectRelationshipId: (relationshipId: number | null) => void;
   onSelectIssueCount: (count: number) => void;
 };
@@ -28,47 +29,54 @@ const IssueStepDetails = ({
   maxIssueCount,
   selectedTicketType,
   selectedPerformance,
+  hideRelationship = false,
   onSelectRelationshipId,
   onSelectIssueCount,
 }: IssueStepDetailsProps) => {
   return (
     <NormalSection>
-      <h2 className={styles.sectionTitle}>3. 間柄と発行枚数</h2>
-      <div className={styles.formRow}>
-        <label className={styles.formLabel} htmlFor='relationship'>
-          招待券利用者との間柄
-        </label>
-        <select
-          id='relationship'
-          className={styles.select}
-          value={
-            selectedRelationshipId === null
-              ? ''
-              : String(selectedRelationshipId)
-          }
-          onChange={(event) => {
-            const value = event.currentTarget.value;
-            onSelectRelationshipId(value ? Number(value) : null);
-          }}
-          disabled={relationshipLoading}
-        >
-          <option value='' selected disabled hidden>
-            {relationshipLoading
-              ? '読み込み中...'
-              : (relationshipError ?? '選択してください')}
-          </option>
-          {relationships.map((relationship) => (
-            <option key={relationship.id} value={relationship.id}>
-              {relationship.name ?? `間柄${relationship.id}`}
+      <h2 className={styles.sectionTitle}>
+        3. {hideRelationship ? '発行枚数' : '間柄と発行枚数'}
+      </h2>
+      {!hideRelationship && (
+        <div className={styles.formRow}>
+          <label className={styles.formLabel} htmlFor='relationship'>
+            招待券利用者との間柄
+          </label>
+          <select
+            id='relationship'
+            className={styles.select}
+            value={
+              selectedRelationshipId === null
+                ? ''
+                : String(selectedRelationshipId)
+            }
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              onSelectRelationshipId(value ? Number(value) : null);
+            }}
+            disabled={relationshipLoading}
+          >
+            <option value='' selected disabled hidden>
+              {relationshipLoading
+                ? '読み込み中...'
+                : (relationshipError ?? '選択してください')}
             </option>
-          ))}
-        </select>
-      </div>
+            {relationships.map((relationship) => (
+              <option key={relationship.id} value={relationship.id}>
+                {relationship.name ?? `間柄${relationship.id}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className={styles.formRow}>
         <label className={styles.formLabel} htmlFor='issue-count'>
           発行枚数
         </label>
-        <p style={{margin: 0, paddingLeft: '1em'}}>この枚数分だけ、1人分のチケットが同時に発券されます。</p>
+        <p style={{ margin: 0, paddingLeft: '1em' }}>
+          この枚数分だけ、1人分のチケットが同時に発券されます。
+        </p>
         <select
           id='issue-count'
           className={styles.select}
@@ -89,10 +97,12 @@ const IssueStepDetails = ({
 
       <h3 className={styles.previewHeading}>発券内容</h3>
       <ul className={styles.previewList}>
-        <li>
-          <span>チケットタイプ</span>
-          <strong>{selectedTicketType?.name ?? '-'}</strong>
-        </li>
+        {!hideRelationship && (
+          <li>
+            <span>チケットタイプ</span>
+            <strong>{selectedTicketType?.name ?? '-'}</strong>
+          </li>
+        )}
         <li>
           <span>公演のクラス</span>
           <strong>

@@ -31,6 +31,7 @@ type TicketLink = {
   id: string;
   round_id?: number;
   round_name: string;
+  is_rehearsal?: boolean;
   tickets: {
     id: string;
     code: string;
@@ -53,6 +54,16 @@ type GymScheduleDraft = {
   startAt: string;
   endAt: string;
 };
+type Rehearsal = {
+  id: number;
+  round_id: number;
+  round_name: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  is_active: boolean;
+  active_ticket_count: number;
+};
 type Dashboard = {
   username: string;
   kind: 'class' | 'gym' | 'exhibition';
@@ -63,8 +74,10 @@ type Dashboard = {
   relationships: { id: number; name: string }[];
   gymTicketLimit?: number;
   status?: OrganizationStatus;
+  rehearsals?: Rehearsal[];
 };
-type MessageScope = 'performance' | 'image' | 'ticketSettings' | 'password';
+type MessageScope =
+  'performance' | 'image' | 'ticketSettings' | 'password' | 'rehearsal';
 type NameDirectory = Record<string, string>;
 type StoredNameDirectory = {
   expiresAt: number;
@@ -254,6 +267,10 @@ const OrganizationAdmin = () => {
   const [gymScheduleDrafts, setGymScheduleDrafts] = useState<
     GymScheduleDraft[]
   >([]);
+  const [rehearsalName, setRehearsalName] = useState('');
+  const [rehearsalStart, setRehearsalStart] = useState('');
+  const [rehearsalEnd, setRehearsalEnd] = useState('');
+  const [rehearsalCapacity, setRehearsalCapacity] = useState('');
   const [namesByAffiliation, setNamesByAffiliation] = useState<NameDirectory>(
     {},
   );
@@ -269,9 +286,17 @@ const OrganizationAdmin = () => {
   const [showMissingAffiliationModal, setShowMissingAffiliationModal] =
     useState(false);
   const [todayInTokyo, setTodayInTokyo] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
 
   useEffect(() => {
-    setTodayInTokyo(toTokyoDateKey(Date.now()));
+    const updateCurrentTime = () => {
+      const now = Date.now();
+      setTodayInTokyo(toTokyoDateKey(now));
+      setCurrentTime(now);
+    };
+    updateCurrentTime();
+    const intervalId = window.setInterval(updateCurrentTime, 60_000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const triggerRedeploy = async () => {
@@ -360,6 +385,77 @@ const OrganizationAdmin = () => {
           }))
         : [],
     );
+  };
+
+  const saveRehearsal = async (event: Event) => {
+    event.preventDefault();
+    if (!dashboard || dashboard.kind !== 'class') {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    setMessageScope('rehearsal');
+    try {
+      const { error: invokeError } = await supabase.functions.invoke(
+        'organization-admin',
+        {
+          body: {
+            action: 'createUnofficialRehearsal',
+            roundName: rehearsalName,
+            startTime: new Date(rehearsalStart).toISOString(),
+            endTime: new Date(rehearsalEnd).toISOString(),
+            capacity: Number(rehearsalCapacity),
+          },
+          headers: sessionHeaders(),
+        },
+      );
+      if (invokeError) {
+        throw invokeError;
+      }
+      setRehearsalName('');
+      setRehearsalStart('');
+      setRehearsalEnd('');
+      setRehearsalCapacity('');
+      setNotice('自主リハーサルを追加しました。');
+      await load();
+    } catch (reason) {
+      setError(await readErrorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelRehearsal = async (id: number) => {
+    if (!confirm('この自主リハーサルを中止・削除しますか？')) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    setMessageScope('rehearsal');
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        'organization-admin',
+        {
+          body: { action: 'deleteUnofficialRehearsal', id },
+          headers: sessionHeaders(),
+        },
+      );
+      if (invokeError) {
+        throw invokeError;
+      }
+      setNotice(
+        data?.deactivated
+          ? '発券済みのため中止にしました。既存チケットは無効です。'
+          : '自主リハーサルを削除しました。',
+      );
+      await load();
+    } catch (reason) {
+      setError(await readErrorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -689,7 +785,22 @@ const OrganizationAdmin = () => {
   };
 
   const roundsForFilter = useMemo(
-    () => [...(dashboard?.rounds ?? [])].sort((a, b) => a.id - b.id),
+    () =>
+      [
+        ...(dashboard?.rounds ?? []).map((round) => ({
+          ...round,
+          filterKey: `performance:${round.id}`,
+          label: round.name,
+        })),
+        ...(dashboard?.kind === 'class'
+          ? (dashboard.rehearsals ?? []).map((rehearsal) => ({
+              id: rehearsal.round_id,
+              name: rehearsal.round_name,
+              filterKey: `rehearsal:${rehearsal.round_id}`,
+              label: `${rehearsal.round_name}（リハーサル）`,
+            }))
+          : []),
+      ].sort((a, b) => a.filterKey.localeCompare(b.filterKey, 'ja')),
     [dashboard],
   );
   const displayedTickets = useMemo(
@@ -698,12 +809,9 @@ const OrganizationAdmin = () => {
         .filter(
           (ticket) =>
             roundFilter === 'all' ||
-            ticket.round_id === Number(roundFilter) ||
-            (ticket.round_id === undefined &&
-              ticket.round_name ===
-                roundsForFilter.find(
-                  (round) => round.id === Number(roundFilter),
-                )?.name),
+            (ticket.is_rehearsal
+              ? `rehearsal:${ticket.round_id}`
+              : `performance:${ticket.round_id}`) === roundFilter,
         )
         .slice()
         .sort(
@@ -712,7 +820,7 @@ const OrganizationAdmin = () => {
               (b.tickets.users?.affiliation ?? Number.MAX_SAFE_INTEGER) ||
             a.tickets.code.localeCompare(b.tickets.code, 'ja'),
         ) ?? [],
-    [dashboard, roundFilter, roundsForFilter],
+    [dashboard, roundFilter],
   );
   const relationshipNames = useMemo(
     () =>
@@ -1089,6 +1197,108 @@ const OrganizationAdmin = () => {
             <Alert type='info'>{notice}</Alert>
           )}
         </NormalSection>
+        {dashboard.kind === 'class' && (
+          <NormalSection>
+            <h2>自主リハーサル管理</h2>
+            <p>
+              開始時刻前のみ編集できます。発券済みの回を中止すると、既存チケットも無効になります。
+            </p>
+            <form onSubmit={saveRehearsal} className={styles.form}>
+              <label>
+                リハーサル名
+                <input
+                  value={rehearsalName}
+                  onInput={(e) =>
+                    setRehearsalName((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <label>
+                開始
+                <input
+                  type='datetime-local'
+                  value={rehearsalStart}
+                  onInput={(e) =>
+                    setRehearsalStart((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <label>
+                終了
+                <input
+                  type='datetime-local'
+                  value={rehearsalEnd}
+                  onInput={(e) =>
+                    setRehearsalEnd((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <label>
+                定員
+                <input
+                  type='number'
+                  min='1'
+                  value={rehearsalCapacity}
+                  onInput={(e) =>
+                    setRehearsalCapacity((e.target as HTMLInputElement).value)
+                  }
+                  required
+                />
+              </label>
+              <button disabled={busy}>
+                {busy ? '保存中...' : '＋ リハーサルを追加'}
+              </button>
+            </form>
+            <div className={styles.rehearsalList}>
+              {(dashboard.rehearsals ?? []).map((rehearsal) => {
+                const started =
+                  currentTime !== null &&
+                  new Date(rehearsal.start_time).getTime() <= currentTime;
+                return (
+                  <article className={styles.rehearsalCard} key={rehearsal.id}>
+                    <div>
+                      <strong>{rehearsal.round_name}</strong>
+                      <p>
+                        {new Date(rehearsal.start_time).toLocaleString('ja-JP')}{' '}
+                        ─{' '}
+                        {new Date(rehearsal.end_time).toLocaleTimeString(
+                          'ja-JP',
+                          { hour: '2-digit', minute: '2-digit' },
+                        )}
+                      </p>
+                      <p>
+                        定員 {rehearsal.capacity} ／ 発券中{' '}
+                        {rehearsal.active_ticket_count}{' '}
+                        {rehearsal.is_active ? '' : '／ 中止'}
+                      </p>
+                    </div>
+                    <button
+                      type='button'
+                      className={styles.secondary}
+                      disabled={busy || started || !rehearsal.is_active}
+                      onClick={() => cancelRehearsal(rehearsal.id)}
+                    >
+                      {!rehearsal.is_active
+                        ? '中止済み'
+                        : started
+                          ? '開始済み'
+                          : '中止'}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+            {messageScope === 'rehearsal' && error && (
+              <Alert type='error'>{error}</Alert>
+            )}
+            {messageScope === 'rehearsal' && notice && (
+              <Alert type='info'>{notice}</Alert>
+            )}
+          </NormalSection>
+        )}
         {dashboard.kind !== 'exhibition' && (
           <>
             {dashboard.status && (
@@ -1343,8 +1553,8 @@ const OrganizationAdmin = () => {
                 >
                   <option value='all'>すべて</option>
                   {roundsForFilter.map((round) => (
-                    <option key={round.id} value={round.id}>
-                      {round.name}
+                    <option key={round.filterKey} value={round.filterKey}>
+                      {round.label}
                     </option>
                   ))}
                 </select>
@@ -1355,25 +1565,39 @@ const OrganizationAdmin = () => {
                     <tr>
                       <th>コード</th>
                       <th>公演回</th>
+                      <th>券種</th>
                       <th>学年・クラス・番号</th>
                       <th>間柄</th>
                       <th>発行日時</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedTickets.map(({ id, tickets, round_name }) => (
-                      <tr key={id}>
-                        <td>{formatTicketCode(tickets.code)}</td>
-                        <td>{round_name}</td>
-                        <td>{formatAffiliation(tickets.users?.affiliation)}</td>
-                        <td>
-                          {relationshipNames.get(tickets.relationship) ?? '—'}
-                        </td>
-                        <td>
-                          {new Date(tickets.created_at).toLocaleString('ja-JP')}
-                        </td>
-                      </tr>
-                    ))}
+                    {displayedTickets.map(
+                      ({ id, tickets, round_name, is_rehearsal }) => (
+                        <tr key={id}>
+                          <td>{formatTicketCode(tickets.code)}</td>
+                          <td>{round_name}</td>
+                          <td>
+                            {dashboard?.kind === 'class'
+                              ? is_rehearsal
+                                ? 'クラス公演(リハーサル)'
+                                : 'クラス公演(当日)'
+                              : '体育館公演'}
+                          </td>
+                          <td>
+                            {formatAffiliation(tickets.users?.affiliation)}
+                          </td>
+                          <td>
+                            {relationshipNames.get(tickets.relationship) ?? '—'}
+                          </td>
+                          <td>
+                            {new Date(tickets.created_at).toLocaleString(
+                              'ja-JP',
+                            )}
+                          </td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>

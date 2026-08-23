@@ -9,11 +9,10 @@
   gap: 1rem;
 }
 
-.note,d
-.scrollHint {
+.note,
+d .scrollHint {
   color: var(--sub-text-color);
 }
-
 
 .performanceSection h3 {
   margin: 0;
@@ -21,14 +20,14 @@
 
 .gymScheduleList {
   display: grid;
-  gap: .5rem;
+  gap: 0.5rem;
 }
 
 .gymSchedule {
   display: grid;
-  gap: .2rem;
+  gap: 0.2rem;
   min-height: 2.4rem;
-  padding-bottom: .5rem;
+  padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--table-border-color);
 }
 
@@ -39,12 +38,12 @@
 
 .note,
 .modalNote {
-  margin: .4rem 0 0;
+  margin: 0.4rem 0 0;
 }
 
 .scrollHint {
-  margin: 1rem 0 .5rem;
-  font-size: .85rem;
+  margin: 1rem 0 0.5rem;
+  font-size: 0.85rem;
   text-align: center;
 }
 
@@ -57,7 +56,7 @@
   color: var(--main-text-color);
   cursor: pointer;
   font: inherit;
-  padding: .55rem .9rem;
+  padding: 0.55rem 0.9rem;
 }
 
 .tableWrapper {
@@ -74,7 +73,7 @@
 
 .table th,
 .table td {
-  padding: .75rem;
+  padding: 0.75rem;
   border-bottom: 1px solid var(--table-border-color);
   text-align: left;
   vertical-align: top;
@@ -83,7 +82,7 @@
 
 .table th {
   color: var(--sub-text-color);
-  font-size: .85rem;
+  font-size: 0.85rem;
 }
 
 .table tr:last-child td {
@@ -135,7 +134,7 @@
 
 .modal label {
   display: grid;
-  gap: .4rem;
+  gap: 0.4rem;
   color: var(--main-text-color);
 }
 
@@ -145,7 +144,7 @@
   box-sizing: border-box;
   border: 1px solid var(--table-border-color);
   border-radius: 8px;
-  padding: .65rem;
+  padding: 0.65rem;
   background: var(--main-bg-color);
   color: var(--main-text-color);
   font: inherit;
@@ -153,7 +152,7 @@
 
 .imageSettings {
   display: grid;
-  gap: .75rem;
+  gap: 0.75rem;
 }
 
 .imagePreview {
@@ -170,7 +169,7 @@
   cursor: pointer;
   border: 1px solid var(--table-border-color);
   border-radius: 8px;
-  padding: .6rem .9rem;
+  padding: 0.6rem 0.9rem;
 }
 
 .imageUploadLabel input {
@@ -179,7 +178,7 @@
 
 .imageHint {
   color: var(--sub-text-color);
-  font-size: .85rem;
+  font-size: 0.85rem;
 }
 
 .capacityFields {
@@ -192,12 +191,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: .5rem;
+  gap: 0.5rem;
 }
 
 .scheduleFieldset {
   display: grid;
-  gap: .75rem;
+  gap: 0.75rem;
   padding: 1rem;
   border: 1px solid var(--table-border-color);
   border-radius: 8px;
@@ -206,7 +205,7 @@
 .modalActions {
   display: flex;
   justify-content: flex-end;
-  gap: .75rem;
+  gap: 0.75rem;
 }
 
 @media (max-width: 640px) {

@@ -31,9 +31,7 @@ describe('resolveJuniorApplicationDay', () => {
 describe('resolveJuniorApplicationDayError', () => {
   it('rejects admission_only mixed with other parameters', () => {
     expect(
-      resolveJuniorApplicationDayError(
-        'admission_only=true&class_day=day1',
-      ),
+      resolveJuniorApplicationDayError('admission_only=true&class_day=day1'),
     ).toBe('admission_only=true と他のパラメータは併用できません。');
   });
 

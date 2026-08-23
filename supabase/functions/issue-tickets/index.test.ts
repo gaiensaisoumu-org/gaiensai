@@ -47,7 +47,8 @@ Deno.test('issue fails then counter rollback RPC is called', async () => {
       issuedYear: 26,
       basePrefix: 'prefix123',
       endSerial: 8,
-      generateCode: (ticketData) => Promise.resolve(`CODE-${ticketData.serial}`),
+      generateCode: (ticketData) =>
+        Promise.resolve(`CODE-${ticketData.serial}`),
       signTicketCode: (code) => Promise.resolve(`SIG-${code}`),
     });
   } catch (error) {

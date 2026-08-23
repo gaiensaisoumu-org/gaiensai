@@ -95,13 +95,16 @@ const client = createClient(
 );
 const apply = Deno.args.includes('--apply');
 
-const tickets = (await fetchAll<TicketRow>(
-  client,
-  'tickets',
-  'id,code,ticket_type,relationship,status,user_id',
-)).filter(
+const tickets = (
+  await fetchAll<TicketRow>(
+    client,
+    'tickets',
+    'id,code,ticket_type,relationship,status,user_id',
+  )
+).filter(
   (ticket) =>
-    TARGET_TICKET_TYPES.has(ticket.ticket_type) && ticket.status !== 'cancelled',
+    TARGET_TICKET_TYPES.has(ticket.ticket_type) &&
+    ticket.status !== 'cancelled',
 );
 
 const userIds = [...new Set(tickets.map((ticket) => ticket.user_id))];
@@ -164,7 +167,8 @@ for (const ticket of tickets) {
     ? classTicket.class_id === decoded.performance &&
       classTicket.round_id === decoded.schedule
     : gymTicket
-      ? gymTicket.performance_id === decoded.performance && decoded.schedule === 0
+      ? gymTicket.performance_id === decoded.performance &&
+        decoded.schedule === 0
       : false;
 
   if (

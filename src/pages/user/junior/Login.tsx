@@ -98,7 +98,9 @@ const JuniorLogin = () => {
       <h1 className={subPageStyles.pageTitle}>ようこそ</h1>
       <div className={styles.loginContainer}>
         <h2>中学生ログイン</h2>
-        <p>当選メールのURLから登録した、ログインIDと誕生日を入力してください。</p>
+        <p>
+          当選メールのURLから登録した、ログインIDと誕生日を入力してください。
+        </p>
         <form onSubmit={handleLogin} className={styles.loginForm}>
           <label>ID(英数字・フルネームなど登録したもの)</label>
           <input

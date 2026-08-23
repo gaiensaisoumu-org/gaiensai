@@ -113,9 +113,11 @@
   border: 1px solid var(--scan-result-border-color);
   border-radius: 999px;
   font-weight: 700;
-  background: color-mix(in srgb,
-      var(--scan-result-border-color) 18%,
-      transparent);
+  background: color-mix(
+    in srgb,
+    var(--scan-result-border-color) 18%,
+    transparent
+  );
 }
 
 .tertiaryBlock {
@@ -221,7 +223,7 @@
   z-index: 16;
   display: flex;
   align-items: center;
-  justify-content: center
+  justify-content: center;
 }
 
 .cameraToggleButton {

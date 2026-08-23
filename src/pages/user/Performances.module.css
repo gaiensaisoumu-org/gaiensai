@@ -9,9 +9,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: .5rem;
-  margin: -.5rem 0 .75rem;
-  font-size: .9rem;
+  gap: 0.5rem;
+  margin: -0.5rem 0 0.75rem;
+  font-size: 0.9rem;
 }
 
 .sortControl select {
@@ -20,7 +20,6 @@
 
 /* タブレット〜PC向け（横幅 768px 以上） */
 @media (min-width: 48em) {
-
   /* 768px */
   .grid {
     /* PCでは2カラム（2列）で並べることで、1枚あたりのカードの最大幅を制限する */
@@ -30,15 +29,12 @@
 
 /* 大型PC向け（横幅 1024px 以上） */
 @media (min-width: 64em) {
-
   /* 1024px */
   .grid {
     /* 画面がさらに広い場合は3カラム（3列）にして、カードが太くなりすぎるのを防ぐ */
     grid-template-columns: repeat(3, 1fr);
   }
 }
-
-
 
 /* カードを縦レイアウトにし、画像を上部に配置する */
 /* ─── 📸 背景画像カードのコアスタイル ─── */
@@ -54,7 +50,9 @@
   flex-direction: column;
   overflow: hidden;
   /* ヘッダー画像の角丸をカードに合わせる */
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .card:hover {
@@ -93,20 +91,18 @@
      * 2. 中間地点（50%） : ほんのり暗くして自然に繋ぐ
      * 3. 終了地点（下端 100%）: 文字がはっきり読めるように濃い黒（0.7〜0.85程度）
      */
-  background: linear-gradient(to bottom,
-      rgba(0, 0, 0, 0) 0%,
-      /* 上部は完全に透明 */
-      rgba(0, 0, 0, 0.3) 50%,
-      /* 中間はうっすら */
-      rgba(0, 0, 0, 0.7) 75%,
-      rgba(0, 0, 0, 0.9) 100%
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    /* 上部は完全に透明 */ rgba(0, 0, 0, 0.3) 50%,
+    /* 中間はうっすら */ rgba(0, 0, 0, 0.7) 75%,
+    rgba(0, 0, 0, 0.9) 100%
       /* 下部はしっかり黒くして、上に載る白文字を浮かび上がらせる */
-    );
+  );
 
   z-index: 2;
   pointer-events: none;
   /* 万が一、画像や下の要素をクリック・選択する際の邪魔をしないようにする記述 */
-
 }
 
 /* ヘッダー内の文字コンテンツ（画像の上に重ねる） */

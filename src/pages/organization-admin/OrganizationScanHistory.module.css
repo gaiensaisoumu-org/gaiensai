@@ -7,7 +7,8 @@
   border-radius: 16px;
   background: var(--normal-section-bg-color);
   border: 1px solid var(--table-border-color);
-  box-shadow: 0 5px 40px color-mix(in srgb, var(--primary-color) 15%, transparent);
+  box-shadow: 0 5px 40px
+    color-mix(in srgb, var(--primary-color) 15%, transparent);
   margin-top: 1rem;
 }
 
@@ -38,7 +39,8 @@
   background: var(--normal-section-bg-color);
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--primary-color) 15%, transparent);
+  box-shadow: 0 10px 40px
+    color-mix(in srgb, var(--primary-color) 15%, transparent);
   border: 1px solid var(--table-border-color);
   margin: -1px 0.5rem 0;
   border-top-left-radius: 0;
@@ -70,7 +72,10 @@
   color: var(--sub-text-color);
   padding: 0.8rem 1.5rem;
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease, color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    color 0.2s ease;
   transform: translateY(1px);
 }
 
@@ -87,7 +92,8 @@
   border-bottom-color: var(--normal-section-bg-color);
   transform: translateY(1px);
   z-index: 3;
-  box-shadow: 0 -4px 16px color-mix(in srgb, var(--primary-color) 14%, transparent);
+  box-shadow: 0 -4px 16px
+    color-mix(in srgb, var(--primary-color) 14%, transparent);
 }
 
 .metaRow {
@@ -140,7 +146,8 @@
 
 .refreshButton:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--primary-color) 25%, transparent);
+  box-shadow: 0 6px 16px
+    color-mix(in srgb, var(--primary-color) 25%, transparent);
 }
 
 .errorText {
@@ -319,7 +326,9 @@ td.cellCount {
   justify-content: center;
 
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
 }
 
 .recordCountButton:hover {
@@ -366,7 +375,9 @@ td.cellCount {
   gap: 0.4rem;
   padding: 0.45rem 0.9rem;
   flex-shrink: 0;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
 }
 
 .exportButton:hover {
@@ -379,19 +390,35 @@ td.cellCount {
   color: var(--sub-text-color);
 }
 
-.tableWrapper[data-scroll-fade="start"] {
+.tableWrapper[data-scroll-fade='start'] {
   mask-image: linear-gradient(to right, black calc(100% - 5rem), transparent);
-  -webkit-mask-image: linear-gradient(to right, black calc(100% - 5rem), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 5rem),
+    transparent
+  );
 }
 
-.tableWrapper[data-scroll-fade="end"] {
+.tableWrapper[data-scroll-fade='end'] {
   mask-image: linear-gradient(to right, transparent, black 5rem);
   -webkit-mask-image: linear-gradient(to right, transparent, black 5rem);
 }
 
-.tableWrapper[data-scroll-fade="middle"] {
-  mask-image: linear-gradient(to right, transparent, black 5rem, black calc(100% - 5rem), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 5rem, black calc(100% - 5rem), transparent);
+.tableWrapper[data-scroll-fade='middle'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent
+  );
 }
 
 .summaryCards {

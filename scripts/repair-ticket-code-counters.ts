@@ -11,9 +11,13 @@ const loadDotEnv = async (): Promise<void> => {
     const text = await Deno.readTextFile(new URL('./.env', import.meta.url));
     for (const rawLine of text.split(/\r?\n/)) {
       const line = rawLine.trim();
-      if (!line || line.startsWith('#')) {continue;}
+      if (!line || line.startsWith('#')) {
+        continue;
+      }
       const separator = line.indexOf('=');
-      if (separator <= 0) {continue;}
+      if (separator <= 0) {
+        continue;
+      }
 
       const key = line.slice(0, separator).trim();
       let value = line.slice(separator + 1).trim();
@@ -24,10 +28,14 @@ const loadDotEnv = async (): Promise<void> => {
       ) {
         value = value.slice(1, -1);
       }
-      if (!Deno.env.has(key)) {Deno.env.set(key, value);}
+      if (!Deno.env.has(key)) {
+        Deno.env.set(key, value);
+      }
     }
   } catch (error) {
-    if (!(error instanceof Deno.errors.NotFound)) {throw error;}
+    if (!(error instanceof Deno.errors.NotFound)) {
+      throw error;
+    }
   }
 };
 
@@ -35,7 +43,9 @@ const env = (name: string, ...fallbacks: string[]): string => {
   const value = [name, ...fallbacks]
     .map((key) => Deno.env.get(key))
     .find(Boolean);
-  if (!value) {throw new Error(`${name} is required`);}
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
   return value;
 };
 
@@ -50,16 +60,23 @@ const fetchAll = async <T>(
       .from(table)
       .select(select)
       .range(from, from + 999);
-    if (error) {throw error;}
+    if (error) {
+      throw error;
+    }
     rows.push(...((data ?? []) as T[]));
-    if (!data || data.length < 1000) {return rows;}
+    if (!data || data.length < 1000) {
+      return rows;
+    }
   }
 };
 
-const pad = (value: number, length: number): string => String(value).padStart(length, '0');
+const pad = (value: number, length: number): string =>
+  String(value).padStart(length, '0');
 
 const toBase58 = (value: bigint, alphabet: string): string => {
-  if (value === 0n) {return alphabet[0];}
+  if (value === 0n) {
+    return alphabet[0];
+  }
   let encoded = '';
   let remaining = value;
   while (remaining > 0n) {
@@ -81,12 +98,17 @@ const client = createClient(
   env('SUPABASE_SERVICE_ROLE_KEY', 'FOR_ISSUE_TICKETS_SUPABASE_SECRET_KEY'),
 );
 const apply = Deno.args.includes('--apply');
-const tickets = (await fetchAll<TicketRow>(client, 'tickets', 'id,code,ticket_type'))
-  .filter((ticket) => TARGET_TICKET_TYPES.has(ticket.ticket_type));
+const tickets = (
+  await fetchAll<TicketRow>(client, 'tickets', 'id,code,ticket_type')
+).filter((ticket) => TARGET_TICKET_TYPES.has(ticket.ticket_type));
 const counters = new Map(
-  (await fetchAll<CounterRow>(client, 'ticket_code_counters', 'prefix,last_value')).map(
-    (counter) => [counter.prefix, Number(counter.last_value)],
-  ),
+  (
+    await fetchAll<CounterRow>(
+      client,
+      'ticket_code_counters',
+      'prefix,last_value',
+    )
+  ).map((counter) => [counter.prefix, Number(counter.last_value)]),
 );
 
 const requiredLastValues = new Map<string, number>();
@@ -116,11 +138,16 @@ const repairs = [...requiredLastValues]
 
 if (apply) {
   for (const repair of repairs) {
-    const { error } = await client.rpc('advance_ticket_code_counter_to_at_least', {
-      p_prefix: repair.prefix,
-      p_last_value: repair.requiredLastValue,
-    });
-    if (error) {throw error;}
+    const { error } = await client.rpc(
+      'advance_ticket_code_counter_to_at_least',
+      {
+        p_prefix: repair.prefix,
+        p_last_value: repair.requiredLastValue,
+      },
+    );
+    if (error) {
+      throw error;
+    }
   }
 }
 

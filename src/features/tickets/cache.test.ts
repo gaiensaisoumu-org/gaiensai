@@ -50,8 +50,7 @@ describe('ticketDisplayCache', () => {
     expect(list.map((t) => t.code)).toEqual(['B', 'A']);
     expect(
       list.every(
-        (ticket) =>
-          (ticket as { status?: string }).status === 'unknown',
+        (ticket) => (ticket as { status?: string }).status === 'unknown',
       ),
     ).toBe(true);
   });
@@ -102,8 +101,12 @@ describe('ticketDisplayCache', () => {
     clearTicketHistoryCaches();
 
     expect(listTicketDisplayCache()).toEqual([]);
-    expect(localStorage.getItem('students_ticket_cards_cache:v1:student-1')).toBeNull();
-    expect(localStorage.getItem('junior_ticket_cards_cache:v1:junior-1')).toBeNull();
+    expect(
+      localStorage.getItem('students_ticket_cards_cache:v1:student-1'),
+    ).toBeNull();
+    expect(
+      localStorage.getItem('junior_ticket_cards_cache:v1:junior-1'),
+    ).toBeNull();
     expect(localStorage.getItem('unrelated-setting')).toBe('keep');
   });
 
@@ -111,7 +114,10 @@ describe('ticketDisplayCache', () => {
     localStorage.setItem('students_profile_cache:v1:student-1', '{}');
     localStorage.setItem('junior_profile_cache:v1:junior-1', '{}');
     localStorage.setItem('performances-table-cache:v1:general:all:all', '{}');
-    localStorage.setItem('gym-performances-table-cache:v1:general:all:all', '{}');
+    localStorage.setItem(
+      'gym-performances-table-cache:v1:general:all:all',
+      '{}',
+    );
     localStorage.setItem('event_config', '{}');
     localStorage.setItem('unrelated-setting', 'remove');
     localStorage.setItem('admin_control_panel_session_v2', 'keep');
@@ -119,7 +125,9 @@ describe('ticketDisplayCache', () => {
 
     clearAllUserCaches();
 
-    expect(localStorage.getItem('students_profile_cache:v1:student-1')).toBeNull();
+    expect(
+      localStorage.getItem('students_profile_cache:v1:student-1'),
+    ).toBeNull();
     expect(localStorage.getItem('junior_profile_cache:v1:junior-1')).toBeNull();
     expect(
       localStorage.getItem('performances-table-cache:v1:general:all:all'),

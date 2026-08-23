@@ -5,7 +5,7 @@
 
 .pamphletVertical {
   width: min(100% - 2rem, 760px);
-    margin: 0 auto 2rem;
+  margin: 0 auto 2rem;
 }
 
 .viewControls {

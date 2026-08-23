@@ -16,8 +16,15 @@ const Drawer = ({ isOpen, onClose }: Props) => {
         onClick={onClose}
         aria-hidden={!isOpen}
       />
-      <aside className={`${styles.drawerPanel} ${isOpen ? styles.open : ''}`} inert={!isOpen}>
-        <button className={styles.drawerClose} onClick={onClose} aria-label='閉じる'>
+      <aside
+        className={`${styles.drawerPanel} ${isOpen ? styles.open : ''}`}
+        inert={!isOpen}
+      >
+        <button
+          className={styles.drawerClose}
+          onClick={onClose}
+          aria-label='閉じる'
+        >
           <MdClose />
         </button>
         <div className={styles.drawerContent}>

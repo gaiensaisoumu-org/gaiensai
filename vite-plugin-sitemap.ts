@@ -136,9 +136,7 @@ const routeMatches = (route: string, pattern: string) => {
 
   if (normalizedPattern.endsWith('/*')) {
     const prefix = normalizedPattern.slice(0, -2);
-    return (
-      normalizedRoute.startsWith(`${prefix}/`)
-    );
+    return normalizedRoute.startsWith(`${prefix}/`);
   }
 
   return normalizedRoute === normalizedPattern;

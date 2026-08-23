@@ -34,14 +34,20 @@ const TimeTable = () => {
     () =>
       (snapshot.schedules ?? [])
         .filter((item) => item.start_at)
-        .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()),
+        .sort(
+          (a, b) =>
+            new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+        ),
     [],
   );
   const gymPerformances = useMemo(
     () =>
       (snapshot.gymPerformances ?? [])
         .filter((item) => item.start_at && item.end_at)
-        .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()),
+        .sort(
+          (a, b) =>
+            new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+        ),
     [],
   );
   const showLength = snapshot.showLengthMinutes || 45;

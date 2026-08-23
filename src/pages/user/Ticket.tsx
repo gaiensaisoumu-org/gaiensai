@@ -43,7 +43,10 @@ import { formatDateText } from '../../utils/formatDateText.ts';
 import { useTicketStorage } from '../../features/tickets/useTicketStorage.ts';
 import LoadingSpinner from '../../components/ui/LoadingSpinner.tsx';
 import { useTitle } from '../../hooks/useTitle.ts';
-import { formatMaintenanceEndAt, readMaintenanceConfig } from '../../features/tickets/maintenanceMode.ts';
+import {
+  formatMaintenanceEndAt,
+  readMaintenanceConfig,
+} from '../../features/tickets/maintenanceMode.ts';
 
 type TicketDisplay = TicketDecodedDisplaySeed & {
   code: string;
@@ -173,8 +176,8 @@ const checkTicketValidity = async (
   }
 
   const status = (data as { status?: string } | null)?.status;
-  const ticketName = (data as { ticket_name?: string | null } | null)
-    ?.ticket_name ?? null;
+  const ticketName =
+    (data as { ticket_name?: string | null } | null)?.ticket_name ?? null;
 
   if (status === 'used') {
     return {
@@ -285,7 +288,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
     number | null
   >(null);
   const [isChangingRelationship, setIsChangingRelationship] = useState(false);
-  const [maintenanceConfig, setMaintenanceConfig] = useState(readMaintenanceConfig);
+  const [maintenanceConfig, setMaintenanceConfig] = useState(
+    readMaintenanceConfig,
+  );
   const [ticket, setTicket] = useState<TicketDisplay>({
     code: '',
     signature: '',
@@ -413,9 +418,20 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             typeof cached.serial === 'number' ? cached.serial : decoded.serial,
         };
 
-        // 既存キャッシュに日時が保存されていない場合も、スナップショットで補正する
+        const cachedTicketType = (ticketSnapshot.ticketTypes ?? []).find(
+          (ticketType) => ticketType.id === decoded.ticketTypeId,
+        );
+        const isCachedRehearsalTicket =
+          cachedTicketType?.name === 'クラス公演(リハーサル)' ||
+          resolvedCachedTicket.ticketTypeLabel.includes('リハーサル');
+
+        // 通常公演のみ、既存キャッシュの日時を静的スナップショットで補正する。
+        // リハーサルは round_id が通常公演と重なるため、ここで補正すると
+        // 通常公演の日時で上書きされてしまう。
         const isCachedGymPerformance =
-          decoded.performanceId > 0 && decoded.scheduleId === 0;
+          !isCachedRehearsalTicket &&
+          decoded.performanceId > 0 &&
+          decoded.scheduleId === 0;
         const cachedSchedule = ticketSnapshot.schedules.find(
           (schedule) => schedule.id === decoded.scheduleId,
         );
@@ -425,7 +441,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
         const cachedStartAt = isCachedGymPerformance
           ? cachedGymPerformance?.start_at
           : cachedSchedule?.start_at;
-        if (cachedStartAt) {
+        if (!isCachedRehearsalTicket && cachedStartAt) {
           const startAt = new Date(cachedStartAt);
           const endAt = isCachedGymPerformance
             ? cachedGymPerformance?.end_at
@@ -463,10 +479,19 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
 
         // バックグラウンドで署名検証とステータス確認を実行
         void (async () => {
-          const [signatureIsValid, validityResult] = await Promise.all([
-            verifyTicketSignature(code, signature),
-            checkTicketValidity(code),
-          ]);
+          const [signatureIsValid, validityResult, rehearsalResult] =
+            await Promise.all([
+              verifyTicketSignature(code, signature),
+              checkTicketValidity(code),
+              isCachedRehearsalTicket
+                ? supabase
+                    .from('rehearsals')
+                    .select('round_name, start_time, end_time')
+                    .eq('class_id', decoded.performanceId)
+                    .eq('round_id', decoded.scheduleId)
+                    .maybeSingle()
+                : Promise.resolve({ data: null, error: null }),
+            ]);
 
           let hasUpdates = false;
           const updatedTicket = { ...resolvedCachedTicket };
@@ -484,6 +509,30 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
           }
           if (validityResult.ticketName !== cached.ticketName) {
             updatedTicket.ticketName = validityResult.ticketName;
+            hasUpdates = true;
+          }
+          if (isCachedRehearsalTicket && rehearsalResult.data?.start_time) {
+            const startAt = new Date(rehearsalResult.data.start_time);
+            const endAt = rehearsalResult.data.end_time
+              ? new Date(rehearsalResult.data.end_time)
+              : null;
+            updatedTicket.scheduleName =
+              rehearsalResult.data.round_name ?? '不明なリハーサル';
+            updatedTicket.scheduleDate = startAt.toLocaleDateString('ja-JP', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            });
+            updatedTicket.scheduleTime = startAt.toLocaleTimeString('ja-JP', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            updatedTicket.scheduleEndTime = endAt
+              ? endAt.toLocaleTimeString('ja-JP', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '';
             hasUpdates = true;
           }
 
@@ -506,7 +555,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
 
       const isAdmissionOnly =
         decoded.performanceId === 0 && decoded.scheduleId === 0;
-      const isGymPerformance =
+      const isPotentialGymPerformance =
         decoded.performanceId > 0 && decoded.scheduleId === 0;
 
       const snapshotPerformance = ticketSnapshot.performances.find(
@@ -521,6 +570,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
       const snapshotTicketType = (ticketSnapshot.ticketTypes ?? []).find(
         (ticketType) => ticketType.id === decoded.ticketTypeId,
       );
+      const isRehearsalTicket =
+        snapshotTicketType?.name === 'クラス公演(リハーサル)';
+      const isGymPerformance = isPotentialGymPerformance && !isRehearsalTicket;
       const snapshotRelationship = (ticketSnapshot.relationships ?? []).find(
         (relationship) => relationship.id === decoded.relationshipId,
       );
@@ -528,8 +580,8 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
       // スナップショットから初期データを準備
       let performanceName = '-';
       const performanceTitle: string | null = null;
-      let scheduleName = '-';
-      let scheduleDate = '-';
+      let scheduleName = isRehearsalTicket ? '不明なリハーサル' : '-';
+      let scheduleDate = isRehearsalTicket ? '不明' : '-';
       let scheduleTime = '';
       let scheduleEndTime = '';
       const ticketTypeLabel = resolveTicketTypeLabel({
@@ -581,6 +633,8 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               day: '2-digit',
             })
           : '-';
+      } else if (isRehearsalTicket) {
+        performanceName = snapshotPerformance?.class_name ?? '不明なクラス';
       } else {
         const startAt = snapshotSchedule?.start_at
           ? new Date(snapshotSchedule.start_at)
@@ -591,27 +645,37 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
             : null;
 
-        performanceName = snapshotPerformance?.class_name ?? '-';
-        scheduleName = snapshotSchedule?.round_name ?? '-';
+        performanceName =
+          snapshotPerformance?.class_name ??
+          (isRehearsalTicket ? '不明なクラス' : '-');
+        scheduleName =
+          snapshotSchedule?.round_name ??
+          (isRehearsalTicket ? '不明なリハーサル' : '-');
         scheduleTime = startAt
           ? startAt.toLocaleTimeString('ja-JP', {
               hour: '2-digit',
               minute: '2-digit',
             })
-          : '-';
+          : isRehearsalTicket
+            ? ''
+            : '-';
         scheduleEndTime = endAt
           ? endAt.toLocaleTimeString('ja-JP', {
               hour: '2-digit',
               minute: '2-digit',
             })
-          : '-';
+          : isRehearsalTicket
+            ? ''
+            : '-';
         scheduleDate = startAt
           ? startAt.toLocaleDateString('ja-JP', {
               year: 'numeric',
               month: '2-digit',
               day: '2-digit',
             })
-          : '-';
+          : isRehearsalTicket
+            ? '不明'
+            : '-';
       }
 
       // スナップショットデータで初期表示
@@ -730,6 +794,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               relationshipRes,
               classPerformanceRes,
               scheduleRes,
+              rehearsalRes,
               gymPerformanceRes,
               configRes,
             ] = await Promise.all([
@@ -765,6 +830,12 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 .select('round_name, start_at')
                 .eq('id', decoded.scheduleId)
                 .maybeSingle(),
+              supabase
+                .from('rehearsals')
+                .select('round_name, start_time, end_time')
+                .eq('class_id', decoded.performanceId)
+                .eq('round_id', decoded.scheduleId)
+                .maybeSingle(),
               isGymPerformance
                 ? supabase
                     .from('gym_performances')
@@ -780,49 +851,65 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 .maybeSingle(),
             ]);
 
+            const isRehearsalTicket =
+              ticketTypeRes.data?.name === 'クラス公演(リハーサル)';
+            const isResolvedGymPerformance =
+              isGymPerformance && !isRehearsalTicket;
+
             if (
               ticketTypeRes.error ||
               relationshipRes.error ||
               classPerformanceRes.error ||
-              (isGymPerformance
+              (isResolvedGymPerformance
                 ? gymPerformanceRes.error
-                : scheduleRes.error) ||
+                : isRehearsalTicket
+                  ? rehearsalRes.error
+                  : scheduleRes.error) ||
               configRes.error ||
               !ticketTypeRes.data ||
               !relationshipRes.data ||
-              (!isGymPerformance &&
-                (!classPerformanceRes.data || !scheduleRes.data)) ||
-              (isGymPerformance && !gymPerformanceRes.data)
+              (!isResolvedGymPerformance &&
+                (!classPerformanceRes.data ||
+                  (isRehearsalTicket
+                    ? !rehearsalRes.data
+                    : !scheduleRes.data))) ||
+              (isResolvedGymPerformance && !gymPerformanceRes.data)
             ) {
               return;
             }
 
             // Supabaseから取得した詳細情報を処理
-            const updatedPerformanceName = isGymPerformance
+            const updatedPerformanceName = isResolvedGymPerformance
               ? (gymPerformanceRes.data?.group_name ?? '-')
               : (classPerformanceRes.data?.class_name ?? '-');
-            const updatedPerformanceTitle = isGymPerformance
+            const updatedPerformanceTitle = isResolvedGymPerformance
               ? null
               : (classPerformanceRes.data?.title ?? null);
-            const updatedScheduleName = isGymPerformance
+            const updatedScheduleName = isResolvedGymPerformance
               ? (gymPerformanceRes.data?.round_name ?? '-')
-              : (scheduleRes.data?.round_name ?? '-');
+              : isRehearsalTicket
+                ? (rehearsalRes.data?.round_name ?? '不明なリハーサル')
+                : (scheduleRes.data?.round_name ?? '-');
             let updatedScheduleDate = '-';
             let updatedScheduleTime = '';
             let updatedScheduleEndTime = '';
 
-            const sourceStartAt = isGymPerformance
+            const sourceStartAt = isResolvedGymPerformance
               ? gymPerformanceRes.data?.start_at
-              : scheduleRes.data?.start_at;
+              : isRehearsalTicket
+                ? rehearsalRes.data?.start_time
+                : scheduleRes.data?.start_at;
             const startAt = sourceStartAt ? new Date(sourceStartAt) : null;
             const showLengthMinutes = Number(configRes.data?.show_length ?? 0);
-            const endAt = isGymPerformance
+            const endAt = isResolvedGymPerformance
               ? gymPerformanceRes.data?.end_at
                 ? new Date(gymPerformanceRes.data.end_at)
                 : null
-              : startAt && Number.isFinite(showLengthMinutes)
-                ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
-                : null;
+              : isRehearsalTicket && rehearsalRes.data?.end_time
+                ? new Date(rehearsalRes.data.end_time)
+                : startAt && Number.isFinite(showLengthMinutes)
+                  ? new Date(startAt.getTime() + showLengthMinutes * 60 * 1000)
+                  : null;
 
             updatedScheduleTime = startAt
               ? startAt.toLocaleTimeString('ja-JP', {
@@ -941,8 +1028,17 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
   const canCancelTicket =
     !loading && !cancelLoading && ticketStatus === 'valid';
   const isDayTicket = ticket.ticketTypeId === 8 || ticket.ticketTypeId === 9;
-  const qrColor =
-    ticket.performanceId > 0 && ticket.scheduleId === 0 ? '#d61322' : undefined;
+  const isRehearsalTicket =
+    (ticketSnapshot.ticketTypes ?? []).some(
+      (ticketType) =>
+        ticketType.id === ticket.ticketTypeId &&
+        ticketType.name === 'クラス公演(リハーサル)',
+    ) || ticket.ticketTypeLabel.includes('リハーサル');
+  const qrColor = isRehearsalTicket
+    ? '#16803c'
+    : ticket.performanceId > 0 && ticket.scheduleId === 0
+      ? '#d61322'
+      : undefined;
   const canChangeRelationship =
     (!isDayTicket || isJuniorTicket) &&
     !loading &&
@@ -1264,9 +1360,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                     : undefined
                 }
               />
-              <p className={styles.ticketCode}>
-                {formatTicketCode(code)}
-              </p>
+              <p className={styles.ticketCode}>{formatTicketCode(code)}</p>
             </div>
           )}
 
@@ -1460,7 +1554,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             </li>
             <li>この券で、校内入場や展示部活を見ることも可能です。</li>
             <li>
-              このQRコード1枚につき、{ticket.relationshipName === '中学生と保護者' ? '二名' : '一人'}まで入場可能です。ただし、他の座席を使用しない場合は乳児と同伴可能です。
+              このQRコード1枚につき、
+              {ticket.relationshipName === '中学生と保護者' ? '二名' : '一人'}
+              まで入場可能です。ただし、他の座席を使用しない場合は乳児と同伴可能です。
             </li>
             <li>
               このQRコードは<strong>1度のみ</strong>
@@ -1527,7 +1623,8 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               </p>
               {maintenanceConfig.maintenanceMode && (
                 <p className={styles.relationshipError}>
-                  現在メンテナンス中のため、間柄を変更できません。終了予定時刻: {formatMaintenanceEndAt(maintenanceConfig.endsAt) ?? '未定'}
+                  現在メンテナンス中のため、間柄を変更できません。終了予定時刻:{' '}
+                  {formatMaintenanceEndAt(maintenanceConfig.endsAt) ?? '未定'}
                 </p>
               )}
 
@@ -1543,7 +1640,11 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                   onChange={(event) =>
                     setSelectedRelationshipId(Number(event.currentTarget.value))
                   }
-                  disabled={relationshipLoading || isChangingRelationship || maintenanceConfig.maintenanceMode}
+                  disabled={
+                    relationshipLoading ||
+                    isChangingRelationship ||
+                    maintenanceConfig.maintenanceMode
+                  }
                 >
                   <option value='' disabled={true}>
                     選択してください
@@ -1576,7 +1677,11 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                   type='button'
                   className={styles.changeRelationshipConfirmButton}
                   onClick={handleChangeRelationship}
-                  disabled={relationshipLoading || isChangingRelationship || maintenanceConfig.maintenanceMode}
+                  disabled={
+                    relationshipLoading ||
+                    isChangingRelationship ||
+                    maintenanceConfig.maintenanceMode
+                  }
                 >
                   {isChangingRelationship ? '変更中...' : '続行する'}
                 </button>

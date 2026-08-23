@@ -4,9 +4,8 @@ import { applyDecodedSerials } from './decodeTicketSerial';
 export const useDecodedSerialTickets = <T extends { code: string }>(
   sourceTickets: T[],
 ): Array<T & { serial?: number }> => {
-  const [tickets, setTickets] = useState<Array<T & { serial?: number }>>(
-    sourceTickets,
-  );
+  const [tickets, setTickets] =
+    useState<Array<T & { serial?: number }>>(sourceTickets);
 
   useEffect(() => {
     let cancelled = false;

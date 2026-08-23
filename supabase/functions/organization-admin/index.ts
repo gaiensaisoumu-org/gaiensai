@@ -204,8 +204,8 @@ const getOrganizationStatus = async (
   if (kind === 'class') {
     const classKey = classKeyFromName(organizationName);
     members = classKey
-      ? allProfiles.filter((profile) =>
-          classKeyForAffiliation(profile.affiliation) === classKey,
+      ? allProfiles.filter(
+          (profile) => classKeyForAffiliation(profile.affiliation) === classKey,
         )
       : [];
 
@@ -376,11 +376,14 @@ Deno.serve(async (req) => {
         throw error;
       }
       const issuedPeople = (ticketLinks ?? []).reduce((total, link) => {
-        const ticket = (link as { tickets?: { person_count?: unknown } }).tickets;
+        const ticket = (link as { tickets?: { person_count?: unknown } })
+          .tickets;
         const personCount = Number(ticket?.person_count ?? 0);
         return total + (Number.isFinite(personCount) ? personCount : 0);
       }, 0);
-      const memberIds = new Set(organization.members.map((member) => member.id));
+      const memberIds = new Set(
+        organization.members.map((member) => member.id),
+      );
       const memberIdList = [...memberIds];
       const { data: memberIssuedTickets, error: memberIssuedTicketsError } =
         memberIdList.length
@@ -401,9 +404,11 @@ Deno.serve(async (req) => {
       );
       const targetCountByIssuer = new Map<string, number>();
       for (const link of ticketLinks ?? []) {
-        const ticket = (link as {
-          tickets?: { issued_by_user_id?: string };
-        }).tickets;
+        const ticket = (
+          link as {
+            tickets?: { issued_by_user_id?: string };
+          }
+        ).tickets;
         const issuerId = ticket?.issued_by_user_id;
         if (issuerId && memberIds.has(issuerId)) {
           targetCountByIssuer.set(
@@ -425,7 +430,10 @@ Deno.serve(async (req) => {
             affiliation: member.affiliation,
             ticketCount: targetCountByIssuer.get(member.id) ?? 0,
           }))
-          .sort((a, b) => b.ticketCount - a.ticketCount || a.affiliation - b.affiliation),
+          .sort(
+            (a, b) =>
+              b.ticketCount - a.ticketCount || a.affiliation - b.affiliation,
+          ),
       };
       const { data: relationships, error: relationshipsError } = await client
         .from('relationships')
@@ -491,7 +499,8 @@ Deno.serve(async (req) => {
               performanceCapacity: {
                 completed: issuedPeople,
                 total: own.performances.reduce(
-                  (total, performance) => total + Number(performance.capacity ?? 0),
+                  (total, performance) =>
+                    total + Number(performance.capacity ?? 0),
                   0,
                 ),
               },
@@ -518,6 +527,28 @@ Deno.serve(async (req) => {
       const roundNames = new Map(
         (schedules ?? []).map((schedule) => [schedule.id, schedule.round_name]),
       );
+      const { data: rehearsals, error: rehearsalError } = await client
+        .from('rehearsals')
+        .select(
+          'id, round_id, round_name, start_time, end_time, capacity, is_active, active_ticket_count',
+        )
+        .eq('class_id', own.performance.id)
+        .eq('type', 'unofficial')
+        .order('start_time');
+      if (rehearsalError) throw rehearsalError;
+      const { data: rehearsalTicketType, error: rehearsalTicketTypeError } =
+        await client
+          .from('ticket_types')
+          .select('id')
+          .eq('name', 'クラス公演(リハーサル)')
+          .maybeSingle();
+      if (rehearsalTicketTypeError) throw rehearsalTicketTypeError;
+      const rehearsalRoundNames = new Map(
+        (rehearsals ?? []).map((rehearsal) => [
+          rehearsal.round_id,
+          rehearsal.round_name,
+        ]),
+      );
       return json(
         {
           username: admin.username,
@@ -533,17 +564,65 @@ Deno.serve(async (req) => {
             ...status,
             performanceCapacity: {
               completed: issuedPeople,
-              total: Number(own.performance.total_capacity ?? 0) *
+              total:
+                Number(own.performance.total_capacity ?? 0) *
                 (schedules ?? []).length,
             },
           },
           tickets: generalTickets.map((link) => ({
             ...link,
-            round_name: roundNames.get(link.round_id) ?? '未設定',
+            is_rehearsal:
+              (link.tickets as { ticket_type?: number } | null)?.ticket_type ===
+              rehearsalTicketType?.id,
+            round_name:
+              (link.tickets as { ticket_type?: number } | null)?.ticket_type ===
+              rehearsalTicketType?.id
+                ? (rehearsalRoundNames.get(link.round_id) ?? '不明なリハーサル')
+                : (roundNames.get(link.round_id) ?? '未設定'),
           })),
+          rehearsals: rehearsals ?? [],
         },
         corsHeaders,
       );
+    }
+
+    if (
+      action === 'createUnofficialRehearsal' ||
+      action === 'updateUnofficialRehearsal' ||
+      action === 'deleteUnofficialRehearsal'
+    ) {
+      const own = await ownPerformance(client, admin);
+      if (own.kind !== 'class')
+        throw new HttpError(403, '自主リハーサルはクラスのみ管理できます。');
+      const classId = Number(own.performance.id);
+      if (action === 'createUnofficialRehearsal') {
+        const { error } = await client.rpc('create_unofficial_rehearsal', {
+          p_class_id: classId,
+          p_round_name: text(body.roundName, 'リハーサル名', 10000),
+          p_start_time: body.startTime,
+          p_end_time: body.endTime,
+          p_capacity: Number(body.capacity),
+        });
+        if (error) throw new HttpError(400, error.message);
+      } else if (action === 'updateUnofficialRehearsal') {
+        const { error } = await client.rpc('update_unofficial_rehearsal', {
+          p_id: Number(body.id),
+          p_class_id: classId,
+          p_round_name: text(body.roundName, 'リハーサル名', 10000),
+          p_start_time: body.startTime,
+          p_end_time: body.endTime,
+          p_capacity: Number(body.capacity),
+        });
+        if (error) throw new HttpError(400, error.message);
+      } else {
+        const { data, error } = await client.rpc(
+          'delete_or_deactivate_unofficial_rehearsal',
+          { p_id: Number(body.id), p_class_id: classId },
+        );
+        if (error) throw new HttpError(400, error.message);
+        return json({ updated: true, deactivated: data === true }, corsHeaders);
+      }
+      return json({ updated: true }, corsHeaders);
     }
 
     if (action === 'updatePerformance') {
@@ -703,6 +782,17 @@ Deno.serve(async (req) => {
       }
       // 定員は各公演回ごとの値なので、有効チケットも公演回ごとに集計して
       // 検証する。全回分を合算すると、定員を超えていない回でも変更できなくなる。
+      const rehearsalTicketType =
+        own.kind === 'class'
+          ? await client
+              .from('ticket_types')
+              .select('id')
+              .eq('name', 'クラス公演(リハーサル)')
+              .maybeSingle()
+          : { data: null, error: null };
+      if (rehearsalTicketType.error) {
+        throw rehearsalTicketType.error;
+      }
       const ticketQuery =
         own.kind === 'class'
           ? client
@@ -710,6 +800,7 @@ Deno.serve(async (req) => {
               .select('round_id, tickets!inner(person_count)')
               .eq('class_id', own.performance.id)
               .eq('tickets.status', 'valid')
+              .neq('tickets.ticket_type', rehearsalTicketType.data?.id ?? -1)
           : client
               .from('gym_tickets')
               .select('performance_id, tickets!inner(person_count)')

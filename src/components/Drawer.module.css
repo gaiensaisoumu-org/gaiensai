@@ -4,7 +4,9 @@
 
   background: var(--drawer-overlay-clear);
   visibility: hidden;
-  transition: background 0.28s ease, visibility 0.28s;
+  transition:
+    background 0.28s ease,
+    visibility 0.28s;
   z-index: 1000;
 }
 

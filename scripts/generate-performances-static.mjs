@@ -51,7 +51,7 @@ const env = {
 };
 
 if (!env.VITE_SUPABASE_URL) {
-  console.warn("Skipping static generation (no Supabase env)");
+  console.warn('Skipping static generation (no Supabase env)');
   process.exit(0);
 }
 
@@ -100,7 +100,10 @@ const buildSnapshot = async () => {
       .from('ticket_types')
       .select('id, name, type')
       .order('id', { ascending: true }),
-    supabase.from('relationships').select('id, name').order('id', { ascending: true }),
+    supabase
+      .from('relationships')
+      .select('id, name')
+      .order('id', { ascending: true }),
     supabase
       .from('configs')
       .select('show_length')
@@ -109,7 +112,9 @@ const buildSnapshot = async () => {
       .maybeSingle(),
     supabase
       .from('exhibition_clubs')
-      .select('id, year, group_name, description, image_path, created_at, like, location')
+      .select(
+        'id, year, group_name, description, image_path, created_at, like, location',
+      )
       .order('id', { ascending: true }),
   ]);
 
@@ -119,8 +124,8 @@ const buildSnapshot = async () => {
     scheduleError ||
     ticketTypeError ||
     relationshipError ||
-    configError
-    || exhibitionClubError
+    configError ||
+    exhibitionClubError
   ) {
     throw new Error('Failed to fetch snapshot data from Supabase.');
   }

@@ -8,6 +8,9 @@ export const triggerCloudflarePagesDeploy = async () => {
   });
 
   if (!response.ok) {
-    throw new HttpError(502, 'Cloudflare Pages の再デプロイ開始に失敗しました。');
+    throw new HttpError(
+      502,
+      'Cloudflare Pages の再デプロイ開始に失敗しました。',
+    );
   }
 };

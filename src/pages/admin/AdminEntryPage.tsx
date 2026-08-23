@@ -220,7 +220,10 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
     }
 
     const affiliationNumber = Number(ticket.affiliation);
-    if (isJuniorTicketTypeId(ticket.ticketTypeId) && affiliationNumber > 100000) {
+    if (
+      isJuniorTicketTypeId(ticket.ticketTypeId) &&
+      affiliationNumber > 100000
+    ) {
       return `中学生 ${ticket.affiliation}`;
     }
 
@@ -773,7 +776,7 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
     }
   };
 
-  const checkIsTicketThisYear = (ticketYear: number) : boolean => {
+  const checkIsTicketThisYear = (ticketYear: number): boolean => {
     const currentYear = config.year;
     if (typeof currentYear !== 'number') {
       throw new Error('Invalid event configuration: year is not a number');
@@ -812,8 +815,10 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
         return;
       }
 
-      const { decoded, signatureIsValid } =
-        await decodeAndVerifyTicket(code, signature);
+      const { decoded, signatureIsValid } = await decodeAndVerifyTicket(
+        code,
+        signature,
+      );
 
       if (!decoded) {
         await saveScanResult(nextScannedValue, 'failed', 1);
@@ -1058,7 +1063,9 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
 
       const defaultEntryCount = getDefaultEntryCount(decoded);
       const { ticketStatus, ticketUsedAt, lastUsedAt, masterStatus } =
-        await fetchTicketStatus(pendingSignatureCode, { count: defaultEntryCount });
+        await fetchTicketStatus(pendingSignatureCode, {
+          count: defaultEntryCount,
+        });
 
       await processTicketStatus(
         decoded,
@@ -1230,8 +1237,9 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
         ticketId,
         options?.count ?? 1,
         {
-        allowUnknown: options?.allowUnknown === true,
-      });
+          allowUnknown: options?.allowUnknown === true,
+        },
+      );
       markServerOnline();
       return result;
     } catch (error) {
@@ -2038,8 +2046,7 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
                     間柄: {resolvedTicket?.relationshipName ?? '-'}
                   </span>
                   <span className={styles.secondaryItem}>
-                    発行者:{' '}
-                    {formatIssuerDisplay(decodedTicket)}
+                    発行者: {formatIssuerDisplay(decodedTicket)}
                   </span>
                 </div>
 

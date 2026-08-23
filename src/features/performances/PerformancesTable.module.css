@@ -88,19 +88,35 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.tableWrapper[data-scroll-fade="start"] {
+.tableWrapper[data-scroll-fade='start'] {
   mask-image: linear-gradient(to right, black calc(100% - 5rem), transparent);
-  -webkit-mask-image: linear-gradient(to right, black calc(100% - 5rem), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 5rem),
+    transparent
+  );
 }
 
-.tableWrapper[data-scroll-fade="end"] {
+.tableWrapper[data-scroll-fade='end'] {
   mask-image: linear-gradient(to right, transparent, black 5rem);
   -webkit-mask-image: linear-gradient(to right, transparent, black 5rem);
 }
 
-.tableWrapper[data-scroll-fade="middle"] {
-  mask-image: linear-gradient(to right, transparent, black 5rem, black calc(100% - 5rem), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 5rem, black calc(100% - 5rem), transparent);
+.tableWrapper[data-scroll-fade='middle'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent
+  );
 }
 
 .table {

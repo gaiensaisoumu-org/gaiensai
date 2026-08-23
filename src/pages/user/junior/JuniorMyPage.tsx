@@ -1,44 +1,47 @@
-import { useCallback, useEffect, useState } from "preact/hooks";
-import { IoMdAdd } from "react-icons/io";
-import performancesSnapshot from "../../../generated/performances-static.json";
+import { useCallback, useEffect, useState } from 'preact/hooks';
+import { IoMdAdd } from 'react-icons/io';
+import performancesSnapshot from '../../../generated/performances-static.json';
 import {
   decodeTicketCodeWithEnv,
   toTicketDecodedDisplaySeed,
-} from "../../../features/tickets/ticketCodeDecode";
-import type { UserData } from "../../../types/types";
-import type { TicketCardItem } from "../../../features/tickets/IssuedTicketCardList";
-import { useTitle } from "../../../hooks/useTitle";
-import subPageStyles from "../../../styles/sub-pages.module.css";
-import sharedStyles from "../../../styles/shared.module.css";
-import dashboardStyles from "../students/Dashboard.module.css";
-import registrationStyles from "../students/InitialRegistration.module.css";
-import TicketListContent from "../../../features/tickets/TicketListContent";
-import type { TicketListSortMode } from "../../../features/tickets/IssuedTicketCardList";
-import NormalSection from "../../../components/ui/NormalSection";
-import PerformancesTable from "../../../features/performances/PerformancesTable";
-import GymPerformancesTable from "../../../features/performances/GymPerformancesTable";
-import LoadingSpinner from "../../../components/ui/LoadingSpinner";
-import { supabase } from "../../../lib/supabase";
-import { formatTicketTypeLabel } from "../../../features/tickets/formatTicketTypeLabel";
-import { resolveJuniorRelationshipName } from "../../../features/tickets/juniorRelationship";
+} from '../../../features/tickets/ticketCodeDecode';
+import type { UserData } from '../../../types/types';
+import type { TicketCardItem } from '../../../features/tickets/IssuedTicketCardList';
+import { useTitle } from '../../../hooks/useTitle';
+import subPageStyles from '../../../styles/sub-pages.module.css';
+import sharedStyles from '../../../styles/shared.module.css';
+import dashboardStyles from '../students/Dashboard.module.css';
+import registrationStyles from '../students/InitialRegistration.module.css';
+import TicketListContent from '../../../features/tickets/TicketListContent';
+import type { TicketListSortMode } from '../../../features/tickets/IssuedTicketCardList';
+import NormalSection from '../../../components/ui/NormalSection';
+import PerformancesTable from '../../../features/performances/PerformancesTable';
+import GymPerformancesTable from '../../../features/performances/GymPerformancesTable';
+import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import { supabase } from '../../../lib/supabase';
+import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
+import { resolveJuniorRelationshipName } from '../../../features/tickets/juniorRelationship';
 import {
   type JuniorApplicationDays,
   parseJuniorApplicationDaySelection,
   resolveJuniorApplicationDayError,
   resolveJuniorApplicationDays,
   serializeJuniorApplicationDaySelection,
-} from "./applicationDay";
-import { createClient } from "@supabase/supabase-js";
-import { useLocation } from "preact-iso";
+} from './applicationDay';
+import { createClient } from '@supabase/supabase-js';
+import { useLocation } from 'preact-iso';
 import {
   readCachedJuniorTicketCards,
   writeCachedJuniorTicketCards,
-} from "./offlineCache";
-import { OfflineError, withTimeout } from "../../../utils/withTimeout";
-import { clearAllUserCaches } from "../../../features/tickets/ticketDisplayCache";
-import Modal from "../../../components/ui/Modal";
-import Alert from "../../../components/ui/Alert";
-import { formatMaintenanceEndAt, saveMaintenanceConfig } from "../../../features/tickets/maintenanceMode";
+} from './offlineCache';
+import { OfflineError, withTimeout } from '../../../utils/withTimeout';
+import { clearAllUserCaches } from '../../../features/tickets/ticketDisplayCache';
+import Modal from '../../../components/ui/Modal';
+import Alert from '../../../components/ui/Alert';
+import {
+  formatMaintenanceEndAt,
+  saveMaintenanceConfig,
+} from '../../../features/tickets/maintenanceMode';
 
 type TicketSnapshot = {
   performances?: Array<{
@@ -69,7 +72,7 @@ type JuniorMyPageProps = {
 };
 
 const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
-  useTitle("マイページ - 中学生用ページ");
+  useTitle('マイページ - 中学生用ページ');
   const [ticketCards, setTicketCards] = useState<
     (TicketCardItem & { relationshipId: number })[]
   >([]);
@@ -80,11 +83,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   );
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [isTicketIssuingEnabled, setIsTicketIssuingEnabled] = useState(true);
-  const [maintenance, setMaintenance] = useState<{ active: boolean; endsAt: string | null }>({ active: false, endsAt: null });
+  const [maintenance, setMaintenance] = useState<{
+    active: boolean;
+    endsAt: string | null;
+  }>({ active: false, endsAt: null });
   const [hasAnyActiveInviteTicketType, setHasAnyActiveInviteTicketType] =
     useState(true);
   const [myTicketSortMode, setMyTicketSortMode] =
-    useState<TicketListSortMode>("recent");
+    useState<TicketListSortMode>('recent');
   const [hasReachedJuniorIssueLimit, setHasReachedJuniorIssueLimit] =
     useState(false);
   const [classApplicationDays, setClassApplicationDays] =
@@ -95,10 +101,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     showConfirmation: false,
     showParentForm: false,
   });
-  const [parentGuardianId, setParentGuardianId] = useState("");
-  const [birthdayYear, setBirthdayYear] = useState("");
-  const [birthdayMonth, setBirthdayMonth] = useState("");
-  const [birthdayDay, setBirthdayDay] = useState("");
+  const [parentGuardianId, setParentGuardianId] = useState('');
+  const [birthdayYear, setBirthdayYear] = useState('');
+  const [birthdayMonth, setBirthdayMonth] = useState('');
+  const [birthdayDay, setBirthdayDay] = useState('');
   const [splitLoading, setSplitLoading] = useState(false);
   const [splitErrorMessage, setSplitErrorMessage] = useState<string | null>(
     null,
@@ -108,9 +114,9 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const { route } = useLocation();
 
   const handleLogout = async () => {
-    window.localStorage.removeItem("junior_application_day");
+    window.localStorage.removeItem('junior_application_day');
     await supabase.auth.signOut();
-    route("/junior/login");
+    route('/junior/login');
   };
 
   const handleClearAllCaches = () => {
@@ -125,7 +131,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       } = await supabase.auth.getSession();
       const email = session?.user?.email;
 
-      const localPart = email?.replace("@gaiensai.local", "") ?? "";
+      const localPart = email?.replace('@gaiensai.local', '') ?? '';
       const loginId = localPart.match(/^(.*)-\d{8}$/)?.[1] ?? localPart;
 
       setParentGuardianId(loginId);
@@ -152,10 +158,10 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   };
 
   const handleCloseSplit = () => {
-    setParentGuardianId("");
-    setBirthdayYear("");
-    setBirthdayMonth("");
-    setBirthdayDay("");
+    setParentGuardianId('');
+    setBirthdayYear('');
+    setBirthdayMonth('');
+    setBirthdayDay('');
     setSplitErrorMessage(null);
     setAccountSplit((prev) => ({
       ...prev,
@@ -168,22 +174,22 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     event.preventDefault();
 
     if (!parentGuardianId.trim()) {
-      setSplitErrorMessage("保護者のIDを入力してください。");
+      setSplitErrorMessage('保護者のIDを入力してください。');
       return;
     }
 
     if (!birthdayYear.trim() || !birthdayMonth.trim() || !birthdayDay.trim()) {
-      setSplitErrorMessage("保護者の誕生日を入力してください。");
+      setSplitErrorMessage('保護者の誕生日を入力してください。');
       return;
     }
 
     const normalizedBirthday =
-      birthdayYear.trim().padStart(4, "0") +
-      birthdayMonth.trim().padStart(2, "0") +
-      birthdayDay.trim().padStart(2, "0");
+      birthdayYear.trim().padStart(4, '0') +
+      birthdayMonth.trim().padStart(2, '0') +
+      birthdayDay.trim().padStart(2, '0');
 
     if (!/^\d{8}$/.test(normalizedBirthday)) {
-      setSplitErrorMessage("誕生日は8桁（例: 20100401）で入力してください。");
+      setSplitErrorMessage('誕生日は8桁（例: 20100401）で入力してください。');
       return;
     }
 
@@ -197,7 +203,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       const userId = session?.user?.id;
 
       if (!userId) {
-        setSplitErrorMessage("認証情報の取得に失敗しました。");
+        setSplitErrorMessage('認証情報の取得に失敗しました。');
         setSplitLoading(false);
         return;
       }
@@ -220,16 +226,16 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
 
       if (authError || !authData.user) {
         setSplitErrorMessage(
-          authError?.message === "User already registered"
-            ? "このID・パスワードの組み合わせは既に登録されています。"
-            : "保護者アカウントの作成に失敗しました。",
+          authError?.message === 'User already registered'
+            ? 'このID・パスワードの組み合わせは既に登録されています。'
+            : '保護者アカウントの作成に失敗しました。',
         );
         setSplitLoading(false);
         return;
       }
 
       const { error: rpcError } = await supabase.rpc(
-        "split_existing_junior_account",
+        'split_existing_junior_account',
         {
           p_parent_auth_id: authData.user.id,
           p_parent_email: parentEmail,
@@ -237,13 +243,13 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       );
 
       if (rpcError) {
-        setSplitErrorMessage("アカウント分割に失敗しました。");
+        setSplitErrorMessage('アカウント分割に失敗しました。');
         setSplitLoading(false);
         return;
       }
 
       const { error: juniorTicketError } = await supabase.functions.invoke(
-        "issue-tickets",
+        'issue-tickets',
         {
           body: {
             ticketTypeId: JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID,
@@ -256,7 +262,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       );
 
       if (juniorTicketError) {
-        setSplitErrorMessage("中学生用入場専用券の発券に失敗しました。");
+        setSplitErrorMessage('中学生用入場専用券の発券に失敗しました。');
         setSplitLoading(false);
         return;
       }
@@ -267,7 +273,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           password: parentPassword,
         });
 
-        await tempClient.functions.invoke("issue-tickets", {
+        await tempClient.functions.invoke('issue-tickets', {
           body: {
             ticketTypeId: JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID,
             relationshipId: SELF_RELATIONSHIP_ID,
@@ -283,11 +289,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       let issued = false;
       for (let i = 0; i < ISSUE_POLL_MAX_RETRIES; i++) {
         const { count, error: ticketCheckError } = await supabase
-          .from("tickets")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("status", "valid")
-          .eq("ticket_type", JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
+          .from('tickets')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('status', 'valid')
+          .eq('ticket_type', JUNIOR_ENTRY_ONLY_TICKET_TYPE_ID);
 
         if (!ticketCheckError && Number(count ?? 0) > 0) {
           issued = true;
@@ -300,14 +306,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       }
 
       if (!issued) {
-        setSplitErrorMessage("入場専用券の反映確認に失敗しました。");
+        setSplitErrorMessage('入場専用券の反映確認に失敗しました。');
         setSplitLoading(false);
         return;
       }
 
       window.location.reload();
     } catch (error) {
-      setSplitErrorMessage("予期しないエラーが発生しました。");
+      setSplitErrorMessage('予期しないエラーが発生しました。');
       setSplitLoading(false);
     }
   };
@@ -324,22 +330,22 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       const day1Schedules = [1, 2, 3, 4];
       const day2Schedules = [5, 6, 7, 8];
       const allowedScheduleIds = [
-        ...(classApplicationDays?.includes("day1") ? day1Schedules : []),
-        ...(classApplicationDays?.includes("day2") ? day2Schedules : []),
+        ...(classApplicationDays?.includes('day1') ? day1Schedules : []),
+        ...(classApplicationDays?.includes('day2') ? day2Schedules : []),
       ];
       if (!allowedScheduleIds.includes(scheduleId)) {
         return false;
       }
       if (
-        classApplicationDays?.includes("day1") &&
-        classApplicationDays?.includes("day2")
+        classApplicationDays?.includes('day1') &&
+        classApplicationDays?.includes('day2')
       ) {
         return true;
       }
-      if (classApplicationDays?.includes("day1")) {
-        return !roundName.includes("2日目");
+      if (classApplicationDays?.includes('day1')) {
+        return !roundName.includes('2日目');
       }
-      return roundName.includes("2日目");
+      return roundName.includes('2日目');
     },
     [classApplicationDays],
   );
@@ -347,25 +353,25 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
   const gymScheduleFilter = useCallback(
     (_scheduleId: number, roundName: string) => {
       if (
-        gymApplicationDays?.includes("day1") &&
-        gymApplicationDays?.includes("day2")
+        gymApplicationDays?.includes('day1') &&
+        gymApplicationDays?.includes('day2')
       ) {
         return true;
       }
-      if (gymApplicationDays?.includes("day1")) {
-        return !roundName.includes("2日目");
+      if (gymApplicationDays?.includes('day1')) {
+        return !roundName.includes('2日目');
       }
-      return roundName.includes("2日目");
+      return roundName.includes('2日目');
     },
     [gymApplicationDays],
   );
 
-  const localPart = userData.email.replace("@gaiensai.local", "");
+  const localPart = userData.email.replace('@gaiensai.local', '');
   const loginId = localPart.match(/^(.*)-\d{8}$/)?.[1] ?? localPart;
   const usageType = userData.junior_usage_type;
-  const isAdmissionOnlyAccount = userData.application_day === "admission_only";
+  const isAdmissionOnlyAccount = userData.application_day === 'admission_only';
   const hasEntryOnlyTicket = ticketCards.some(
-    (ticket) => ticket.performanceName === "入場専用券",
+    (ticket) => ticket.performanceName === '入場専用券',
   );
   const isIssueReceptionStopped =
     !isTicketIssuingEnabled ||
@@ -402,7 +408,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         );
         if (serializedValue) {
           window.localStorage.setItem(
-            "junior_application_day",
+            'junior_application_day',
             serializedValue,
           );
         }
@@ -413,7 +419,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       }
 
       const storedSelection = parseJuniorApplicationDaySelection(
-        window.localStorage.getItem("junior_application_day"),
+        window.localStorage.getItem('junior_application_day'),
       );
       const storedApplicationDays =
         storedSelection.classDay ?? storedSelection.gymDay;
@@ -437,7 +443,7 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         );
         if (serializedValue) {
           window.localStorage.setItem(
-            "junior_application_day",
+            'junior_application_day',
             serializedValue,
           );
         }
@@ -452,11 +458,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     const handleOffline = () => setIsOnline(false);
 
     setIsOnline(navigator.onLine);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -473,14 +479,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       const user = session?.user;
 
       if (sessionError || !user) {
-        setTicketError("ログイン情報の取得に失敗しました。");
+        setTicketError('ログイン情報の取得に失敗しました。');
         setTicketLoading(false);
         return;
       }
 
       const fallbackToCachedTickets = (
         message: string,
-        notice = "チケット情報の取得が遅延しているため、前回の表示を使用しています。",
+        notice = 'チケット情報の取得が遅延しているため、前回の表示を使用しています。',
       ) => {
         const cachedTickets = readCachedJuniorTicketCards(user.id);
         if (!cachedTickets) {
@@ -498,8 +504,8 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       if (!navigator.onLine) {
         setIsOnline(false);
         fallbackToCachedTickets(
-          "オフラインのため、チケット情報を取得できません。",
-          "オフラインのため、前回の表示を使用しています。",
+          'オフラインのため、チケット情報を取得できません。',
+          'オフラインのため、前回の表示を使用しています。',
         );
         return;
       }
@@ -507,12 +513,12 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       let pageResponse: unknown;
       try {
         const result = await withTimeout(
-          supabase.rpc("get_junior_my_page"),
+          supabase.rpc('get_junior_my_page'),
           SUPABASE_RESPONSE_TIMEOUT_MS,
           true,
         );
         if (result.error) {
-          setTicketError("チケット情報の取得に失敗しました。");
+          setTicketError('チケット情報の取得に失敗しました。');
           setTicketLoading(false);
           return;
         }
@@ -524,37 +530,62 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
         }
         fallbackToCachedTickets(
           isOffline
-            ? "オフラインのため、チケット情報を取得できません。"
-            : "チケット情報の取得がタイムアウトしました。",
+            ? 'オフラインのため、チケット情報を取得できません。'
+            : 'チケット情報の取得がタイムアウトしました。',
           isOffline
-            ? "オフラインのため、前回の表示を使用しています。"
+            ? 'オフラインのため、前回の表示を使用しています。'
             : undefined,
         );
         return;
       }
 
       const pageData = (pageResponse ?? {}) as {
-        config?: { is_active?: boolean | null; maintenance_mode?: boolean | null; maintenance_ends_at?: string | null; max_tickets_per_junior_user?: number | null };
-        controls?: { class_invite_mode?: string | null; rehearsal_invite_mode?: string | null; gym_invite_mode?: string | null; entry_only_mode?: string | null };
+        config?: {
+          is_active?: boolean | null;
+          maintenance_mode?: boolean | null;
+          maintenance_ends_at?: string | null;
+          max_tickets_per_junior_user?: number | null;
+        };
+        controls?: {
+          class_invite_mode?: string | null;
+          rehearsal_invite_mode?: string | null;
+          gym_invite_mode?: string | null;
+          entry_only_mode?: string | null;
+        };
         non_entry_ticket_count?: number;
         entry_only_ticket_count?: number;
-        tickets?: Array<{ code: string; signature: string; relationship: number; ticket_name: string | null }>;
+        tickets?: Array<{
+          code: string;
+          signature: string;
+          relationship: number;
+          ticket_name: string | null;
+        }>;
         class_performances?: unknown[];
         gym_performances?: unknown[];
       };
-      if (typeof pageData.config?.is_active === "boolean") {
-        setIsTicketIssuingEnabled(pageData.config.is_active && pageData.config.maintenance_mode !== true);
+      if (typeof pageData.config?.is_active === 'boolean') {
+        setIsTicketIssuingEnabled(
+          pageData.config.is_active &&
+            pageData.config.maintenance_mode !== true,
+        );
       }
       saveMaintenanceConfig(pageData.config);
-      setMaintenance({ active: pageData.config?.maintenance_mode === true, endsAt: pageData.config?.maintenance_ends_at ?? null });
+      setMaintenance({
+        active: pageData.config?.maintenance_mode === true,
+        endsAt: pageData.config?.maintenance_ends_at ?? null,
+      });
       const controls = pageData.controls;
       if (controls) {
         setHasAnyActiveInviteTicketType(
-          controls.class_invite_mode !== "off" || controls.rehearsal_invite_mode !== "off" ||
-            controls.gym_invite_mode !== "off" || controls.entry_only_mode !== "off",
+          controls.class_invite_mode !== 'off' ||
+            controls.rehearsal_invite_mode !== 'off' ||
+            controls.gym_invite_mode !== 'off' ||
+            controls.entry_only_mode !== 'off',
         );
       }
-      const maxTickets = Number(pageData.config?.max_tickets_per_junior_user ?? -1);
+      const maxTickets = Number(
+        pageData.config?.max_tickets_per_junior_user ?? -1,
+      );
       if (maxTickets >= 0) {
         const maxIssueCapacity = usageType === 1 ? maxTickets * 2 : maxTickets;
         setHasReachedJuniorIssueLimit(
@@ -680,29 +711,29 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
           signature: ticket.signature,
           serial: decoded?.serial,
           performanceName: isAdmissionOnly
-            ? "入場専用券"
+            ? '入場専用券'
             : isGymPerformance
-              ? (gymPerformance?.group_name ?? "-")
-              : (classPerformance?.class_name ?? "-"),
+              ? (gymPerformance?.group_name ?? '-')
+              : (classPerformance?.class_name ?? '-'),
           performanceTitle: isGymPerformance
             ? null
             : (classPerformance?.title ?? null),
           scheduleName: isAdmissionOnly
-            ? ""
+            ? ''
             : isGymPerformance
-              ? (gymPerformance?.round_name ?? "-")
-              : (schedule?.round_name ?? "-"),
+              ? (gymPerformance?.round_name ?? '-')
+              : (schedule?.round_name ?? '-'),
           ticketTypeLabel: decoded
             ? (ticketTypeMap.get(decoded.ticketTypeId) ??
               `券種${decoded.ticketTypeId}`)
-            : "-",
+            : '-',
           relationshipName: decoded
             ? (juniorRelationshipName ??
               relationshipMap.get(decoded.relationshipId) ??
               `間柄${decoded.relationshipId}`)
-            : "-",
+            : '-',
           ticketName: ticket.ticket_name,
-          status: "valid" as const,
+          status: 'valid' as const,
           relationshipId,
         };
       });
@@ -769,7 +800,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
             現在チケット発券は受付停止中です。
           </p>
         )}
-        {maintenance.active && <Alert type="warning"><p>現在メンテナンス中です。終了予定時刻: {formatMaintenanceEndAt(maintenance.endsAt) ?? "未定"}</p></Alert>}
+        {maintenance.active && (
+          <Alert type='warning'>
+            <p>
+              現在メンテナンス中です。終了予定時刻:{' '}
+              {formatMaintenanceEndAt(maintenance.endsAt) ?? '未定'}
+            </p>
+          </Alert>
+        )}
       </section>
       <NormalSection>
         <h2>自分が使うチケット</h2>

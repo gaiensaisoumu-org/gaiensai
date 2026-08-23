@@ -79,8 +79,10 @@ const StudentAccountsContent = () => {
   const [existingFilterGrade, setExistingFilterGrade] = useState('');
   const [existingFilterClass, setExistingFilterClass] = useState('');
   const [existingFilterAttendance, setExistingFilterAttendance] = useState('');
-  const [existingFilterInitialRegistration, setExistingFilterInitialRegistration] =
-    useState('');
+  const [
+    existingFilterInitialRegistration,
+    setExistingFilterInitialRegistration,
+  ] = useState('');
   const [existingFilterClub, setExistingFilterClub] = useState('');
 
   const [generatedAccounts, setGeneratedAccounts] = useState<
@@ -171,7 +173,9 @@ const StudentAccountsContent = () => {
       if (!error && data) {
         setAvailableClubs(
           Array.from(
-            new Set(data.map((performance) => performance.group_name).filter(Boolean)),
+            new Set(
+              data.map((performance) => performance.group_name).filter(Boolean),
+            ),
           ).sort(),
         );
       }
@@ -281,13 +285,11 @@ const StudentAccountsContent = () => {
     setIsCreatingSingle(true);
     setSingleCreateResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke<BulkCreateResponse>(
-        'admin-auth',
-        {
+      const { data, error } =
+        await supabase.functions.invoke<BulkCreateResponse>('admin-auth', {
           body: { action: 'bulkCreateUsers', users: [{ id, password }] },
           headers: { 'x-admin-session-token': getSessionToken() ?? '' },
-        },
-      );
+        });
       if (error) {
         throw error;
       }
@@ -657,7 +659,10 @@ const StudentAccountsContent = () => {
         <form onSubmit={handleSingleCreate}>
           <div className={styles.formGrid}>
             <div className={styles.field}>
-              <label className={styles.settingLabel} htmlFor='single-student-grade'>
+              <label
+                className={styles.settingLabel}
+                htmlFor='single-student-grade'
+              >
                 学年
               </label>
               <input
@@ -674,7 +679,10 @@ const StudentAccountsContent = () => {
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.settingLabel} htmlFor='single-student-class'>
+              <label
+                className={styles.settingLabel}
+                htmlFor='single-student-class'
+              >
                 クラス
               </label>
               <input
@@ -691,7 +699,10 @@ const StudentAccountsContent = () => {
               />
             </div>
             <div className={styles.field}>
-              <label className={styles.settingLabel} htmlFor='single-student-attendance'>
+              <label
+                className={styles.settingLabel}
+                htmlFor='single-student-attendance'
+              >
                 出席番号
               </label>
               <input
@@ -729,9 +740,14 @@ const StudentAccountsContent = () => {
             <p>{singleCreateResult.text}</p>
             {singleCreateResult.id && singleCreateResult.password && (
               <p>
-                ID: <code className={styles.codePassword}>{singleCreateResult.id}</code>
+                ID:{' '}
+                <code className={styles.codePassword}>
+                  {singleCreateResult.id}
+                </code>
                 {' / '}パスワード:{' '}
-                <code className={styles.codePassword}>{singleCreateResult.password}</code>
+                <code className={styles.codePassword}>
+                  {singleCreateResult.password}
+                </code>
               </p>
             )}
           </div>
@@ -937,9 +953,7 @@ const StudentAccountsContent = () => {
             </button>
           </div>
 
-          <p className={styles.tableScrollHint}>
-            ← 横にスクロールできます →
-          </p>
+          <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
           <div className={styles.tableWrapper}>
             <table className={styles.managementTable}>
               <thead>
@@ -1068,9 +1082,7 @@ const StudentAccountsContent = () => {
                 className={styles.fieldControl}
                 value={existingFilterClub}
                 onChange={(e) =>
-                  setExistingFilterClub(
-                    (e.target as HTMLSelectElement).value,
-                  )
+                  setExistingFilterClub((e.target as HTMLSelectElement).value)
                 }
               >
                 <option value=''>すべて</option>
@@ -1101,9 +1113,7 @@ const StudentAccountsContent = () => {
             </span>
           </div>
 
-          <p className={styles.tableScrollHint}>
-            ← 横にスクロールできます →
-          </p>
+          <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
           <div className={styles.tableWrapper}>
             <table className={styles.managementTable}>
               <thead>
@@ -1127,16 +1137,14 @@ const StudentAccountsContent = () => {
                     <tr key={user.studentId}>
                       <td>{user.studentId}</td>
                       <td className={styles.tableCellSub}>
-                        {user.isInitialRegistrationComplete
-                          ? '済み'
-                          : '未登録'}
+                        {user.isInitialRegistrationComplete ? '済み' : '未登録'}
                       </td>
                       <td className={styles.tableCellSub}>
                         {!user.isInitialRegistrationComplete
                           ? '-'
                           : user.clubs.length > 0
-                          ? user.clubs.join('、')
-                          : 'なし'}
+                            ? user.clubs.join('、')
+                            : 'なし'}
                       </td>
                       <td className={styles.tableCellSub}>
                         {user.lastSignIn
@@ -1184,9 +1192,7 @@ const StudentAccountsContent = () => {
                           onClick={() =>
                             void handleAccountAction(user, 'deleteUserAccount')
                           }
-                          disabled={
-                            isGenerating || accountActionEmail !== null
-                          }
+                          disabled={isGenerating || accountActionEmail !== null}
                         >
                           ユーザーを削除
                         </button>
@@ -1272,7 +1278,10 @@ const StudentAccountsContent = () => {
             </label>
             {passwordResetMode === 'manual' && (
               <>
-                <label className={styles.authLabel} htmlFor='student-reset-password'>
+                <label
+                  className={styles.authLabel}
+                  htmlFor='student-reset-password'
+                >
                   新しいパスワード
                 </label>
                 <input
@@ -1364,31 +1373,34 @@ const StudentAccountsContent = () => {
             <p className={styles.noteText}>
               所属している部活をすべて選択してください。
             </p>
-            {Array.from(
-              new Set([...availableClubs, ...clubEditTarget.clubs]),
-            ).sort().map((club) => (
-              <label key={club} className={styles.settingLabel}>
-                <input
-                  type='checkbox'
-                  checked={editedClubs.includes(club)}
-                  disabled={isSavingClubs}
-                  onChange={(event) => {
-                    const isChecked = event.currentTarget.checked;
-                    setEditedClubs((clubs) =>
-                      isChecked
-                        ? [...clubs, club]
-                        : clubs.filter((selectedClub) => selectedClub !== club),
-                    );
-                  }}
-                />{' '}
-                {club}
-              </label>
-            ))}
-            {availableClubs.length === 0 && clubEditTarget.clubs.length === 0 && (
-              <p className={styles.authError}>
-                部活候補を取得できませんでした。
-              </p>
-            )}
+            {Array.from(new Set([...availableClubs, ...clubEditTarget.clubs]))
+              .sort()
+              .map((club) => (
+                <label key={club} className={styles.settingLabel}>
+                  <input
+                    type='checkbox'
+                    checked={editedClubs.includes(club)}
+                    disabled={isSavingClubs}
+                    onChange={(event) => {
+                      const isChecked = event.currentTarget.checked;
+                      setEditedClubs((clubs) =>
+                        isChecked
+                          ? [...clubs, club]
+                          : clubs.filter(
+                              (selectedClub) => selectedClub !== club,
+                            ),
+                      );
+                    }}
+                  />{' '}
+                  {club}
+                </label>
+              ))}
+            {availableClubs.length === 0 &&
+              clubEditTarget.clubs.length === 0 && (
+                <p className={styles.authError}>
+                  部活候補を取得できませんでした。
+                </p>
+              )}
             {clubEditError && (
               <p className={styles.authError} role='alert'>
                 {clubEditError}
@@ -1429,9 +1441,7 @@ const StudentAccountsContent = () => {
             >
               パスワードを変更しました
             </h3>
-            <p>
-              ID: {passwordResetResult.studentId} の新しいパスワードです。
-            </p>
+            <p>ID: {passwordResetResult.studentId} の新しいパスワードです。</p>
             <input
               className={styles.authInput}
               type='text'

@@ -102,8 +102,7 @@ function readTicketStatus(code: string) {
 
 export function checkTicketExists(id: string) {
   const existing = getTicket.get(id) as
-    | { used_at: string; count: number }
-    | undefined;
+    { used_at: string; count: number } | undefined;
   return existing;
 }
 
@@ -141,8 +140,7 @@ export function replaceTicketStatusCache(rows: TicketStatusCacheRow[]) {
 
 export function getTicketStatusCacheSummary() {
   const row = getTicketStatusCacheSummaryStmt.get() as
-    | { total: number | null; lastSyncedAt: string | null }
-    | undefined;
+    { total: number | null; lastSyncedAt: string | null } | undefined;
   return {
     total: row?.total ?? 0,
     lastSyncedAt: row?.lastSyncedAt ?? null,
@@ -245,8 +243,7 @@ export function updateTicketCount(raw: string, count: number) {
 
   // ticket_scan_logs から同じコードのレコードをすべて取得し、countの最大値を取得
   const scanLogResult = getMaxScanLogCountStmt.get(code, code) as
-    | { maxCount: number | null }
-    | undefined;
+    { maxCount: number | null } | undefined;
   const maxCount = scanLogResult?.maxCount ?? 0;
 
   updateTicketCountStmt.run(maxCount, code);
@@ -259,8 +256,7 @@ export function updateTicketCount(raw: string, count: number) {
 
 export function deleteScanLogAndUpdateTicket(logId: number) {
   const target = getScanLogByIdStmt.get(logId) as
-    | { id: number; ticket_code: string }
-    | undefined;
+    { id: number; ticket_code: string } | undefined;
 
   if (!target) {
     return { ok: false, code: null, remaining: 0 };
@@ -270,14 +266,12 @@ export function deleteScanLogAndUpdateTicket(logId: number) {
   deleteScanLogByIdStmt.run(logId);
 
   const remainingResult = getScanLogCountByCodeStmt.get(code, code) as
-    | { total: number | null }
-    | undefined;
+    { total: number | null } | undefined;
   const remaining = remainingResult?.total ?? 0;
 
   if (remaining > 0) {
     const scanLogResult = getMaxScanLogCountStmt.get(code, code) as
-      | { maxCount: number | null }
-      | undefined;
+      { maxCount: number | null } | undefined;
     const maxCount = scanLogResult?.maxCount ?? 0;
     updateTicketCountStmt.run(maxCount, code);
   } else {

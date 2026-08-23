@@ -919,7 +919,10 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
               <strong>この後中学生のアカウントに移動します。</strong>
             </p>
             <p>
-              保護者アカウントは、<span style={{textDecoration: 'underline'}}>ここで入力した保護者情報を用いて、保護者の端末でログインしてください。</span>
+              保護者アカウントは、
+              <span style={{ textDecoration: 'underline' }}>
+                ここで入力した保護者情報を用いて、保護者の端末でログインしてください。
+              </span>
             </p>
           </Modal>
         ) : null}

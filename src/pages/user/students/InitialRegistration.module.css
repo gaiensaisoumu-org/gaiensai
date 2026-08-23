@@ -36,7 +36,6 @@
   gap: 0.3rem;
 }
 
-
 .input {
   border: 1px solid var(--login-input-border);
   border-radius: 8px;
@@ -394,7 +393,6 @@
   gap: 0.5em;
   padding-top: 0.5em;
 }
-
 
 .birthdayFieldset {
   border: none;

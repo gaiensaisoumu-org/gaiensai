@@ -3,6 +3,7 @@ import { useLocation } from 'preact-iso';
 
 import IssueStepDetails from '../../../features/issue/IssueStepDetails';
 import IssueStepPerformance from '../../../features/issue/IssueStepPerformance';
+import IssueStepRehearsal from '../../../features/issue/IssueStepRehearsal';
 import IssueStepTicketType from '../../../features/issue/IssueStepTicketType';
 import { ISSUE_RESULT_STORAGE_KEY } from '../../../features/issue/issueResultStorage';
 
@@ -252,11 +253,19 @@ const Issue = () => {
   useEffect(() => {
     const loadIssuingState = async () => {
       const { data } = await getStudentIssueBootstrap();
-      const configData = (data as { config?: { is_active?: boolean | null; maintenance_mode?: boolean | null } })
-        ?.config;
+      const configData = (
+        data as {
+          config?: {
+            is_active?: boolean | null;
+            maintenance_mode?: boolean | null;
+          };
+        }
+      )?.config;
 
       if (typeof configData?.is_active === 'boolean') {
-        setIsTicketIssuingEnabled(configData.is_active && configData.maintenance_mode !== true);
+        setIsTicketIssuingEnabled(
+          configData.is_active && configData.maintenance_mode !== true,
+        );
       }
     };
 
@@ -715,6 +724,14 @@ const Issue = () => {
   const isGymPerformanceTicket = Boolean(
     selectedTicketType?.name.includes(GYM_TICKET_KEYWORD),
   );
+  const isRehearsalTicket =
+    selectedTicketType?.name === 'クラス公演(リハーサル)';
+
+  useEffect(() => {
+    if (isRehearsalTicket) {
+      setSelectedRelationshipId(1);
+    }
+  }, [isRehearsalTicket]);
   const hasAnyActiveTicketType = useMemo(
     () => activeTicketTypes.some((ticketType) => ticketType.is_active),
     [activeTicketTypes],
@@ -769,7 +786,8 @@ const Issue = () => {
 
     const isGymSelection =
       selectedPerformance.performanceId > 0 &&
-      selectedPerformance.scheduleId === 0;
+      selectedPerformance.scheduleId === 0 &&
+      !isRehearsalTicket;
 
     if (isGymPerformanceTicket && !isGymSelection) {
       setSelectedPerformance(null);
@@ -837,8 +855,9 @@ const Issue = () => {
     selectedRelationshipId !== null &&
     issueCount > 0;
   const isSelectedEntryOnlyTicket = selectedTicketType?.id === 4;
-  const selectedRemainingIssueCapacity =
-    remainingIssueCapacity === null
+  const selectedRemainingIssueCapacity = isRehearsalTicket
+    ? (selectedPerformance?.remaining ?? null)
+    : remainingIssueCapacity === null
       ? null
       : isGymPerformanceTicket
         ? selectedPerformance?.performanceId &&
@@ -1053,7 +1072,7 @@ const Issue = () => {
             .eq('id', selectedPerformance.performanceId)
             .maybeSingle()
         : { data: null },
-      selectedPerformance.scheduleId > 0
+      selectedPerformance.scheduleId > 0 && !isRehearsalTicket
         ? supabase
             .from('performances_schedule')
             .select('start_at')
@@ -1080,7 +1099,32 @@ const Issue = () => {
     let scheduleTime = '';
     let scheduleEndTime = '';
 
-    if (selectedPerformance.scheduleId === 0) {
+    if (isRehearsalTicket) {
+      const rehearsal = await supabase
+        .from('rehearsals')
+        .select('start_time,end_time')
+        .eq('class_id', selectedPerformance.performanceId)
+        .eq('round_id', selectedPerformance.scheduleId)
+        .eq('type', 'unofficial')
+        .maybeSingle();
+      const startAt = rehearsal.data?.start_time
+        ? new Date(rehearsal.data.start_time)
+        : null;
+      const endAt = rehearsal.data?.end_time
+        ? new Date(rehearsal.data.end_time)
+        : null;
+      scheduleDate = startAt?.toLocaleDateString('ja-JP') ?? '-';
+      scheduleTime =
+        startAt?.toLocaleTimeString('ja-JP', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }) ?? '-';
+      scheduleEndTime =
+        endAt?.toLocaleTimeString('ja-JP', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }) ?? '-';
+    } else if (selectedPerformance.scheduleId === 0) {
       if (selectedPerformance.performanceId === 0) {
         // Admission only
         const eventDates = (config.date ?? []).filter(
@@ -1253,23 +1297,24 @@ const Issue = () => {
           </p>
         </Alert>
       ) : null}
-      {hasOtherPerformanceTotalLimitError ||
-      otherPerformanceTotalRemaining === 0 ? (
-        <Alert type='warning' className={styles.onlyOwnClassAlert}>
-          <p>他クラス・部活の合計発行可能枚数に達しています。</p>
-        </Alert>
-      ) : (
-        reachedPerformanceNames.length > 0 && (
-          <Alert type='info' className={styles.onlyOwnClassAlert}>
-            <p>発行上限に達している公演：</p>
-            <ul>
-              {reachedPerformanceNames.map((name) => (
-                <li key={name}>{name}</li>
-              ))}
-            </ul>
+      {!isRehearsalTicket &&
+        (hasOtherPerformanceTotalLimitError ||
+        otherPerformanceTotalRemaining === 0 ? (
+          <Alert type='warning' className={styles.onlyOwnClassAlert}>
+            <p>他クラス・部活の合計発行可能枚数に達しています。</p>
           </Alert>
-        )
-      )}
+        ) : (
+          reachedPerformanceNames.length > 0 && (
+            <Alert type='info' className={styles.onlyOwnClassAlert}>
+              <p>発行上限に達している公演：</p>
+              <ul>
+                {reachedPerformanceNames.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+            </Alert>
+          )
+        ))}
       {isAtClassIssueLimit && !isAtAllIssueLimits && (
         <Alert type='info' className={styles.onlyOwnClassAlert}>
           <p>
@@ -1284,7 +1329,8 @@ const Issue = () => {
           </p>
         </Alert>
       )}
-      {selectedPerformance &&
+      {!isRehearsalTicket &&
+        selectedPerformance &&
         selectedPerformance.performanceId > 0 &&
         selectedPerformance.scheduleId > 0 &&
         selectedPerformance.performanceId === classRemainingPerformanceId &&
@@ -1321,36 +1367,62 @@ const Issue = () => {
         </div>
 
         <div className={getPanelClassName(2)}>
-          <IssueStepPerformance
-            isGymPerformanceTicket={isGymPerformanceTicket}
-            selectedPerformance={selectedPerformance}
-            selectedCellKey={selectedCellKey}
-            restrictedClassName={restrictedClassName}
-            restrictedGroupNames={restrictedGroupNames}
-            hiddenClassPerformanceIds={
-              new Set(
-                [...classRemainingByPerformanceId]
-                  .filter(([id, remaining]) => remaining <= 0 || (otherPerformanceTotalRemaining === 0 && classPerformanceNames.get(id) !== ownClassName))
-                  .map(([id]) => id),
-              )
-            }
-            nonInteractiveGymPerformanceIds={
-              new Set(
-                [...gymRemainingByPerformanceId]
-                  .filter(([id, remaining]) => remaining <= 0 || (otherPerformanceTotalRemaining === 0 && !ownClubs?.includes(gymPerformanceNames.get(id) ?? '')))
-                  .map(([id]) => id),
-              )
-            }
-            hiddenGymGroupNames={
-              new Set(
-                [...gymRemainingByPerformanceId]
-                  .filter(([id, remaining]) => remaining <= 0 || (otherPerformanceTotalRemaining === 0 && !ownClubs?.includes(gymPerformanceNames.get(id) ?? '')))
-                  .map(([id]) => gymPerformanceNames.get(id))
-                  .filter((name): name is string => Boolean(name)),
-              )
-            }
-            onSelectPerformance={setSelectedPerformance}
-          />
+          {isRehearsalTicket ? (
+            <IssueStepRehearsal
+              selectedPerformance={selectedPerformance}
+              onSelectPerformance={setSelectedPerformance}
+            />
+          ) : (
+            <IssueStepPerformance
+              isGymPerformanceTicket={isGymPerformanceTicket}
+              selectedPerformance={selectedPerformance}
+              selectedCellKey={selectedCellKey}
+              restrictedClassName={restrictedClassName}
+              restrictedGroupNames={restrictedGroupNames}
+              hiddenClassPerformanceIds={
+                new Set(
+                  [...classRemainingByPerformanceId]
+                    .filter(
+                      ([id, remaining]) =>
+                        remaining <= 0 ||
+                        (otherPerformanceTotalRemaining === 0 &&
+                          classPerformanceNames.get(id) !== ownClassName),
+                    )
+                    .map(([id]) => id),
+                )
+              }
+              nonInteractiveGymPerformanceIds={
+                new Set(
+                  [...gymRemainingByPerformanceId]
+                    .filter(
+                      ([id, remaining]) =>
+                        remaining <= 0 ||
+                        (otherPerformanceTotalRemaining === 0 &&
+                          !ownClubs?.includes(
+                            gymPerformanceNames.get(id) ?? '',
+                          )),
+                    )
+                    .map(([id]) => id),
+                )
+              }
+              hiddenGymGroupNames={
+                new Set(
+                  [...gymRemainingByPerformanceId]
+                    .filter(
+                      ([id, remaining]) =>
+                        remaining <= 0 ||
+                        (otherPerformanceTotalRemaining === 0 &&
+                          !ownClubs?.includes(
+                            gymPerformanceNames.get(id) ?? '',
+                          )),
+                    )
+                    .map(([id]) => gymPerformanceNames.get(id))
+                    .filter((name): name is string => Boolean(name)),
+                )
+              }
+              onSelectPerformance={setSelectedPerformance}
+            />
+          )}
         </div>
 
         <div className={getPanelClassName(3)}>
@@ -1363,6 +1435,7 @@ const Issue = () => {
             maxIssueCount={maxSelectableIssueCount}
             selectedTicketType={selectedTicketType}
             selectedPerformance={selectedPerformance}
+            hideRelationship={isRehearsalTicket}
             onSelectRelationshipId={setSelectedRelationshipId}
             onSelectIssueCount={setIssueCount}
           />

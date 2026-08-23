@@ -23,8 +23,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAccountConfirmationModalOpen, setIsAccountConfirmationModalOpen] =
     useState(false);
-  const [isWrongAccountModalOpen, setIsWrongAccountModalOpen] =
-    useState(false);
+  const [isWrongAccountModalOpen, setIsWrongAccountModalOpen] = useState(false);
 
   useTitle('初回登録 - 生徒用ページ');
 
@@ -247,8 +246,7 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
           <p>このアカウントで登録される情報です。</p>
           <p className={styles.accountConfirmationAffiliation}>
             {Math.floor(affiliation / 10000)}年
-            {Math.floor((affiliation % 10000) / 100)}組
-            {affiliation % 100}番
+            {Math.floor((affiliation % 10000) / 100)}組{affiliation % 100}番
           </p>
         </Modal>
       ) : null}

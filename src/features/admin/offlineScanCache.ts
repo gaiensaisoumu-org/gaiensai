@@ -49,7 +49,8 @@ const sortRecords = (records: ScanRecord[]) =>
 const normalizeTicketId = (ticketCode: string) =>
   ticketCode.split('.')[0].replace(/-/g, '');
 
-const createLocalRecordId = () => -Date.now() - Math.floor(Math.random() * 1000);
+const createLocalRecordId = () =>
+  -Date.now() - Math.floor(Math.random() * 1000);
 
 const createOpId = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
@@ -76,7 +77,9 @@ export const readRecentCachedScanRecords = (limit = 5): ScanRecord[] =>
 export const replaceCachedRecordsWithServerRecords = (
   serverRecords: ScanRecord[],
 ): ScanRecord[] => {
-  const pendingLocal = readCachedScanRecords().filter((record) => record.id < 0);
+  const pendingLocal = readCachedScanRecords().filter(
+    (record) => record.id < 0,
+  );
   const operations = readPendingSyncOperations();
   const deletedIds = new Set<number>();
   const countOverrides = new Map<number, number>();
@@ -260,10 +263,16 @@ export const clearPendingOperationsForLog = (logId: number) => {
   return next;
 };
 
-export const updatePendingScanLogCount = (localRecordId: number, count: number) => {
+export const updatePendingScanLogCount = (
+  localRecordId: number,
+  count: number,
+) => {
   const operations = readPendingSyncOperations();
   const next = operations.map((operation) => {
-    if (operation.type === 'scanLog' && operation.localRecordId === localRecordId) {
+    if (
+      operation.type === 'scanLog' &&
+      operation.localRecordId === localRecordId
+    ) {
       return { ...operation, count };
     }
     return operation;
@@ -288,7 +297,8 @@ export const dropPendingOperation = (opId: string) => {
   return next;
 };
 
-export const getPendingOperationCount = () => readPendingSyncOperations().length;
+export const getPendingOperationCount = () =>
+  readPendingSyncOperations().length;
 
 export const getOfflineLastUsedAt = (ticketId: string): Date | null => {
   const normalizedId = normalizeTicketId(ticketId);

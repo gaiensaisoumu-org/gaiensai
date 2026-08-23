@@ -181,5 +181,5 @@ export const useEventConfig = () => {
   //   [config.date_length, config.performances_per_day],
   // );
 
-  return { config, loading/*, maxPerformances*/ };
+  return { config, loading /*, maxPerformances*/ };
 };

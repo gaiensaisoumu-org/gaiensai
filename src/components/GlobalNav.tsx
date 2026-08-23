@@ -1,7 +1,20 @@
-import { preload, Home, Students, Performances, Availability, Junior, TimeTable, Pamphlet, Info, Map, FAQ } from '../routes';
+import {
+  preload,
+  Home,
+  Students,
+  Performances,
+  Availability,
+  Junior,
+  TimeTable,
+  Pamphlet,
+  Info,
+  Map,
+  FAQ,
+} from '../routes';
 
 const GlobalNav = () => {
-  const isSecretBaseUnlocked = localStorage.getItem('secretBaseUnlocked') === 'true';
+  const isSecretBaseUnlocked =
+    localStorage.getItem('secretBaseUnlocked') === 'true';
   return (
     <nav>
       <ul>

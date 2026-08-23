@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import Alert from '../../components/ui/Alert';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import NormalSection from '../../components/ui/NormalSection';
@@ -65,8 +59,17 @@ type Dashboard = {
   };
 };
 
-const COLORS = ['#ff8a65', '#4db6ac', '#7986cb', '#ffb74d', '#9575cd', '#81c784', '#e57373'];
-const number = (value: number | undefined) => (value ?? 0).toLocaleString('ja-JP');
+const COLORS = [
+  '#ff8a65',
+  '#4db6ac',
+  '#7986cb',
+  '#ffb74d',
+  '#9575cd',
+  '#81c784',
+  '#e57373',
+];
+const number = (value: number | undefined) =>
+  (value ?? 0).toLocaleString('ja-JP');
 
 const Ranking = ({ title, rows }: { title: string; rows: Row[] }) => (
   <section className={styles.ranking}>
@@ -90,14 +93,34 @@ const Ranking = ({ title, rows }: { title: string; rows: Row[] }) => (
   </section>
 );
 
-const DistributionChart = ({ title, rows }: { title: string; rows: DistributionRow[] }) => (
+const DistributionChart = ({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: DistributionRow[];
+}) => (
   <section className={styles.distribution}>
     <h3>{title}</h3>
-    {rows.length === 0 ? <p className={styles.empty}>まだデータがありません。</p> : (
+    {rows.length === 0 ? (
+      <p className={styles.empty}>まだデータがありません。</p>
+    ) : (
       <ResponsiveContainer width='100%' height={260}>
         <PieChart>
-          <Pie data={rows} dataKey='value' nameKey='name' cx='50%' cy='50%' outerRadius={88} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
-            {rows.map((row, index) => <Cell key={row.name} fill={COLORS[index % COLORS.length]} />)}
+          <Pie
+            data={rows}
+            dataKey='value'
+            nameKey='name'
+            cx='50%'
+            cy='50%'
+            outerRadius={88}
+            label={({ name, percent }) =>
+              `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+            }
+          >
+            {rows.map((row, index) => (
+              <Cell key={row.name} fill={COLORS[index % COLORS.length]} />
+            ))}
           </Pie>
           <Tooltip formatter={(value) => `${number(Number(value))} 人`} />
         </PieChart>
@@ -132,7 +155,9 @@ const StatusContent = () => {
       }
       setDashboard(data.dashboard as Dashboard);
     } catch (loadError) {
-      setError(`集計の取得に失敗しました。${await readErrorMessage(loadError)}`);
+      setError(
+        `集計の取得に失敗しました。${await readErrorMessage(loadError)}`,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -150,7 +175,10 @@ const StatusContent = () => {
       .filter((row) => (row.account_count ?? 0) > 0)
       .map((row) => ({
         name: row.name,
-        value: Math.round(((row.initial_count ?? 0) / (row.account_count ?? 1)) * 1000) / 10,
+        value:
+          Math.round(
+            ((row.initial_count ?? 0) / (row.account_count ?? 1)) * 1000,
+          ) / 10,
       }));
   }, [dashboard]);
 
@@ -158,10 +186,14 @@ const StatusContent = () => {
     if (!dashboard) {
       return [];
     }
-    const { reservationEligibleCount, bookedJuniorCount } = dashboard.juniorStatus;
+    const { reservationEligibleCount, bookedJuniorCount } =
+      dashboard.juniorStatus;
     return [
       { name: '予約済み', value: bookedJuniorCount },
-      { name: '未予約', value: Math.max(reservationEligibleCount - bookedJuniorCount, 0) },
+      {
+        name: '未予約',
+        value: Math.max(reservationEligibleCount - bookedJuniorCount, 0),
+      },
     ];
   }, [dashboard]);
 
@@ -172,8 +204,14 @@ const StatusContent = () => {
   if (error || !dashboard) {
     return (
       <>
-        <Alert type='error'>{error ?? '集計データを取得できませんでした。'}</Alert>
-        <button type='button' className={styles.refreshButton} onClick={() => void load()}>
+        <Alert type='error'>
+          {error ?? '集計データを取得できませんでした。'}
+        </Alert>
+        <button
+          type='button'
+          className={styles.refreshButton}
+          onClick={() => void load()}
+        >
           再読み込み
         </button>
       </>
@@ -203,9 +241,7 @@ const StatusContent = () => {
         <div className={styles.headerRow}>
           <div>
             <h2>コントロールパネル</h2>
-            <p className={styles.settingHint}>
-              種々の設定の変更はこちら
-            </p>
+            <p className={styles.settingHint}>種々の設定の変更はこちら</p>
           </div>
           <a className={styles.inlineEditButton} href='/admin/settings'>
             コントロールパネルを開く
@@ -260,9 +296,7 @@ const StatusContent = () => {
             </ResponsiveContainer>
           </div>
           <div>
-            <p className={styles.tableScrollHint}>
-              ← 横にスクロールできます →
-            </p>
+            <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
             <div className={styles.tableWrap}>
               <table>
                 <thead>
@@ -299,9 +333,7 @@ const StatusContent = () => {
 
       <NormalSection>
         <h2>部活別の発券状況</h2>
-        <p className={styles.tableScrollHint}>
-          ← 横にスクロールできます →
-        </p>
+        <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
         <div className={styles.tableWrap}>
           <table>
             <thead>
@@ -413,7 +445,10 @@ const StatusContent = () => {
 };
 
 const Status = () => (
-  <AdminAuthLayout title='ステータス' description='初回登録・発券状況を確認できます。'>
+  <AdminAuthLayout
+    title='ステータス'
+    description='初回登録・発券状況を確認できます。'
+  >
     <StatusContent />
   </AdminAuthLayout>
 );

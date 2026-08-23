@@ -62,7 +62,10 @@ export const useTicketStorage = () => {
               decoded?.relationshipId ?? metadata.relationshipId,
             ) ?? metadata.relationshipName,
           status,
-          ticketName: metadata.ticketName ?? (existing as { ticketName?: string | null } | null)?.ticketName ?? null,
+          ticketName:
+            metadata.ticketName ??
+            (existing as { ticketName?: string | null } | null)?.ticketName ??
+            null,
           lastOpenedAt: existing?.lastOpenedAt ?? Date.now(),
         };
         writeTicketDisplayCache(code, ticketCacheEntry);

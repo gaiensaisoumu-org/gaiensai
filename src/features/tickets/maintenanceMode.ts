@@ -3,7 +3,7 @@ export type MaintenanceConfig = {
   maintenance_ends_at?: string | null;
 };
 
-const STORAGE_KEY = "ticket-maintenance-status:v1";
+const STORAGE_KEY = 'ticket-maintenance-status:v1';
 
 export const saveMaintenanceConfig = (
   config: MaintenanceConfig | undefined,
@@ -14,7 +14,7 @@ export const saveMaintenanceConfig = (
       JSON.stringify({
         maintenanceMode: config?.maintenance_mode === true,
         endsAt:
-          typeof config?.maintenance_ends_at === "string"
+          typeof config?.maintenance_ends_at === 'string'
             ? config.maintenance_ends_at
             : null,
       }),
@@ -30,14 +30,14 @@ export const readMaintenanceConfig = (): {
 } => {
   try {
     const value = JSON.parse(
-      window.localStorage.getItem(STORAGE_KEY) ?? "{}",
+      window.localStorage.getItem(STORAGE_KEY) ?? '{}',
     ) as {
       maintenanceMode?: unknown;
       endsAt?: unknown;
     };
     return {
       maintenanceMode: value.maintenanceMode === true,
-      endsAt: typeof value.endsAt === "string" ? value.endsAt : null,
+      endsAt: typeof value.endsAt === 'string' ? value.endsAt : null,
     };
   } catch {
     return { maintenanceMode: false, endsAt: null };
@@ -49,8 +49,8 @@ export const formatMaintenanceEndAt = (endsAt: string | null | undefined) => {
     return null;
   }
 
-  return new Intl.DateTimeFormat("ja-JP", {
-    dateStyle: "medium",
-    timeStyle: "short",
+  return new Intl.DateTimeFormat('ja-JP', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
   }).format(new Date(endsAt));
 };

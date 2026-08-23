@@ -17,8 +17,7 @@ import { useTitle } from '../../hooks/useTitle';
 
 const TicketHistory = () => {
   const [cacheVersion, setCacheVersion] = useState(0);
-  const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] =
-    useState(false);
+  const [isClearHistoryModalOpen, setIsClearHistoryModalOpen] = useState(false);
   const [validSortMode, setValidSortMode] = useState<TicketListSortMode>(() => {
     try {
       return (

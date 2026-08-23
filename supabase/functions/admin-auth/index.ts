@@ -27,7 +27,10 @@ const ADMIN_LIST_PAGE_SIZE = 1000;
 
 /** PostgREST の既定上限を越える管理画面用一覧を、ページ単位で取得する。 */
 const fetchAllRows = async <T>(
-  fetchPage: (from: number, to: number) => PromiseLike<{
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
     data: T[] | null;
     error: unknown;
   }>,
@@ -71,7 +74,10 @@ const fetchAllAuthUsers = async (adminClient: SupabaseClient) => {
 };
 
 /** 対象のメールアドレスが見つかるまで Auth Admin API をページングする。 */
-const findAuthUserByEmail = async (adminClient: SupabaseClient, email: string) => {
+const findAuthUserByEmail = async (
+  adminClient: SupabaseClient,
+  email: string,
+) => {
   const normalizedEmail = email.toLowerCase();
   for (let page = 1; ; page++) {
     const {
@@ -317,10 +323,22 @@ type AdminAuthBody =
       organizationAdminId: string;
       password: string;
     }
-  | { mode: 'changeOrganizationAdminUsername'; organizationAdminId: string; username: string }
+  | {
+      mode: 'changeOrganizationAdminUsername';
+      organizationAdminId: string;
+      username: string;
+    }
   | { mode: 'deleteOrganizationAdmin'; organizationAdminId: string }
   | { mode: 'deleteAllOrganizationAdmins' }
-  | { mode: 'bulkCreateOrganizationAdmins'; admins: { username: string; password: string; kind: 'class' | 'gym' | 'exhibition'; performanceId: number }[] };
+  | {
+      mode: 'bulkCreateOrganizationAdmins';
+      admins: {
+        username: string;
+        password: string;
+        kind: 'class' | 'gym' | 'exhibition';
+        performanceId: number;
+      }[];
+    };
 
 type AdminConfigRow = {
   id: number;
@@ -510,7 +528,10 @@ const normalizeGymTicketLimitsByClub = (
   value: unknown,
 ): Record<string, number> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new HttpError(400, 'gymTicketLimitsByClub はオブジェクトで送信してください。');
+    throw new HttpError(
+      400,
+      'gymTicketLimitsByClub はオブジェクトで送信してください。',
+    );
   }
 
   const entries = Object.entries(value);
@@ -518,23 +539,40 @@ const normalizeGymTicketLimitsByClub = (
     throw new HttpError(400, '部活別上限は100件まで指定できます。');
   }
 
-  return Object.fromEntries(entries.map(([club, limit]) => {
-    const name = club.trim();
-    if (name.length === 0 || name.length > 100) {
-      throw new HttpError(400, '部活名が不正です。');
-    }
-    return [name, normalizeInteger(limit, `gymTicketLimitsByClub.${name}`, 0, 100)];
-  }));
+  return Object.fromEntries(
+    entries.map(([club, limit]) => {
+      const name = club.trim();
+      if (name.length === 0 || name.length > 100) {
+        throw new HttpError(400, '部活名が不正です。');
+      }
+      return [
+        name,
+        normalizeInteger(limit, `gymTicketLimitsByClub.${name}`, 0, 100),
+      ];
+    }),
+  );
 };
 
-const normalizeClassTicketLimitsById = (value: unknown): Record<string, number> => {
+const normalizeClassTicketLimitsById = (
+  value: unknown,
+): Record<string, number> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new HttpError(400, 'classTicketLimitsById はオブジェクトで送信してください。');
+    throw new HttpError(
+      400,
+      'classTicketLimitsById はオブジェクトで送信してください。',
+    );
   }
-  return Object.fromEntries(Object.entries(value).map(([id, limit]) => {
-    if (!/^\d+$/.test(id)) {throw new HttpError(400, 'クラスIDが不正です。');}
-    return [id, normalizeInteger(limit, `classTicketLimitsById.${id}`, 0, 100)];
-  }));
+  return Object.fromEntries(
+    Object.entries(value).map(([id, limit]) => {
+      if (!/^\d+$/.test(id)) {
+        throw new HttpError(400, 'クラスIDが不正です。');
+      }
+      return [
+        id,
+        normalizeInteger(limit, `classTicketLimitsById.${id}`, 0, 100),
+      ];
+    }),
+  );
 };
 
 const isTicketIssueMode = (value: unknown): value is TicketIssueMode =>
@@ -633,7 +671,10 @@ const parseBody = (body: unknown): AdminAuthBody => {
   if (action === 'resetUserData' || action === 'deleteUserAccount') {
     const { accountType, userEmail } = body as AdminAuthRequest;
     if (accountType !== 'student' && accountType !== 'junior') {
-      throw new HttpError(400, 'accountType は student または junior を指定してください。');
+      throw new HttpError(
+        400,
+        'accountType は student または junior を指定してください。',
+      );
     }
     if (
       typeof userEmail !== 'string' ||
@@ -844,30 +885,59 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'updateClassPerformance') {
     const values = body as AdminAuthRequest;
-    if (values.performanceType !== 'class' && values.performanceType !== 'gym' && values.performanceType !== 'exhibition') {
+    if (
+      values.performanceType !== 'class' &&
+      values.performanceType !== 'gym' &&
+      values.performanceType !== 'exhibition'
+    ) {
       throw new HttpError(400, '公演種別が不正です。');
     }
-    const className = typeof values.className === 'string' ? values.className.trim() : '';
+    const className =
+      typeof values.className === 'string' ? values.className.trim() : '';
     const title = typeof values.title === 'string' ? values.title.trim() : '';
-    const description = typeof values.description === 'string' ? values.description.trim() : '';
-    const location = typeof values.location === 'string' ? values.location.trim() : '';
+    const description =
+      typeof values.description === 'string' ? values.description.trim() : '';
+    const location =
+      typeof values.location === 'string' ? values.location.trim() : '';
     if (className.length === 0 || className.length > 100) {
       throw new HttpError(400, 'クラス名は1〜100文字で入力してください。');
     }
-    if (title.length > 200 || description.length > 5000 || location.length > 200) {
+    if (
+      title.length > 200 ||
+      description.length > 5000 ||
+      location.length > 200
+    ) {
       throw new HttpError(400, '公演タイトル、説明、または場所が長すぎます。');
     }
-    const totalCapacity = values.performanceType === 'exhibition'
-      ? 1
-      : normalizeInteger(values.totalCapacity, 'totalCapacity', 1, 10000);
-    const juniorCapacity = values.performanceType === 'exhibition'
-      ? 0
-      : normalizeInteger(values.juniorCapacity, 'juniorCapacity', 0, totalCapacity);
-    const startAt = values.performanceType === 'gym' && typeof values.startAt === 'string'
-      ? values.startAt : null;
-    const endAt = values.performanceType === 'gym' && typeof values.endAt === 'string'
-      ? values.endAt : null;
-    if (values.performanceType === 'gym' && (!startAt || !endAt || Number.isNaN(Date.parse(startAt)) || Number.isNaN(Date.parse(endAt)) || Date.parse(startAt) >= Date.parse(endAt))) {
+    const totalCapacity =
+      values.performanceType === 'exhibition'
+        ? 1
+        : normalizeInteger(values.totalCapacity, 'totalCapacity', 1, 10000);
+    const juniorCapacity =
+      values.performanceType === 'exhibition'
+        ? 0
+        : normalizeInteger(
+            values.juniorCapacity,
+            'juniorCapacity',
+            0,
+            totalCapacity,
+          );
+    const startAt =
+      values.performanceType === 'gym' && typeof values.startAt === 'string'
+        ? values.startAt
+        : null;
+    const endAt =
+      values.performanceType === 'gym' && typeof values.endAt === 'string'
+        ? values.endAt
+        : null;
+    if (
+      values.performanceType === 'gym' &&
+      (!startAt ||
+        !endAt ||
+        Number.isNaN(Date.parse(startAt)) ||
+        Number.isNaN(Date.parse(endAt)) ||
+        Date.parse(startAt) >= Date.parse(endAt))
+    ) {
       throw new HttpError(400, '開始時刻と終了時刻を正しく入力してください。');
     }
     if (typeof values.isAccepting !== 'boolean') {
@@ -916,7 +986,11 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'uploadClassPerformanceImage') {
     const values = body as AdminAuthRequest;
-    if (values.performanceType !== 'class' && values.performanceType !== 'gym' && values.performanceType !== 'exhibition') {
+    if (
+      values.performanceType !== 'class' &&
+      values.performanceType !== 'gym' &&
+      values.performanceType !== 'exhibition'
+    ) {
       throw new HttpError(400, '公演種別が不正です。');
     }
     if (
@@ -960,7 +1034,11 @@ const parseBody = (body: unknown): AdminAuthBody => {
     if (organizationPassword.length < 8) {
       throw new HttpError(400, 'パスワードは8文字以上で設定してください。');
     }
-    if (values.organizationKind !== 'class' && values.organizationKind !== 'gym' && values.organizationKind !== 'exhibition') {
+    if (
+      values.organizationKind !== 'class' &&
+      values.organizationKind !== 'gym' &&
+      values.organizationKind !== 'exhibition'
+    ) {
       throw new HttpError(400, '団体種別が不正です。');
     }
     return {
@@ -1004,20 +1082,36 @@ const parseBody = (body: unknown): AdminAuthBody => {
   if (action === 'changeOrganizationAdminUsername') {
     const values = body as AdminAuthRequest;
     const organizationAdminId = values.organizationAdminId;
-    if (typeof organizationAdminId !== 'string' || !/^[0-9a-f-]{36}$/i.test(organizationAdminId)) {
+    if (
+      typeof organizationAdminId !== 'string' ||
+      !/^[0-9a-f-]{36}$/i.test(organizationAdminId)
+    ) {
       throw new HttpError(400, '団体管理者IDが不正です。');
     }
-    const username = normalizePassword(values.organizationUsername, 'organizationUsername');
+    const username = normalizePassword(
+      values.organizationUsername,
+      'organizationUsername',
+    );
     if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username)) {
-      throw new HttpError(400, 'ユーザー名は英数字、ハイフン、アンダースコア、ピリオドで3〜100文字にしてください。');
+      throw new HttpError(
+        400,
+        'ユーザー名は英数字、ハイフン、アンダースコア、ピリオドで3〜100文字にしてください。',
+      );
     }
-    return { mode: 'changeOrganizationAdminUsername', organizationAdminId, username };
+    return {
+      mode: 'changeOrganizationAdminUsername',
+      organizationAdminId,
+      username,
+    };
   }
 
   if (action === 'deleteOrganizationAdmin') {
     const values = body as AdminAuthRequest;
     const organizationAdminId = values.organizationAdminId;
-    if (typeof organizationAdminId !== 'string' || !/^[0-9a-f-]{36}$/i.test(organizationAdminId)) {
+    if (
+      typeof organizationAdminId !== 'string' ||
+      !/^[0-9a-f-]{36}$/i.test(organizationAdminId)
+    ) {
       throw new HttpError(400, '団体管理者IDが不正です。');
     }
     return { mode: 'deleteOrganizationAdmin', organizationAdminId };
@@ -1029,20 +1123,48 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'bulkCreateOrganizationAdmins') {
     const values = body as AdminAuthRequest;
-    if (!Array.isArray(values.organizationAdmins) || values.organizationAdmins.length === 0 || values.organizationAdmins.length > 5) {
+    if (
+      !Array.isArray(values.organizationAdmins) ||
+      values.organizationAdmins.length === 0 ||
+      values.organizationAdmins.length > 5
+    ) {
       throw new HttpError(400, '追加するアカウントを1〜5件指定してください。');
     }
     const admins = values.organizationAdmins.map((raw) => {
-      if (!raw || typeof raw !== 'object') {throw new HttpError(400, 'アカウント情報が不正です。');}
+      if (!raw || typeof raw !== 'object') {
+        throw new HttpError(400, 'アカウント情報が不正です。');
+      }
       const item = raw as Record<string, unknown>;
       const username = normalizePassword(item.username, 'username');
-      if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username)) {throw new HttpError(400, 'ユーザー名が不正です。');}
+      if (!/^[a-zA-Z0-9._-]{3,100}$/.test(username)) {
+        throw new HttpError(400, 'ユーザー名が不正です。');
+      }
       const password = normalizePassword(item.password, 'password');
-      if (password.length < 8) {throw new HttpError(400, 'パスワードは8文字以上で設定してください。');}
-      if (item.kind !== 'class' && item.kind !== 'gym' && item.kind !== 'exhibition') {throw new HttpError(400, '団体種別が不正です。');}
-      return { username, password, kind: item.kind as 'class' | 'gym' | 'exhibition', performanceId: normalizeInteger(item.performanceId, 'performanceId', 1, 1000000) };
+      if (password.length < 8) {
+        throw new HttpError(400, 'パスワードは8文字以上で設定してください。');
+      }
+      if (
+        item.kind !== 'class' &&
+        item.kind !== 'gym' &&
+        item.kind !== 'exhibition'
+      ) {
+        throw new HttpError(400, '団体種別が不正です。');
+      }
+      return {
+        username,
+        password,
+        kind: item.kind as 'class' | 'gym' | 'exhibition',
+        performanceId: normalizeInteger(
+          item.performanceId,
+          'performanceId',
+          1,
+          1000000,
+        ),
+      };
     });
-    if (new Set(admins.map((admin) => admin.username)).size !== admins.length) {throw new HttpError(400, '一括作成内でユーザー名が重複しています。');}
+    if (new Set(admins.map((admin) => admin.username)).size !== admins.length) {
+      throw new HttpError(400, '一括作成内でユーザー名が重複しています。');
+    }
     return { mode: 'bulkCreateOrganizationAdmins', admins };
   }
 
@@ -1134,7 +1256,8 @@ const parseBody = (body: unknown): AdminAuthBody => {
     }
     if (
       maintenanceEndsAt !== null &&
-      (typeof maintenanceEndsAt !== 'string' || Number.isNaN(Date.parse(maintenanceEndsAt)))
+      (typeof maintenanceEndsAt !== 'string' ||
+        Number.isNaN(Date.parse(maintenanceEndsAt)))
     ) {
       throw new HttpError(400, 'maintenanceEndsAt を正しく入力してください。');
     }
@@ -1158,7 +1281,9 @@ const parseBody = (body: unknown): AdminAuthBody => {
         0,
         500,
       ),
-      classTicketLimitsById: normalizeClassTicketLimitsById(classTicketLimitsById),
+      classTicketLimitsById: normalizeClassTicketLimitsById(
+        classTicketLimitsById,
+      ),
       maxTicketsPerOtherClubUser: normalizeInteger(
         maxTicketsPerOtherClubUser,
         'maxTicketsPerOtherClubUser',
@@ -1177,7 +1302,10 @@ const parseBody = (body: unknown): AdminAuthBody => {
       juniorReleaseOpen,
       ticketIssuingEnabled,
       maintenanceMode,
-      maintenanceEndsAt: maintenanceEndsAt === null ? null : new Date(maintenanceEndsAt).toISOString(),
+      maintenanceEndsAt:
+        maintenanceEndsAt === null
+          ? null
+          : new Date(maintenanceEndsAt).toISOString(),
       defaultClassTotalCapacity: total,
       defaultClassJuniorCapacity: junior,
       defaultGymCapacity: gymCapacity,
@@ -1784,16 +1912,15 @@ Deno.serve(async (req) => {
 
     if (body.mode === 'resetUserData' || body.mode === 'deleteUserAccount') {
       const session = await requireValidSession(adminClient, req);
-      const authUser = await findAuthUserByEmail(
-        adminClient,
-        body.userEmail,
-      );
+      const authUser = await findAuthUserByEmail(adminClient, body.userEmail);
       if (!authUser) {
         throw new HttpError(404, '対象のAuthユーザーが見つかりません。');
       }
       const localPart = body.userEmail.split('@')[0] ?? '';
-      const isStudent = /^\d+$/.test(localPart) &&
-        Number(localPart) >= 10000 && Number(localPart) <= 40000;
+      const isStudent =
+        /^\d+$/.test(localPart) &&
+        Number(localPart) >= 10000 &&
+        Number(localPart) <= 40000;
       if ((body.accountType === 'student') !== isStudent) {
         throw new HttpError(400, '対象アカウントの種類が一致しません。');
       }
@@ -1836,9 +1963,8 @@ Deno.serve(async (req) => {
       }
 
       if (body.mode === 'deleteUserAccount') {
-        const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(
-          authUser.id,
-        );
+        const { error: deleteAuthError } =
+          await adminClient.auth.admin.deleteUser(authUser.id);
         if (deleteAuthError) {
           throw deleteAuthError;
         }
@@ -2141,13 +2267,14 @@ Deno.serve(async (req) => {
 
     if (body.mode === 'resetAllPerformanceLikes') {
       const session = await requireValidSession(adminClient, req);
-      const tables = ['class_performances', 'gym_performances', 'exhibition_clubs'];
+      const tables = [
+        'class_performances',
+        'gym_performances',
+        'exhibition_clubs',
+      ];
       const results = await Promise.all(
         tables.map((table) =>
-          adminClient
-            .from(table)
-            .update({ like: 0 })
-            .gt('like', 0),
+          adminClient.from(table).update({ like: 0 }).gt('like', 0),
         ),
       );
       const error = results.find((result) => result.error)?.error;
@@ -2160,10 +2287,9 @@ Deno.serve(async (req) => {
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', session.id);
 
-      return new Response(
-        JSON.stringify({ reset: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ reset: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (body.mode === 'bulkCreateUsers') {
@@ -2384,7 +2510,10 @@ Deno.serve(async (req) => {
         throw updateError;
       }
       if (!updatedUser) {
-        throw new HttpError(404, '対象の生徒アカウントが見つかりませんでした。');
+        throw new HttpError(
+          404,
+          '対象の生徒アカウントが見つかりませんでした。',
+        );
       }
 
       await adminClient
@@ -2409,6 +2538,7 @@ Deno.serve(async (req) => {
         gymTickets,
         classes,
         schedules,
+        rehearsals,
         gyms,
       ] = await Promise.all([
         fetchAllRows((from, to) =>
@@ -2421,19 +2551,31 @@ Deno.serve(async (req) => {
             .range(from, to),
         ),
         fetchAllRows((from, to) =>
-          adminClient.from('users').select('id, email, affiliation').range(from, to),
+          adminClient
+            .from('users')
+            .select('id, email, affiliation')
+            .range(from, to),
         ),
         fetchAllRows((from, to) =>
           adminClient.from('relationships').select('id, name').range(from, to),
         ),
         fetchAllRows((from, to) =>
-          adminClient.from('ticket_types').select('id, name, type').range(from, to),
+          adminClient
+            .from('ticket_types')
+            .select('id, name, type')
+            .range(from, to),
         ),
         fetchAllRows((from, to) =>
-          adminClient.from('class_tickets').select('id, class_id, round_id').range(from, to),
+          adminClient
+            .from('class_tickets')
+            .select('id, class_id, round_id')
+            .range(from, to),
         ),
         fetchAllRows((from, to) =>
-          adminClient.from('gym_tickets').select('id, performance_id').range(from, to),
+          adminClient
+            .from('gym_tickets')
+            .select('id, performance_id')
+            .range(from, to),
         ),
         fetchAllRows((from, to) =>
           adminClient
@@ -2449,8 +2591,17 @@ Deno.serve(async (req) => {
         ),
         fetchAllRows((from, to) =>
           adminClient
+            .from('rehearsals')
+            .select('class_id, round_id, round_name')
+            .eq('type', 'unofficial')
+            .range(from, to),
+        ),
+        fetchAllRows((from, to) =>
+          adminClient
             .from('gym_performances')
-            .select('id, group_name, round_name, start_at, capacity, junior_capacity')
+            .select(
+              'id, group_name, round_name, start_at, capacity, junior_capacity',
+            )
             .range(from, to),
         ),
       ]);
@@ -2469,6 +2620,7 @@ Deno.serve(async (req) => {
           gymTickets,
           classes,
           schedules,
+          rehearsals,
           gyms,
         }),
         {
@@ -2675,7 +2827,9 @@ Deno.serve(async (req) => {
         .from('class_performances')
         .select('id, class_name, max_tickets_per_user')
         .order('id');
-      if (classLimitsError) {throw classLimitsError;}
+      if (classLimitsError) {
+        throw classLimitsError;
+      }
 
       const activeTicketTypeIds: number[] = [];
       if (ticketIssueModes.classInvite !== 'off') {
@@ -2716,10 +2870,13 @@ Deno.serve(async (req) => {
           settings: {
             eventYear: settings.event_year,
             showLength: settings.show_length,
-            maxTicketsPerOtherClassUser: settings.max_tickets_per_other_class_user,
-            maxTicketsPerOtherPerformanceUser: settings.max_tickets_per_other_performance_user,
+            maxTicketsPerOtherClassUser:
+              settings.max_tickets_per_other_class_user,
+            maxTicketsPerOtherPerformanceUser:
+              settings.max_tickets_per_other_performance_user,
             classTicketLimits: classLimits ?? [],
-            maxTicketsPerOtherClubUser: settings.max_tickets_per_other_club_user,
+            maxTicketsPerOtherClubUser:
+              settings.max_tickets_per_other_club_user,
             gymTicketLimitsByClub: settings.gym_ticket_limits_by_club ?? {},
             maxTicketsPerJuniorUser: settings.max_tickets_per_junior_user,
             maxAdmissionOnlyJuniorAccounts:
@@ -2766,7 +2923,8 @@ Deno.serve(async (req) => {
           event_year: body.eventYear,
           show_length: body.showLength,
           max_tickets_per_other_class_user: body.maxTicketsPerOtherClassUser,
-          max_tickets_per_other_performance_user: body.maxTicketsPerOtherPerformanceUser,
+          max_tickets_per_other_performance_user:
+            body.maxTicketsPerOtherPerformanceUser,
           max_tickets_per_other_club_user: body.maxTicketsPerOtherClubUser,
           gym_ticket_limits_by_club: body.gymTicketLimitsByClub,
           max_tickets_per_junior_user: body.maxTicketsPerJuniorUser,
@@ -2790,7 +2948,9 @@ Deno.serve(async (req) => {
       if (body.capacitySettingsToUpdate.includes('defaultClassTotalCapacity')) {
         classCapacityUpdate.total_capacity = body.defaultClassTotalCapacity;
       }
-      if (body.capacitySettingsToUpdate.includes('defaultClassJuniorCapacity')) {
+      if (
+        body.capacitySettingsToUpdate.includes('defaultClassJuniorCapacity')
+      ) {
         classCapacityUpdate.junior_capacity = body.defaultClassJuniorCapacity;
       }
       if (Object.keys(classCapacityUpdate).length > 0) {
@@ -2840,10 +3000,13 @@ Deno.serve(async (req) => {
           .from('class_performances')
           .update({ max_tickets_per_user: limit })
           .eq('id', Number(id));
-        if (error) {throw error;}
+        if (error) {
+          throw error;
+        }
       }
 
-      const gymCapacityUpdate: { capacity?: number; junior_capacity?: number } = {};
+      const gymCapacityUpdate: { capacity?: number; junior_capacity?: number } =
+        {};
       if (body.capacitySettingsToUpdate.includes('defaultGymCapacity')) {
         gymCapacityUpdate.capacity = body.defaultGymCapacity;
       }
@@ -2903,7 +3066,8 @@ Deno.serve(async (req) => {
             eventYear: body.eventYear,
             showLength: body.showLength,
             maxTicketsPerOtherClassUser: body.maxTicketsPerOtherClassUser,
-            maxTicketsPerOtherPerformanceUser: body.maxTicketsPerOtherPerformanceUser,
+            maxTicketsPerOtherPerformanceUser:
+              body.maxTicketsPerOtherPerformanceUser,
             classTicketLimitsById: body.classTicketLimitsById,
             maxTicketsPerOtherClubUser: body.maxTicketsPerOtherClubUser,
             gymTicketLimitsByClub: body.gymTicketLimitsByClub,
@@ -3040,7 +3204,9 @@ Deno.serve(async (req) => {
           redeployTriggered = true;
         } catch (error) {
           redeployError =
-            error instanceof Error ? error.message : '不明なエラーが発生しました。';
+            error instanceof Error
+              ? error.message
+              : '不明なエラーが発生しました。';
         }
       }
 
@@ -3049,33 +3215,48 @@ Deno.serve(async (req) => {
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', session.id);
 
-      return new Response(JSON.stringify({
-        updated: true,
-        schedule,
-        redeployTriggered,
-        redeployError,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          updated: true,
+          schedule,
+          redeployTriggered,
+          redeployError,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (body.mode === 'getOrganizationAdmins') {
       const session = await requireValidSession(adminClient, req);
-      const [adminsResult, classesResult, gymsResult, exhibitionsResult] = await Promise.all([
-        adminClient
-          .from('organization_admins')
-          .select('id, username, class_performance_id, gym_performance_id, exhibition_club_id, created_at')
-          .order('username'),
-        adminClient.from('class_performances').select('id, class_name, title').order('id'),
-        adminClient
-          .from('gym_performances')
-          .select('id, group_name, round_name')
-          .order('start_at'),
-        adminClient.from('exhibition_clubs').select('id, group_name').order('id'),
-      ]);
-      const failed = [adminsResult, classesResult, gymsResult, exhibitionsResult].find(
-        (result) => result.error,
-      );
+      const [adminsResult, classesResult, gymsResult, exhibitionsResult] =
+        await Promise.all([
+          adminClient
+            .from('organization_admins')
+            .select(
+              'id, username, class_performance_id, gym_performance_id, exhibition_club_id, created_at',
+            )
+            .order('username'),
+          adminClient
+            .from('class_performances')
+            .select('id, class_name, title')
+            .order('id'),
+          adminClient
+            .from('gym_performances')
+            .select('id, group_name, round_name')
+            .order('start_at'),
+          adminClient
+            .from('exhibition_clubs')
+            .select('id, group_name')
+            .order('id'),
+        ]);
+      const failed = [
+        adminsResult,
+        classesResult,
+        gymsResult,
+        exhibitionsResult,
+      ].find((result) => result.error);
       if (failed?.error) {
         throw failed.error;
       }
@@ -3099,51 +3280,112 @@ Deno.serve(async (req) => {
       const settings = await fetchAdminSettings(adminClient);
       const [classResult, gymResult, exhibitionResult] = await Promise.all([
         adminClient
-        .from('class_performances')
-        .select('id, year, class_name, title, description, image_path, total_capacity, junior_capacity, is_accepting')
-        .order('class_name'),
-        adminClient.from('gym_performances').select('id, year, group_name, round_name, start_at, end_at, description, image_path, capacity, junior_capacity, is_accepting').order('start_at'),
-        adminClient.from('exhibition_clubs').select('id, group_name, description, image_path, location').order('id'),
+          .from('class_performances')
+          .select(
+            'id, year, class_name, title, description, image_path, total_capacity, junior_capacity, is_accepting',
+          )
+          .order('class_name'),
+        adminClient
+          .from('gym_performances')
+          .select(
+            'id, year, group_name, round_name, start_at, end_at, description, image_path, capacity, junior_capacity, is_accepting',
+          )
+          .order('start_at'),
+        adminClient
+          .from('exhibition_clubs')
+          .select('id, group_name, description, image_path, location')
+          .order('id'),
       ]);
-      const error = classResult.error ?? gymResult.error ?? exhibitionResult.error;
+      const error =
+        classResult.error ?? gymResult.error ?? exhibitionResult.error;
       if (error) {
         throw error;
       }
       const performances = [
-        ...(classResult.data ?? []).map((item) => ({ ...item, performance_type: 'class' })),
-        ...(gymResult.data ?? []).map((item) => ({ id: item.id, year: item.year, class_name: item.group_name, title: item.round_name, start_at: item.start_at, end_at: item.end_at, description: item.description, image_path: item.image_path, total_capacity: item.capacity, junior_capacity: item.junior_capacity, is_accepting: item.is_accepting, performance_type: 'gym' })),
-        ...(exhibitionResult.data ?? []).map((item) => ({ id: item.id, year: null, class_name: item.group_name, title: '', description: item.description, image_path: item.image_path, location: item.location, total_capacity: null, junior_capacity: null, is_accepting: null, performance_type: 'exhibition' })),
+        ...(classResult.data ?? []).map((item) => ({
+          ...item,
+          performance_type: 'class',
+        })),
+        ...(gymResult.data ?? []).map((item) => ({
+          id: item.id,
+          year: item.year,
+          class_name: item.group_name,
+          title: item.round_name,
+          start_at: item.start_at,
+          end_at: item.end_at,
+          description: item.description,
+          image_path: item.image_path,
+          total_capacity: item.capacity,
+          junior_capacity: item.junior_capacity,
+          is_accepting: item.is_accepting,
+          performance_type: 'gym',
+        })),
+        ...(exhibitionResult.data ?? []).map((item) => ({
+          id: item.id,
+          year: null,
+          class_name: item.group_name,
+          title: '',
+          description: item.description,
+          image_path: item.image_path,
+          location: item.location,
+          total_capacity: null,
+          junior_capacity: null,
+          is_accepting: null,
+          performance_type: 'exhibition',
+        })),
       ];
       await adminClient
         .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', session.id);
-      return new Response(JSON.stringify({
-        performances: performances ?? [],
-        eventYear: settings.event_year,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          performances: performances ?? [],
+          eventYear: settings.event_year,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (body.mode === 'updateClassPerformance') {
       const session = await requireValidSession(adminClient, req);
       const settings = await fetchAdminSettings(adminClient);
-      const table = body.performanceType === 'class' ? 'class_performances' : body.performanceType === 'gym' ? 'gym_performances' : 'exhibition_clubs';
-      const update = body.performanceType === 'class' ? {
-          year: settings.event_year,
-          class_name: body.className,
-          title: body.title,
-          description: body.description,
-          total_capacity: body.totalCapacity,
-          junior_capacity: body.juniorCapacity,
-          is_accepting: body.isAccepting,
-        } : body.performanceType === 'gym' ? {
-          year: settings.event_year, group_name: body.className, round_name: body.title,
-          description: body.description, capacity: body.totalCapacity,
-          junior_capacity: body.juniorCapacity, is_accepting: body.isAccepting,
-          start_at: body.startAt, end_at: body.endAt,
-        } : { group_name: body.className, description: body.description, location: body.location };
+      const table =
+        body.performanceType === 'class'
+          ? 'class_performances'
+          : body.performanceType === 'gym'
+            ? 'gym_performances'
+            : 'exhibition_clubs';
+      const update =
+        body.performanceType === 'class'
+          ? {
+              year: settings.event_year,
+              class_name: body.className,
+              title: body.title,
+              description: body.description,
+              total_capacity: body.totalCapacity,
+              junior_capacity: body.juniorCapacity,
+              is_accepting: body.isAccepting,
+            }
+          : body.performanceType === 'gym'
+            ? {
+                year: settings.event_year,
+                group_name: body.className,
+                round_name: body.title,
+                description: body.description,
+                capacity: body.totalCapacity,
+                junior_capacity: body.juniorCapacity,
+                is_accepting: body.isAccepting,
+                start_at: body.startAt,
+                end_at: body.endAt,
+              }
+            : {
+                group_name: body.className,
+                description: body.description,
+                location: body.location,
+              };
       const { data: rawPerformance, error } = await adminClient
         .from(table)
         .update(update)
@@ -3160,34 +3402,52 @@ Deno.serve(async (req) => {
         throw new HttpError(404, 'クラス公演が見つかりません。');
       }
       const item = rawPerformance as Record<string, unknown>;
-  const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
-    id: item.id, year: body.performanceType === 'gym' ? item.year : null,
-    class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
-    start_at: body.performanceType === 'gym' ? item.start_at : null,
-    end_at: body.performanceType === 'gym' ? item.end_at : null,
-    description: item.description, image_path: item.image_path,
-        location: body.performanceType === 'exhibition' ? item.location : null,
-        total_capacity: body.performanceType === 'gym' ? item.capacity : null,
-        junior_capacity: body.performanceType === 'gym' ? item.junior_capacity : null,
-        is_accepting: body.performanceType === 'gym' ? item.is_accepting : null,
-        performance_type: body.performanceType,
-      };
+      const performance =
+        body.performanceType === 'class'
+          ? { ...rawPerformance, performance_type: 'class' }
+          : {
+              id: item.id,
+              year: body.performanceType === 'gym' ? item.year : null,
+              class_name: item.group_name,
+              title: body.performanceType === 'gym' ? item.round_name : '',
+              start_at: body.performanceType === 'gym' ? item.start_at : null,
+              end_at: body.performanceType === 'gym' ? item.end_at : null,
+              description: item.description,
+              image_path: item.image_path,
+              location:
+                body.performanceType === 'exhibition' ? item.location : null,
+              total_capacity:
+                body.performanceType === 'gym' ? item.capacity : null,
+              junior_capacity:
+                body.performanceType === 'gym' ? item.junior_capacity : null,
+              is_accepting:
+                body.performanceType === 'gym' ? item.is_accepting : null,
+              performance_type: body.performanceType,
+            };
       await adminClient
         .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', session.id);
-      return new Response(JSON.stringify({
-        updated: true,
-        performance,
-        eventYear: settings.event_year,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          updated: true,
+          performance,
+          eventYear: settings.event_year,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (body.mode === 'uploadClassPerformanceImage') {
       const session = await requireValidSession(adminClient, req);
-      const table = body.performanceType === 'class' ? 'class_performances' : body.performanceType === 'gym' ? 'gym_performances' : 'exhibition_clubs';
+      const table =
+        body.performanceType === 'class'
+          ? 'class_performances'
+          : body.performanceType === 'gym'
+            ? 'gym_performances'
+            : 'exhibition_clubs';
       const { data: existingPerformance, error: findError } = await adminClient
         .from(table)
         .select('id')
@@ -3199,16 +3459,16 @@ Deno.serve(async (req) => {
       if (!existingPerformance) {
         throw new HttpError(404, 'クラス公演が見つかりません。');
       }
-      const extension = body.contentType === 'image/jpeg'
-        ? 'jpg'
-        : body.contentType === 'image/png' ? 'png' : 'webp';
+      const extension =
+        body.contentType === 'image/jpeg'
+          ? 'jpg'
+          : body.contentType === 'image/png'
+            ? 'png'
+            : 'webp';
       let bytes: Uint8Array;
       try {
         const binary = atob(body.base64);
-        bytes = Uint8Array.from(
-          binary,
-          (character) => character.charCodeAt(0),
-        );
+        bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
       } catch {
         throw new HttpError(400, '画像データが不正です。');
       }
@@ -3229,7 +3489,11 @@ Deno.serve(async (req) => {
       const settings = await fetchAdminSettings(adminClient);
       const { data: rawPerformance, error: updateError } = await adminClient
         .from(table)
-        .update(body.performanceType === 'exhibition' ? { image_path: path } : { image_path: path, year: settings.event_year })
+        .update(
+          body.performanceType === 'exhibition'
+            ? { image_path: path }
+            : { image_path: path, year: settings.event_year },
+        )
         .eq('id', body.id)
         .select('*')
         .maybeSingle();
@@ -3240,35 +3504,50 @@ Deno.serve(async (req) => {
         throw new HttpError(404, 'クラス公演が見つかりません。');
       }
       const item = rawPerformance as Record<string, unknown>;
-  const performance = body.performanceType === 'class' ? { ...rawPerformance, performance_type: 'class' } : {
-    id: item.id, year: body.performanceType === 'gym' ? item.year : null,
-    class_name: item.group_name, title: body.performanceType === 'gym' ? item.round_name : '',
-    start_at: body.performanceType === 'gym' ? item.start_at : null,
-    end_at: body.performanceType === 'gym' ? item.end_at : null,
-    description: item.description, image_path: item.image_path,
-        total_capacity: body.performanceType === 'gym' ? item.capacity : null,
-        junior_capacity: body.performanceType === 'gym' ? item.junior_capacity : null,
-        is_accepting: body.performanceType === 'gym' ? item.is_accepting : null,
-        performance_type: body.performanceType,
-      };
+      const performance =
+        body.performanceType === 'class'
+          ? { ...rawPerformance, performance_type: 'class' }
+          : {
+              id: item.id,
+              year: body.performanceType === 'gym' ? item.year : null,
+              class_name: item.group_name,
+              title: body.performanceType === 'gym' ? item.round_name : '',
+              start_at: body.performanceType === 'gym' ? item.start_at : null,
+              end_at: body.performanceType === 'gym' ? item.end_at : null,
+              description: item.description,
+              image_path: item.image_path,
+              total_capacity:
+                body.performanceType === 'gym' ? item.capacity : null,
+              junior_capacity:
+                body.performanceType === 'gym' ? item.junior_capacity : null,
+              is_accepting:
+                body.performanceType === 'gym' ? item.is_accepting : null,
+              performance_type: body.performanceType,
+            };
       await adminClient
         .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', session.id);
-      return new Response(JSON.stringify({
-        updated: true,
-        performance,
-        eventYear: settings.event_year,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          updated: true,
+          performance,
+          eventYear: settings.event_year,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (body.mode === 'createOrganizationAdmin') {
       const session = await requireValidSession(adminClient, req);
-      const performanceTable = body.kind === 'class'
-        ? 'class_performances'
-        : body.kind === 'gym' ? 'gym_performances' : 'exhibition_clubs';
+      const performanceTable =
+        body.kind === 'class'
+          ? 'class_performances'
+          : body.kind === 'gym'
+            ? 'gym_performances'
+            : 'exhibition_clubs';
       const { data: performance, error: performanceError } = await adminClient
         .from(performanceTable)
         .select('id')
@@ -3338,7 +3617,8 @@ Deno.serve(async (req) => {
           class_performance_id:
             body.kind === 'class' ? body.performanceId : null,
           gym_performance_id: body.kind === 'gym' ? body.performanceId : null,
-          exhibition_club_id: body.kind === 'exhibition' ? body.performanceId : null,
+          exhibition_club_id:
+            body.kind === 'exhibition' ? body.performanceId : null,
         });
       if (insertError) {
         if (insertError.code === '23505') {
@@ -3396,15 +3676,29 @@ Deno.serve(async (req) => {
       const session = await requireValidSession(adminClient, req);
       const { error } = await adminClient
         .from('organization_admins')
-        .update({ username: body.username, updated_at: new Date().toISOString() })
+        .update({
+          username: body.username,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', body.organizationAdminId);
       if (error) {
-        if (error.code === '23505') {throw new HttpError(400, '同じユーザー名は登録できません。');}
+        if (error.code === '23505') {
+          throw new HttpError(400, '同じユーザー名は登録できません。');
+        }
         throw error;
       }
-      await adminClient.from('organization_admin_sessions').update({ revoked_at: new Date().toISOString() }).eq('organization_admin_id', body.organizationAdminId).is('revoked_at', null);
-      await adminClient.from('admin_sessions').update({ last_used_at: new Date().toISOString() }).eq('id', session.id);
-      return new Response(JSON.stringify({ changed: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      await adminClient
+        .from('organization_admin_sessions')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('organization_admin_id', body.organizationAdminId)
+        .is('revoked_at', null);
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ changed: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (body.mode === 'deleteOrganizationAdmin') {
@@ -3441,23 +3735,42 @@ Deno.serve(async (req) => {
         .from('admin_sessions')
         .update({ last_used_at: new Date().toISOString() })
         .eq('id', session.id);
-      return new Response(JSON.stringify({ deleted: true, count: count ?? 0 }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ deleted: true, count: count ?? 0 }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (body.mode === 'bulkCreateOrganizationAdmins') {
       const session = await requireValidSession(adminClient, req);
       const { data: existing, error: existingError } = await adminClient
         .from('organization_admins')
-        .select('username, class_performance_id, gym_performance_id, exhibition_club_id');
-      if (existingError) {throw existingError;}
-      const usedUsernames = new Set((existing ?? []).map((item) => item.username));
-      const assigned = new Set((existing ?? []).map((item) => item.class_performance_id ? `class:${item.class_performance_id}` : item.gym_performance_id ? `gym:${item.gym_performance_id}` : `exhibition:${item.exhibition_club_id}`));
+        .select(
+          'username, class_performance_id, gym_performance_id, exhibition_club_id',
+        );
+      if (existingError) {
+        throw existingError;
+      }
+      const usedUsernames = new Set(
+        (existing ?? []).map((item) => item.username),
+      );
+      const assigned = new Set(
+        (existing ?? []).map((item) =>
+          item.class_performance_id
+            ? `class:${item.class_performance_id}`
+            : item.gym_performance_id
+              ? `gym:${item.gym_performance_id}`
+              : `exhibition:${item.exhibition_club_id}`,
+        ),
+      );
       const { data: gymPerformances, error: gymError } = await adminClient
         .from('gym_performances')
         .select('id, group_name');
-      if (gymError) {throw gymError;}
+      if (gymError) {
+        throw gymError;
+      }
       const gymGroups = new Map(
         (gymPerformances ?? []).map((item) => [item.id, item.group_name]),
       );
@@ -3470,7 +3783,13 @@ Deno.serve(async (req) => {
           )
           .filter((group): group is string => Boolean(group)),
       );
-      const rows: { username: string; password_hash: string; class_performance_id: number | null; gym_performance_id: number | null; exhibition_club_id: number | null }[] = [];
+      const rows: {
+        username: string;
+        password_hash: string;
+        class_performance_id: number | null;
+        gym_performance_id: number | null;
+        exhibition_club_id: number | null;
+      }[] = [];
       const skipped: string[] = [];
       for (const item of body.admins) {
         const key = `${item.kind}:${item.performanceId}`;
@@ -3484,17 +3803,36 @@ Deno.serve(async (req) => {
           skipped.push(item.username);
           continue;
         }
-        rows.push({ username: item.username, password_hash: await hash(item.password, 10), class_performance_id: item.kind === 'class' ? item.performanceId : null, gym_performance_id: item.kind === 'gym' ? item.performanceId : null, exhibition_club_id: item.kind === 'exhibition' ? item.performanceId : null });
+        rows.push({
+          username: item.username,
+          password_hash: await hash(item.password, 10),
+          class_performance_id:
+            item.kind === 'class' ? item.performanceId : null,
+          gym_performance_id: item.kind === 'gym' ? item.performanceId : null,
+          exhibition_club_id:
+            item.kind === 'exhibition' ? item.performanceId : null,
+        });
         usedUsernames.add(item.username);
         assigned.add(key);
-        if (typeof gymGroup === 'string') {assignedGymGroups.add(gymGroup);}
+        if (typeof gymGroup === 'string') {
+          assignedGymGroups.add(gymGroup);
+        }
       }
       if (rows.length > 0) {
-        const { error } = await adminClient.from('organization_admins').insert(rows);
-        if (error) {throw error;}
+        const { error } = await adminClient
+          .from('organization_admins')
+          .insert(rows);
+        if (error) {
+          throw error;
+        }
       }
-      await adminClient.from('admin_sessions').update({ last_used_at: new Date().toISOString() }).eq('id', session.id);
-      return new Response(JSON.stringify({ created: rows.length, skipped }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ created: rows.length, skipped }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (body.mode === 'getJuniorPassword') {

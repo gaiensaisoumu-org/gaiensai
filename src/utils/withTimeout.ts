@@ -1,7 +1,7 @@
 export class TimeoutError extends Error {
   constructor(timeoutMs: number) {
     super(`Request timed out after ${timeoutMs}ms`);
-    this.name = "TimeoutError";
+    this.name = 'TimeoutError';
   }
 }
 
@@ -46,7 +46,7 @@ export const withTimeout = async <T>(
       timeout,
       ...(offline ? [offline] : []),
     ]);
-  }  finally {
+  } finally {
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId);
     }

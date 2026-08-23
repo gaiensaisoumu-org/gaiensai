@@ -20,12 +20,12 @@ export const applyDecodedSerials = async <T extends { code: string }>(
         const decoded = await decodeTicketCodeWithEnv(ticket.code);
         return {
           ...ticket,
-          serial: typeof decoded?.serial === 'number'
-            ? decoded.serial
-            : undefined,
-          decodedRelationshipId: typeof decoded?.relationship === 'number'
-            ? decoded.relationship
-            : undefined,
+          serial:
+            typeof decoded?.serial === 'number' ? decoded.serial : undefined,
+          decodedRelationshipId:
+            typeof decoded?.relationship === 'number'
+              ? decoded.relationship
+              : undefined,
         };
       } catch {
         return { ...ticket };

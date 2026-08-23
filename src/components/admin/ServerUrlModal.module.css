@@ -61,7 +61,9 @@
   color: var(--main-text-color);
   font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .modalDescription {
@@ -76,9 +78,7 @@
   padding: 0.75rem 1rem;
   border-radius: 12px;
   border: 1px solid var(--select-border-color);
-  background: color-mix(in srgb,
-      var(--main-bg-color) 85%,
-      transparent);
+  background: color-mix(in srgb, var(--main-bg-color) 85%, transparent);
   font-size: 1rem;
   transition: border-color 0.2s;
 }
@@ -86,7 +86,8 @@
 .textInput:focus-visible {
   border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--primary-color) 25%, transparent);
 }
 
 .textInputRules {
@@ -97,9 +98,11 @@
 .submitButton {
   padding: 0.85rem 1.5rem;
   border-radius: 999px;
-  background: linear-gradient(135deg,
-      var(--primary-color),
-      color-mix(in srgb, var(--primary-color) 70%, #000) 80%);
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    color-mix(in srgb, var(--primary-color) 70%, #000) 80%
+  );
   color: #fff;
   border: none;
   font-size: 1rem;
@@ -107,7 +110,9 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
 }
 
 .submitButton:hover {
@@ -122,7 +127,9 @@
   color: var(--main-text-color);
   border: 1px solid var(--select-border-color);
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .cancelButton:hover {

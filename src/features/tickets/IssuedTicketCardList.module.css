@@ -80,6 +80,30 @@
   gap: 1rem;
 }
 
+.ticketTypeMarker {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 3.5rem;
+  height: 3.5rem;
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  pointer-events: none;
+  border-top-right-radius: 12px;
+}
+
+.markerClassSameDay {
+  background: #2474d6;
+}
+.markerRehearsal {
+  background: #16803c;
+}
+.markerGym {
+  background: #d61322;
+}
+.markerAdmissionOnly {
+  background: #e0b100;
+}
+
 .ticketNameArea {
   display: flex;
   align-items: center;
@@ -213,8 +237,9 @@
 }
 
 .ticketCodeValue {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   font-size: 0.85rem;
   font-weight: 400;
 }

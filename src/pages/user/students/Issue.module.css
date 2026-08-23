@@ -125,6 +125,107 @@
   text-align: center;
 }
 
+.rehearsalHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.rehearsalHeading p {
+  margin: 0.4rem 0 0;
+}
+
+.rehearsalSort {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.rehearsalSort select {
+  border: 1px solid var(--select-border-color);
+  border-radius: 8px;
+  background: var(--select-bg-color);
+  color: var(--main-text-color);
+  padding: 0.45rem;
+  font: inherit;
+}
+
+.rehearsalList {
+  margin-top: 0.85rem;
+}
+
+.rehearsalRow {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--table-border-color);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rehearsalRow:hover,
+.rehearsalRowSelected {
+  background: var(--translucent-w-bg-color);
+}
+.rehearsalRow:disabled {
+  cursor: default;
+  color: var(--sub-text-color);
+}
+
+.rehearsalTime {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.rehearsalRemaining {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rehearsalRemaining svg {
+  font-size: 1.5rem;
+}
+.rehearsalCircle {
+  color: var(--success-text-color);
+}
+.rehearsalTriangle {
+  color: #b7791f;
+}
+.rehearsalCross {
+  color: var(--error-text-color);
+}
+
+@media (max-width: 500px) {
+  .rehearsalHeading {
+    align-items: start;
+    flex-direction: column;
+  }
+  .rehearsalSort,
+  .rehearsalSort select {
+    width: 100%;
+  }
+  .rehearsalRow {
+    gap: 0.5rem;
+  }
+  .rehearsalRemaining {
+    align-items: center;
+    flex-direction: column;
+    gap: 0;
+    font-size: 0.8rem;
+  }
+}
+
 /* 間柄・枚数パネル */
 
 .formRow {
@@ -152,6 +253,14 @@
 .select:focus-visible {
   outline: none;
   border-color: var(--primary-color);
+}
+
+.fixedRelationship {
+  margin: 0;
+  padding: 0.8rem;
+  border: 1px solid var(--select-border-color);
+  border-radius: 10px;
+  background: var(--translucent-w-bg-color);
 }
 
 .previewHeading {
@@ -417,5 +526,3 @@
     transform: translateX(100%);
   }
 }
-
-

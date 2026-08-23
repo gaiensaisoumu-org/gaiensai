@@ -52,7 +52,8 @@ function hasSpecialAuthOrProfileKey(): boolean {
   }
 
   // 対象の接頭辞（〜から始まる）を判定する正規表現
-  const prefixRegex = /^(ticket-display-cache|sb-.*-auth-token|junior_profile_cache|students_profile_cache)/;
+  const prefixRegex =
+    /^(ticket-display-cache|sb-.*-auth-token|junior_profile_cache|students_profile_cache)/;
 
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);

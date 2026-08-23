@@ -54,7 +54,9 @@ export const getCapacityForMode = (
       ? juniorCapacity
       : Math.max(totalCapacity - juniorCapacity, 0);
 
-export const getPublicRemainingMode = (email?: string | null): RemainingMode => {
+export const getPublicRemainingMode = (
+  email?: string | null,
+): RemainingMode => {
   const localPart = email?.split('@')[0] ?? '';
   const id = Number(localPart);
   return Number.isInteger(id) && id >= 10000 && id <= 40000

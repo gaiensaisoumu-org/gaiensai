@@ -38,7 +38,7 @@
   transition: background 0.2s ease;
 }
 
-@media (hover:hover ) {
+@media (hover: hover) {
   .returnLink:hover {
     background: var(--button-hover-color);
   }

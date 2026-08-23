@@ -13,7 +13,9 @@ export const getJuniorIssueBootstrap = async (): Promise<BootstrapResponse> => {
     return cachedResponse.value;
   }
   if (!inFlightRequest) {
-    inFlightRequest = Promise.resolve(supabase.rpc('get_junior_issue_bootstrap'));
+    inFlightRequest = Promise.resolve(
+      supabase.rpc('get_junior_issue_bootstrap'),
+    );
     void inFlightRequest.finally(() => {
       inFlightRequest = null;
     });

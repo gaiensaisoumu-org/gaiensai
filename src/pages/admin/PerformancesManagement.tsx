@@ -64,12 +64,16 @@ const japanDateTimeInputToIso = (value: string) => {
   const [date, time] = value.split('T');
   const [year, month, day] = (date ?? '').split('-').map(Number);
   const [hour, minute] = (time ?? '').split(':').map(Number);
-  return new Date(Date.UTC(year, month - 1, day, hour - 9, minute)).toISOString();
+  return new Date(
+    Date.UTC(year, month - 1, day, hour - 9, minute),
+  ).toISOString();
 };
 
 const PerformancesManagementContent = () => {
   useTitle('公演情報を変更 - 管理画面');
-  const [performances, setPerformances] = useState<PerformancesManagement[]>([]);
+  const [performances, setPerformances] = useState<PerformancesManagement[]>(
+    [],
+  );
   const [eventYear, setEventYear] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,7 +83,9 @@ const PerformancesManagementContent = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [editingPerformance, setEditingPerformance] =
     useState<PerformancesManagement | null>(null);
-  const [editingGymGroup, setEditingGymGroup] = useState<GymScheduleDraft[]>([]);
+  const [editingGymGroup, setEditingGymGroup] = useState<GymScheduleDraft[]>(
+    [],
+  );
   const [className, setClassName] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -150,15 +156,17 @@ const PerformancesManagementContent = () => {
       return;
     }
     openEditModal(first);
-    setEditingGymGroup(group.map((performance) => ({
-      performance,
-      title: performance.title ?? '',
-      startAt: toJapanDateTimeInputValue(performance.start_at),
-      endAt: toJapanDateTimeInputValue(performance.end_at),
-      totalCapacity: String(performance.total_capacity ?? 0),
-      juniorCapacity: String(performance.junior_capacity ?? 0),
-      isAccepting: performance.is_accepting ?? false,
-    })));
+    setEditingGymGroup(
+      group.map((performance) => ({
+        performance,
+        title: performance.title ?? '',
+        startAt: toJapanDateTimeInputValue(performance.start_at),
+        endAt: toJapanDateTimeInputValue(performance.end_at),
+        totalCapacity: String(performance.total_capacity ?? 0),
+        juniorCapacity: String(performance.junior_capacity ?? 0),
+        isAccepting: performance.is_accepting ?? false,
+      })),
+    );
   };
 
   const closeEditModal = () => {
@@ -175,37 +183,70 @@ const PerformancesManagementContent = () => {
     }
 
     if (editingGymGroup.length > 0) {
-      if (!className.trim() || editingGymGroup.some((schedule) =>
-        !schedule.title.trim() || !schedule.startAt || !schedule.endAt ||
-        schedule.startAt >= schedule.endAt ||
-        !Number.isInteger(Number(schedule.totalCapacity)) || Number(schedule.totalCapacity) < 1 ||
-        !Number.isInteger(Number(schedule.juniorCapacity)) || Number(schedule.juniorCapacity) < 0 ||
-        Number(schedule.juniorCapacity) > Number(schedule.totalCapacity),
-      )) {
+      if (
+        !className.trim() ||
+        editingGymGroup.some(
+          (schedule) =>
+            !schedule.title.trim() ||
+            !schedule.startAt ||
+            !schedule.endAt ||
+            schedule.startAt >= schedule.endAt ||
+            !Number.isInteger(Number(schedule.totalCapacity)) ||
+            Number(schedule.totalCapacity) < 1 ||
+            !Number.isInteger(Number(schedule.juniorCapacity)) ||
+            Number(schedule.juniorCapacity) < 0 ||
+            Number(schedule.juniorCapacity) > Number(schedule.totalCapacity),
+        )
+      ) {
         setError('団体名と各回の日時・定員・中学生枠を確認してください。');
         return;
       }
       setIsSaving(true);
       try {
-        const updated = await Promise.all(editingGymGroup.map(async (schedule) => {
-          const { data, error: invokeError } = await supabase.functions.invoke('admin-auth', {
-            body: { action: 'updateClassPerformance', recordId: schedule.performance.id, performanceType: 'gym', className, description, title: schedule.title, startAt: japanDateTimeInputToIso(schedule.startAt), endAt: japanDateTimeInputToIso(schedule.endAt), totalCapacity: Number(schedule.totalCapacity), juniorCapacity: Number(schedule.juniorCapacity), isAccepting: schedule.isAccepting },
-            headers: { 'x-admin-session-token': getSessionToken() ?? '' },
-          });
-          if (invokeError || !data?.performance) {
-            throw invokeError ?? new Error('保存に失敗しました。');
-          }
-          return data.performance as PerformancesManagement;
-        }));
-        setPerformances((current) => current.map((performance) =>
-          updated.find((item) => item.id === performance.id && item.performance_type === (performance.performance_type ?? 'class')) ?? performance,
-        ));
+        const updated = await Promise.all(
+          editingGymGroup.map(async (schedule) => {
+            const { data, error: invokeError } =
+              await supabase.functions.invoke('admin-auth', {
+                body: {
+                  action: 'updateClassPerformance',
+                  recordId: schedule.performance.id,
+                  performanceType: 'gym',
+                  className,
+                  description,
+                  title: schedule.title,
+                  startAt: japanDateTimeInputToIso(schedule.startAt),
+                  endAt: japanDateTimeInputToIso(schedule.endAt),
+                  totalCapacity: Number(schedule.totalCapacity),
+                  juniorCapacity: Number(schedule.juniorCapacity),
+                  isAccepting: schedule.isAccepting,
+                },
+                headers: { 'x-admin-session-token': getSessionToken() ?? '' },
+              });
+            if (invokeError || !data?.performance) {
+              throw invokeError ?? new Error('保存に失敗しました。');
+            }
+            return data.performance as PerformancesManagement;
+          }),
+        );
+        setPerformances((current) =>
+          current.map(
+            (performance) =>
+              updated.find(
+                (item) =>
+                  item.id === performance.id &&
+                  item.performance_type ===
+                    (performance.performance_type ?? 'class'),
+              ) ?? performance,
+          ),
+        );
         setEditingPerformance(null);
         setEditingGymGroup([]);
         await triggerRedeploy();
         setSuccess('体育館公演を更新し、再デプロイを開始しました。');
       } catch (saveError) {
-        setError(`体育館公演の更新に失敗しました。${await readErrorMessage(saveError)}`);
+        setError(
+          `体育館公演の更新に失敗しました。${await readErrorMessage(saveError)}`,
+        );
       } finally {
         setIsSaving(false);
       }
@@ -261,7 +302,9 @@ const PerformancesManagementContent = () => {
       }
       const updatedPerformance = data.performance as PerformancesManagement;
       setEventYear(
-        typeof data.eventYear === 'number' ? data.eventYear : updatedPerformance.year,
+        typeof data.eventYear === 'number'
+          ? data.eventYear
+          : updatedPerformance.year,
       );
       setPerformances((current) =>
         current.map((performance) =>
@@ -278,7 +321,9 @@ const PerformancesManagementContent = () => {
         `${updatedPerformance.class_name ?? 'クラス公演'}を更新し、再デプロイを開始しました。年度は設定中の年度（${updatedPerformance.year ?? '-'}年度）に同期されています。`,
       );
     } catch (saveError) {
-      setError(`クラス公演の更新に失敗しました。${await readErrorMessage(saveError)}`);
+      setError(
+        `クラス公演の更新に失敗しました。${await readErrorMessage(saveError)}`,
+      );
     } finally {
       setIsSaving(false);
     }
@@ -304,7 +349,8 @@ const PerformancesManagementContent = () => {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
+        reader.onerror = () =>
+          reject(new Error('画像の読み込みに失敗しました。'));
         reader.readAsDataURL(uploadFile);
       });
       const { data, error: invokeError } = await supabase.functions.invoke(
@@ -338,13 +384,17 @@ const PerformancesManagementContent = () => {
       );
       setEditingPerformance(updatedPerformance);
       setEventYear(
-        typeof data.eventYear === 'number' ? data.eventYear : updatedPerformance.year,
+        typeof data.eventYear === 'number'
+          ? data.eventYear
+          : updatedPerformance.year,
       );
       setImageVersion(Date.now());
       await triggerRedeploy();
       setSuccess('公演画像を更新し、再デプロイを開始しました。');
     } catch (uploadError) {
-      setError(`画像の更新に失敗しました。${await readErrorMessage(uploadError)}`);
+      setError(
+        `画像の更新に失敗しました。${await readErrorMessage(uploadError)}`,
+      );
     } finally {
       setIsUploadingImage(false);
       (event.target as HTMLInputElement).value = '';
@@ -356,7 +406,8 @@ const PerformancesManagementContent = () => {
     performanceType: 'class' | 'gym' | 'exhibition',
   ) => {
     const rows = performances.filter(
-      (performance) => (performance.performance_type ?? 'class') === performanceType,
+      (performance) =>
+        (performance.performance_type ?? 'class') === performanceType,
     );
     if (performanceType === 'gym') {
       const groups = Array.from(
@@ -400,15 +451,28 @@ const PerformancesManagementContent = () => {
                         <td>
                           <div className={styles.gymScheduleList}>
                             {groupPerformances.map((performance) => (
-                              <div key={performance.id} className={styles.gymSchedule}>
-                                <strong>{performance.title || '名称未設定'}</strong>
+                              <div
+                                key={performance.id}
+                                className={styles.gymSchedule}
+                              >
+                                <strong>
+                                  {performance.title || '名称未設定'}
+                                </strong>
                                 <span>
                                   {performance.start_at
-                                    ? new Date(performance.start_at).toLocaleString('ja-JP', { timeZone: JAPAN_TIME_ZONE })
+                                    ? new Date(
+                                        performance.start_at,
+                                      ).toLocaleString('ja-JP', {
+                                        timeZone: JAPAN_TIME_ZONE,
+                                      })
                                     : '-'}
                                   {' 〜 '}
                                   {performance.end_at
-                                    ? new Date(performance.end_at).toLocaleString('ja-JP', { timeZone: JAPAN_TIME_ZONE })
+                                    ? new Date(
+                                        performance.end_at,
+                                      ).toLocaleString('ja-JP', {
+                                        timeZone: JAPAN_TIME_ZONE,
+                                      })
                                     : '-'}
                                 </span>
                               </div>
@@ -418,8 +482,12 @@ const PerformancesManagementContent = () => {
                         <td>
                           <div className={styles.gymScheduleList}>
                             {groupPerformances.map((performance) => (
-                              <span key={performance.id} className={styles.gymSchedule}>
-                                {performance.total_capacity ?? 0}名（中学生 {performance.junior_capacity ?? 0}名）
+                              <span
+                                key={performance.id}
+                                className={styles.gymSchedule}
+                              >
+                                {performance.total_capacity ?? 0}名（中学生{' '}
+                                {performance.junior_capacity ?? 0}名）
                               </span>
                             ))}
                           </div>
@@ -427,7 +495,10 @@ const PerformancesManagementContent = () => {
                         <td>
                           <div className={styles.gymScheduleList}>
                             {groupPerformances.map((performance) => (
-                              <span key={performance.id} className={styles.gymSchedule}>
+                              <span
+                                key={performance.id}
+                                className={styles.gymSchedule}
+                              >
                                 {performance.is_accepting ? '受付中' : '停止中'}
                               </span>
                             ))}
@@ -456,73 +527,88 @@ const PerformancesManagementContent = () => {
       <NormalSection>
         <div className={styles.performanceSection}>
           <h2>{title}</h2>
-        <p className={styles.scrollHint}>← 横にスクロールできます →</p>
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                {performanceType !== 'exhibition' && <th>年度</th>}
-                <th>{performanceType === 'class' ? 'クラス' : '団体名'}</th>
-                {performanceType !== 'exhibition' && <th>公演タイトル</th>}
-                <th>説明</th>
-                {performanceType === 'exhibition' && <th>場所</th>}
-                {performanceType !== 'exhibition' && <th>総定員</th>}
-                {performanceType !== 'exhibition' && <th>中学生枠</th>}
-                {performanceType !== 'exhibition' && <th>受付</th>}
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
+          <p className={styles.scrollHint}>← 横にスクロールできます →</p>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
                 <tr>
-                  <td colSpan={performanceType === 'exhibition' ? 5 : 9} className={styles.empty}>
-                    {title}は登録されていません。
-                  </td>
+                  <th>ID</th>
+                  {performanceType !== 'exhibition' && <th>年度</th>}
+                  <th>{performanceType === 'class' ? 'クラス' : '団体名'}</th>
+                  {performanceType !== 'exhibition' && <th>公演タイトル</th>}
+                  <th>説明</th>
+                  {performanceType === 'exhibition' && <th>場所</th>}
+                  {performanceType !== 'exhibition' && <th>総定員</th>}
+                  {performanceType !== 'exhibition' && <th>中学生枠</th>}
+                  {performanceType !== 'exhibition' && <th>受付</th>}
+                  <th>操作</th>
                 </tr>
-              ) : (
-                rows.map((performance) => (
-                  <tr key={`${performanceType}-${performance.id}`}>
-                    <td>{performance.id}</td>
-                    {performanceType !== 'exhibition' && <td>{performance.year ?? '-'}</td>}
-                    <td>{performance.class_name ?? '-'}</td>
-                    {performanceType !== 'exhibition' && <td>{performance.title || '-'}</td>}
-                    <td className={styles.description}>
-                      {performance.description || '-'}
-                    </td>
-                    {performanceType === 'exhibition' && <td>{performance.location || '-'}</td>}
-                    {performanceType !== 'exhibition' && <td>
-                      {performance.total_capacity === null
-                        ? '-'
-                        : `${performance.total_capacity}名`}
-                    </td>}
-                    {performanceType !== 'exhibition' && <td>
-                      {performance.junior_capacity === null
-                        ? '-'
-                        : `${performance.junior_capacity}名`}
-                    </td>}
-                    {performanceType !== 'exhibition' && <td>
-                      {performance.is_accepting === null
-                        ? '-'
-                        : performance.is_accepting
-                          ? '受付中'
-                          : '停止中'}
-                    </td>}
-                    <td>
-                      <button
-                        type='button'
-                        className={styles.editButton}
-                        onClick={() => openEditModal(performance)}
-                      >
-                        編集
-                      </button>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={performanceType === 'exhibition' ? 5 : 9}
+                      className={styles.empty}
+                    >
+                      {title}は登録されていません。
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  rows.map((performance) => (
+                    <tr key={`${performanceType}-${performance.id}`}>
+                      <td>{performance.id}</td>
+                      {performanceType !== 'exhibition' && (
+                        <td>{performance.year ?? '-'}</td>
+                      )}
+                      <td>{performance.class_name ?? '-'}</td>
+                      {performanceType !== 'exhibition' && (
+                        <td>{performance.title || '-'}</td>
+                      )}
+                      <td className={styles.description}>
+                        {performance.description || '-'}
+                      </td>
+                      {performanceType === 'exhibition' && (
+                        <td>{performance.location || '-'}</td>
+                      )}
+                      {performanceType !== 'exhibition' && (
+                        <td>
+                          {performance.total_capacity === null
+                            ? '-'
+                            : `${performance.total_capacity}名`}
+                        </td>
+                      )}
+                      {performanceType !== 'exhibition' && (
+                        <td>
+                          {performance.junior_capacity === null
+                            ? '-'
+                            : `${performance.junior_capacity}名`}
+                        </td>
+                      )}
+                      {performanceType !== 'exhibition' && (
+                        <td>
+                          {performance.is_accepting === null
+                            ? '-'
+                            : performance.is_accepting
+                              ? '受付中'
+                              : '停止中'}
+                        </td>
+                      )}
+                      <td>
+                        <button
+                          type='button'
+                          className={styles.editButton}
+                          onClick={() => openEditModal(performance)}
+                        >
+                          編集
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </NormalSection>
     );
@@ -586,7 +672,9 @@ const PerformancesManagementContent = () => {
                 : `年度は${eventYear}に自動更新します。これは全体設定の年度欄で変更できます。`}
             </p>
             <label>
-              {editingPerformance.performance_type === 'class' ? 'クラス名' : '団体名'}
+              {editingPerformance.performance_type === 'class'
+                ? 'クラス名'
+                : '団体名'}
               <input
                 value={className}
                 onInput={(event) =>
@@ -596,130 +684,334 @@ const PerformancesManagementContent = () => {
                 required
               />
             </label>
-            {editingGymGroup.length > 0 && <>
-              <h4>団体共通</h4>
-              <label>説明
-                <textarea value={description} onInput={(event) => setDescription((event.target as HTMLTextAreaElement).value)} maxLength={5000} rows={5} />
+            {editingGymGroup.length > 0 && (
+              <>
+                <h4>団体共通</h4>
+                <label>
+                  説明
+                  <textarea
+                    value={description}
+                    onInput={(event) =>
+                      setDescription(
+                        (event.target as HTMLTextAreaElement).value,
+                      )
+                    }
+                    maxLength={5000}
+                    rows={5}
+                  />
+                </label>
+                <div className={styles.imageSettings}>
+                  {editingPerformance.image_path && (
+                    <img
+                      className={styles.imagePreview}
+                      src={getPerformanceImageUrl(
+                        editingPerformance.image_path,
+                        imageVersion || undefined,
+                      )}
+                      alt='現在の公演画像'
+                    />
+                  )}
+                  <label className={styles.imageUploadLabel}>
+                    {isUploadingImage
+                      ? 'アップロード中...'
+                      : '画像を差し替える'}
+                    <input
+                      type='file'
+                      accept='image/jpeg,image/png,image/webp'
+                      onChange={uploadImage}
+                      disabled={isUploadingImage || isSaving}
+                    />
+                  </label>
+                  <span className={styles.imageHint}>
+                    JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。
+                  </span>
+                </div>
+                <h4>各公演回</h4>
+                {editingGymGroup.map((schedule, index) => (
+                  <fieldset
+                    key={schedule.performance.id}
+                    className={styles.scheduleFieldset}
+                  >
+                    <legend>公演回 {index + 1}</legend>
+                    <label>
+                      回名
+                      <input
+                        value={schedule.title}
+                        onInput={(event) =>
+                          setEditingGymGroup((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    title: (event.target as HTMLInputElement)
+                                      .value,
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                        required
+                      />
+                    </label>
+                    <div className={styles.capacityFields}>
+                      <label>
+                        開始時刻
+                        <input
+                          type='datetime-local'
+                          value={schedule.startAt}
+                          onInput={(event) =>
+                            setEditingGymGroup((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? {
+                                      ...item,
+                                      startAt: (
+                                        event.target as HTMLInputElement
+                                      ).value,
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                          required
+                        />
+                      </label>
+                      <label>
+                        終了時刻
+                        <input
+                          type='datetime-local'
+                          value={schedule.endAt}
+                          onInput={(event) =>
+                            setEditingGymGroup((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? {
+                                      ...item,
+                                      endAt: (event.target as HTMLInputElement)
+                                        .value,
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                          required
+                        />
+                      </label>
+                      <label>
+                        総定員
+                        <input
+                          type='number'
+                          min='1'
+                          value={schedule.totalCapacity}
+                          onInput={(event) =>
+                            setEditingGymGroup((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? {
+                                      ...item,
+                                      totalCapacity: (
+                                        event.target as HTMLInputElement
+                                      ).value,
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                          required
+                        />
+                      </label>
+                      <label>
+                        中学生枠
+                        <input
+                          type='number'
+                          min='0'
+                          value={schedule.juniorCapacity}
+                          onInput={(event) =>
+                            setEditingGymGroup((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? {
+                                      ...item,
+                                      juniorCapacity: (
+                                        event.target as HTMLInputElement
+                                      ).value,
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                          required
+                        />
+                      </label>
+                    </div>
+                    <div className={styles.acceptingControl}>
+                      <span>受付を有効にする</span>
+                      <Switch
+                        checked={schedule.isAccepting}
+                        onChange={(checked) =>
+                          setEditingGymGroup((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, isAccepting: checked }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  </fieldset>
+                ))}
+              </>
+            )}
+            {editingGymGroup.length === 0 &&
+              editingPerformance.performance_type !== 'exhibition' && (
+                <label>
+                  {editingPerformance.performance_type === 'gym'
+                    ? '回名'
+                    : '公演タイトル'}
+                  <input
+                    value={title}
+                    onInput={(event) =>
+                      setTitle((event.target as HTMLInputElement).value)
+                    }
+                    maxLength={200}
+                  />
+                </label>
+              )}
+            {editingGymGroup.length === 0 &&
+              editingPerformance.performance_type === 'gym' && (
+                <div className={styles.capacityFields}>
+                  <label>
+                    開始時刻
+                    <input
+                      type='datetime-local'
+                      value={startAt}
+                      onInput={(event) =>
+                        setStartAt((event.target as HTMLInputElement).value)
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    終了時刻
+                    <input
+                      type='datetime-local'
+                      value={endAt}
+                      onInput={(event) =>
+                        setEndAt((event.target as HTMLInputElement).value)
+                      }
+                      required
+                    />
+                  </label>
+                </div>
+              )}
+            {editingGymGroup.length === 0 && (
+              <label>
+                説明
+                <textarea
+                  value={description}
+                  onInput={(event) =>
+                    setDescription((event.target as HTMLTextAreaElement).value)
+                  }
+                  maxLength={5000}
+                  rows={5}
+                />
               </label>
+            )}
+            {editingGymGroup.length === 0 &&
+              editingPerformance.performance_type === 'exhibition' && (
+                <label>
+                  場所
+                  <input
+                    value={location}
+                    onInput={(event) =>
+                      setLocation((event.target as HTMLInputElement).value)
+                    }
+                    maxLength={200}
+                  />
+                </label>
+              )}
+            {editingGymGroup.length === 0 && (
               <div className={styles.imageSettings}>
-                {editingPerformance.image_path && <img className={styles.imagePreview} src={getPerformanceImageUrl(editingPerformance.image_path, imageVersion || undefined)} alt='現在の公演画像' />}
+                {editingPerformance.image_path && (
+                  <img
+                    className={styles.imagePreview}
+                    src={getPerformanceImageUrl(
+                      editingPerformance.image_path,
+                      imageVersion || undefined,
+                    )}
+                    alt='現在の公演画像'
+                  />
+                )}
                 <label className={styles.imageUploadLabel}>
                   {isUploadingImage ? 'アップロード中...' : '画像を差し替える'}
-                  <input type='file' accept='image/jpeg,image/png,image/webp' onChange={uploadImage} disabled={isUploadingImage || isSaving} />
+                  <input
+                    type='file'
+                    accept='image/jpeg,image/png,image/webp'
+                    onChange={uploadImage}
+                    disabled={isUploadingImage || isSaving}
+                  />
                 </label>
-                <span className={styles.imageHint}>JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。</span>
+                <span className={styles.imageHint}>
+                  JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。
+                </span>
               </div>
-              <h4>各公演回</h4>
-              {editingGymGroup.map((schedule, index) => (
-                <fieldset key={schedule.performance.id} className={styles.scheduleFieldset}>
-                  <legend>公演回 {index + 1}</legend>
-                  <label>回名<input value={schedule.title} onInput={(event) => setEditingGymGroup((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, title: (event.target as HTMLInputElement).value } : item))} required /></label>
-                  <div className={styles.capacityFields}>
-                    <label>開始時刻<input type='datetime-local' value={schedule.startAt} onInput={(event) => setEditingGymGroup((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, startAt: (event.target as HTMLInputElement).value } : item))} required /></label>
-                    <label>終了時刻<input type='datetime-local' value={schedule.endAt} onInput={(event) => setEditingGymGroup((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, endAt: (event.target as HTMLInputElement).value } : item))} required /></label>
-                    <label>総定員<input type='number' min='1' value={schedule.totalCapacity} onInput={(event) => setEditingGymGroup((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, totalCapacity: (event.target as HTMLInputElement).value } : item))} required /></label>
-                    <label>中学生枠<input type='number' min='0' value={schedule.juniorCapacity} onInput={(event) => setEditingGymGroup((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, juniorCapacity: (event.target as HTMLInputElement).value } : item))} required /></label>
-                  </div>
-                  <div className={styles.acceptingControl}><span>受付を有効にする</span><Switch checked={schedule.isAccepting} onChange={(checked) => setEditingGymGroup((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, isAccepting: checked } : item))} /></div>
-                </fieldset>
-              ))}
-            </>}
-            {editingGymGroup.length === 0 && editingPerformance.performance_type !== 'exhibition' && <label>
-              {editingPerformance.performance_type === 'gym' ? '回名' : '公演タイトル'}
-              <input
-                value={title}
-                onInput={(event) =>
-                  setTitle((event.target as HTMLInputElement).value)
-                }
-                maxLength={200}
-              />
-            </label>}
-            {editingGymGroup.length === 0 && editingPerformance.performance_type === 'gym' && <div className={styles.capacityFields}>
-              <label>開始時刻<input type='datetime-local' value={startAt} onInput={(event) => setStartAt((event.target as HTMLInputElement).value)} required /></label>
-              <label>終了時刻<input type='datetime-local' value={endAt} onInput={(event) => setEndAt((event.target as HTMLInputElement).value)} required /></label>
-            </div>}
-            {editingGymGroup.length === 0 && <label>
-              説明
-              <textarea
-                value={description}
-                onInput={(event) =>
-                  setDescription((event.target as HTMLTextAreaElement).value)
-                }
-                maxLength={5000}
-                rows={5}
-              />
-            </label>}
-            {editingGymGroup.length === 0 && editingPerformance.performance_type === 'exhibition' && <label>
-              場所
-              <input
-                value={location}
-                onInput={(event) =>
-                  setLocation((event.target as HTMLInputElement).value)
-                }
-                maxLength={200}
-              />
-            </label>}
-            {editingGymGroup.length === 0 && <div className={styles.imageSettings}>
-              {editingPerformance.image_path && (
-                <img
-                  className={styles.imagePreview}
-                  src={getPerformanceImageUrl(
-                    editingPerformance.image_path,
-                    imageVersion || undefined,
-                  )}
-                  alt='現在の公演画像'
-                />
+            )}
+            {editingGymGroup.length === 0 &&
+              editingPerformance.performance_type !== 'exhibition' && (
+                <div className={styles.capacityFields}>
+                  <label>
+                    総定員
+                    <input
+                      type='number'
+                      min='1'
+                      max='10000'
+                      value={totalCapacity}
+                      onInput={(event) =>
+                        setTotalCapacity(
+                          (event.target as HTMLInputElement).value,
+                        )
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    中学生枠
+                    <input
+                      type='number'
+                      min='0'
+                      max='10000'
+                      value={juniorCapacity}
+                      onInput={(event) =>
+                        setJuniorCapacity(
+                          (event.target as HTMLInputElement).value,
+                        )
+                      }
+                      required
+                    />
+                  </label>
+                </div>
               )}
-              <label className={styles.imageUploadLabel}>
-                {isUploadingImage ? 'アップロード中...' : '画像を差し替える'}
-                <input
-                  type='file'
-                  accept='image/jpeg,image/png,image/webp'
-                  onChange={uploadImage}
-                  disabled={isUploadingImage || isSaving}
-                />
-              </label>
-              <span className={styles.imageHint}>
-                JPEG・PNGは横幅560pxのWebPに変換してアップロードします。WebPは5MB以下にしてください。
-              </span>
-            </div>}
-            {editingGymGroup.length === 0 && editingPerformance.performance_type !== 'exhibition' && <div className={styles.capacityFields}>
-              <label>
-                総定員
-                <input
-                  type='number'
-                  min='1'
-                  max='10000'
-                  value={totalCapacity}
-                  onInput={(event) =>
-                    setTotalCapacity((event.target as HTMLInputElement).value)
-                  }
-                  required
-                />
-              </label>
-              <label>
-                中学生枠
-                <input
-                  type='number'
-                  min='0'
-                  max='10000'
-                  value={juniorCapacity}
-                  onInput={(event) =>
-                    setJuniorCapacity((event.target as HTMLInputElement).value)
-                  }
-                  required
-                />
-              </label>
-            </div>}
-            {editingGymGroup.length === 0 && editingPerformance.performance_type !== 'exhibition' && <div className={styles.acceptingControl}>
-              <span>受付を有効にする</span>
-              <Switch checked={isAccepting} onChange={setIsAccepting} />
-            </div>}
+            {editingGymGroup.length === 0 &&
+              editingPerformance.performance_type !== 'exhibition' && (
+                <div className={styles.acceptingControl}>
+                  <span>受付を有効にする</span>
+                  <Switch checked={isAccepting} onChange={setIsAccepting} />
+                </div>
+              )}
             <div className={styles.modalActions}>
-              <button type='button' onClick={closeEditModal} disabled={isSaving || isUploadingImage}>
+              <button
+                type='button'
+                onClick={closeEditModal}
+                disabled={isSaving || isUploadingImage}
+              >
                 キャンセル
               </button>
-              <button type='submit' className={styles.saveButton} disabled={isSaving || isUploadingImage}>
+              <button
+                type='submit'
+                className={styles.saveButton}
+                disabled={isSaving || isUploadingImage}
+              >
                 {isSaving ? '保存中...' : '保存'}
               </button>
             </div>

@@ -7,7 +7,11 @@ import type { AvailableSeatSelection } from '../../types/types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { withTimeout } from '../../utils/withTimeout';
 import { getPerformanceAvailability } from './performanceAvailability';
-import { getAvailabilityStatus, getCapacityForMode, getClassRemaining } from './availabilityHelpers';
+import {
+  getAvailabilityStatus,
+  getCapacityForMode,
+  getClassRemaining,
+} from './availabilityHelpers';
 
 type PerformanceRow = {
   id: number;
@@ -288,7 +292,18 @@ const PerformancesTable = ({
             other: 0,
           };
 
-          seatMap.set(key, getClassRemaining({ totalCapacity: p.total_capacity ?? 0, juniorCapacity: p.junior_capacity ?? 0, issuedGeneral: stat.general, issuedJunior: stat.junior, issuedOther: stat.other, mode: currentRemainingMode, isJuniorReleased }));
+          seatMap.set(
+            key,
+            getClassRemaining({
+              totalCapacity: p.total_capacity ?? 0,
+              juniorCapacity: p.junior_capacity ?? 0,
+              issuedGeneral: stat.general,
+              issuedJunior: stat.junior,
+              issuedOther: stat.other,
+              mode: currentRemainingMode,
+              isJuniorReleased,
+            }),
+          );
         });
       });
 
@@ -337,7 +352,17 @@ const PerformancesTable = ({
         const remaining = Number(remainingSeatMap.get(key) ?? 0);
         const totalCapacity = Number(performance.total_capacity ?? 0);
         const juniorCapacity = Number(performance.junior_capacity ?? 0);
-        map.set(key, getAvailabilityStatus(remaining, getCapacityForMode(totalCapacity, juniorCapacity, currentRemainingMode)));
+        map.set(
+          key,
+          getAvailabilityStatus(
+            remaining,
+            getCapacityForMode(
+              totalCapacity,
+              juniorCapacity,
+              currentRemainingMode,
+            ),
+          ),
+        );
       });
     });
 
@@ -653,7 +678,8 @@ const PerformancesTable = ({
                   const remaining = remainingSeatMap.get(key) ?? 0;
                   const status = statusByKey.get(key) ?? 'cross';
                   const canIssue =
-                    remaining > 0 && !nonInteractivePerformanceIds?.has(performance.id);
+                    remaining > 0 &&
+                    !nonInteractivePerformanceIds?.has(performance.id);
                   const isInteractive =
                     canIssue &&
                     (enableIssueJump || Boolean(onAvailableCellClick));

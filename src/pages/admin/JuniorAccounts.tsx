@@ -96,14 +96,20 @@ const normalizeBirthday = (value: string): string | null => {
   }
 
   const [year, month, day] = parts;
-  if (!/^\d{1,4}$/.test(year) || !/^\d{1,2}$/.test(month) || !/^\d{1,2}$/.test(day)) {
+  if (
+    !/^\d{1,4}$/.test(year) ||
+    !/^\d{1,2}$/.test(month) ||
+    !/^\d{1,2}$/.test(day)
+  ) {
     return null;
   }
 
   return year.padStart(4, '0') + month.padStart(2, '0') + day.padStart(2, '0');
 };
 
-const parseCompositeId = (compositeId: string): { id: string; birthday: string } | null => {
+const parseCompositeId = (
+  compositeId: string,
+): { id: string; birthday: string } | null => {
   const match = compositeId.match(/^(.*)-(\d{8})$/);
   if (!match) {
     return null;
@@ -270,7 +276,10 @@ const JuniorAccountContent = () => {
           } as ExistingJuniorAccount;
         })
         .filter((user): user is ExistingJuniorAccount => Boolean(user))
-        .sort((a, b) => a.id.localeCompare(b.id) || a.birthday.localeCompare(b.birthday));
+        .sort(
+          (a, b) =>
+            a.id.localeCompare(b.id) || a.birthday.localeCompare(b.birthday),
+        );
 
       setExistingJuniorAccounts(juniors);
     } catch (err) {
@@ -407,13 +416,11 @@ const JuniorAccountContent = () => {
       const compositeId = toCompositeId(id, birthday);
       const users: AuthCreateUser[] = [{ id: compositeId, password: birthday }];
 
-      const { data, error } = await supabase.functions.invoke<BulkCreateResponse>(
-        'admin-auth',
-        {
+      const { data, error } =
+        await supabase.functions.invoke<BulkCreateResponse>('admin-auth', {
           body: { action: 'bulkCreateUsers', users },
           headers: { 'x-admin-session-token': token ?? '' },
-        },
-      );
+        });
 
       if (error) {
         throw error;
@@ -800,9 +807,7 @@ const JuniorAccountContent = () => {
         {skippedAccounts.length > 0 ? (
           <div>
             <h3>既存扱い（skipped）になったアカウント</h3>
-            <p className={styles.tableScrollHint}>
-              ← 横にスクロールできます →
-            </p>
+            <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
             <div className={styles.tableWrapper}>
               <table className={styles.managementTable}>
                 <thead>
@@ -831,9 +836,7 @@ const JuniorAccountContent = () => {
           <p className={styles.noteText}>
             先頭100件を表示しています（合計 {csvAccounts.length} 件）
           </p>
-          <p className={styles.tableScrollHint}>
-            ← 横にスクロールできます →
-          </p>
+          <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
           <div className={styles.tableWrapper}>
             <table className={styles.managementTable}>
               <thead>
@@ -1002,12 +1005,11 @@ const JuniorAccountContent = () => {
             リセット
           </button>
           <span className={styles.filterCount}>
-            該当: {filteredExistingJuniorAccounts.length} / {existingJuniorAccounts.length} 件
+            該当: {filteredExistingJuniorAccounts.length} /{' '}
+            {existingJuniorAccounts.length} 件
           </span>
         </div>
-        <p className={styles.tableScrollHint}>
-          ← 横にスクロールできます →
-        </p>
+        <p className={styles.tableScrollHint}>← 横にスクロールできます →</p>
         <div className={styles.tableWrapper}>
           <table className={styles.managementTable}>
             <thead>

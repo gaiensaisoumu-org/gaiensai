@@ -6,7 +6,7 @@
 .detail,
 .timetable {
   background: var(--main-bg-color);
-  border-radius: .75rem;
+  border-radius: 0.75rem;
   padding: 1rem;
   margin-bottom: 1.25rem;
 }
@@ -23,7 +23,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: .75rem;
+  margin-top: 0.75rem;
 }
 
 .likeAction > :only-child {
@@ -41,7 +41,7 @@
 
 .timetable h3 {
   border-bottom: 1px solid var(--table-border-color);
-  padding-bottom: .4rem;
+  padding-bottom: 0.4rem;
 }
 
 .row {
@@ -52,7 +52,7 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  padding: .9rem .25rem;
+  padding: 0.9rem 0.25rem;
   text-align: left;
   border-bottom: 1px solid var(--table-border-color);
   font: inherit;
@@ -62,7 +62,7 @@
 .scheduleTime {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: .4rem;
+  gap: 0.4rem;
   min-width: 0;
 }
 
@@ -104,5 +104,5 @@
 .remaining {
   display: flex;
   align-items: center;
-  gap: .5rem;
+  gap: 0.5rem;
 }

@@ -35,7 +35,11 @@ export const encodeJuniorRelationshipBits = (
   relationshipFlag: number,
   juniorId: number,
 ): number => {
-  if (!Number.isInteger(relationshipFlag) || relationshipFlag < 0 || relationshipFlag > 2) {
+  if (
+    !Number.isInteger(relationshipFlag) ||
+    relationshipFlag < 0 ||
+    relationshipFlag > 2
+  ) {
     throw new Error(`relationship flag out of range: ${relationshipFlag}`);
   }
 
@@ -53,7 +57,8 @@ const encodeJuniorAffiliation = (affiliation: number): number => {
   }
 
   const juniorId = affiliation - JUNIOR_AFFILIATION_PREFIX;
-  const classBits = (juniorId >> AFFILIATION_CLASS_SHIFT) & AFFILIATION_CLASS_MAX;
+  const classBits =
+    (juniorId >> AFFILIATION_CLASS_SHIFT) & AFFILIATION_CLASS_MAX;
   const number = juniorId & AFFILIATION_NUMBER_MAX;
 
   if (classBits === DAY_TICKET_FLAG_CLASS) {

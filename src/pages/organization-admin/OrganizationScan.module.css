@@ -286,8 +286,8 @@
   margin: 0;
   font-size: 0.76rem;
   font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   opacity: 0.62;
   overflow-wrap: anywhere;
 }

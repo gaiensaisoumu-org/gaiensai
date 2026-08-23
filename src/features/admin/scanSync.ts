@@ -81,7 +81,10 @@ async function requestScanServer(
   init?: RequestInit,
 ) {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), SCAN_SERVER_TIMEOUT_MS);
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    SCAN_SERVER_TIMEOUT_MS,
+  );
 
   try {
     const response = await fetch(buildScanApiEndpoint(localServerUrl, path), {
@@ -100,7 +103,9 @@ async function requestScanServer(
     }
 
     if (error instanceof TypeError) {
-      throw new ScanServerUnavailableError('同期サーバーに接続できませんでした。');
+      throw new ScanServerUnavailableError(
+        '同期サーバーに接続できませんでした。',
+      );
     }
 
     throw error;

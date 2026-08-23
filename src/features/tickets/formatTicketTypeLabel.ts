@@ -11,8 +11,10 @@ export const formatTicketTypeLabel = ({
   fallback = '-',
   separator = '\n',
 }: FormatTicketTypeLabelParams): string => {
-  const normalizedType = typeof type === 'string' && type.length > 0 ? type : null;
-  const normalizedName = typeof name === 'string' && name.length > 0 ? name : null;
+  const normalizedType =
+    typeof type === 'string' && type.length > 0 ? type : null;
+  const normalizedName =
+    typeof name === 'string' && name.length > 0 ? name : null;
 
   if (normalizedType && normalizedName) {
     return `${normalizedType}${separator}${normalizedName}`;
