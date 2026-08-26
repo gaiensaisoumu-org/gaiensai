@@ -5,7 +5,12 @@ import { useLocation } from 'preact-iso';
 import type { AvailableSeatSelection } from '../../types/types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { withTimeout } from '../../utils/withTimeout';
-import { getPerformanceAvailability } from './performanceAvailability';
+import {
+  getPerformanceAvailability,
+  subscribeMonitorPerformanceAvailability,
+  subscribePublicPerformanceAvailability,
+  type AvailabilitySource,
+} from './performanceAvailability';
 import {
   getAvailabilityStatus,
   getCapacityForMode,
@@ -57,6 +62,7 @@ type GymPerformancesTableProps = {
   showToggleRemainingMode?: boolean;
   nonInteractivePerformanceIds?: Set<number>;
   hiddenGroupNames?: Set<string>;
+  availabilitySource?: AvailabilitySource;
 };
 
 const GymPerformancesTable = ({
@@ -71,7 +77,10 @@ const GymPerformancesTable = ({
   showToggleRemainingMode = false,
   nonInteractivePerformanceIds,
   hiddenGroupNames,
+  availabilitySource = 'public',
 }: GymPerformancesTableProps) => {
+  const hasLoadedAvailabilityRef = useRef(false);
+  const lastSuccessfulAvailabilityAtRef = useRef<number | null>(null);
   const [performances, setPerformances] = useState<GymPerformanceRow[]>([]);
   const [selectedGroupName, setSelectedGroupName] = useState<string | 'all'>(
     'all',
@@ -85,6 +94,7 @@ const GymPerformancesTable = ({
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cacheNotice, setCacheNotice] = useState<string | null>(null);
+  const [availabilityRevision, setAvailabilityRevision] = useState(0);
   const [currentRemainingMode, setCurrentRemainingMode] = useState<
     'general' | 'total' | 'junior'
   >(remainingMode);
@@ -97,10 +107,43 @@ const GymPerformancesTable = ({
   }, [remainingMode]);
 
   useEffect(() => {
+    if (availabilitySource !== 'monitor') {
+      return;
+    }
+    return subscribeMonitorPerformanceAvailability(() => {
+      setAvailabilityRevision((revision) => revision + 1);
+    });
+  }, [availabilitySource]);
+
+  useEffect(() => {
+    if (availabilitySource !== 'public') {
+      return;
+    }
+    return subscribePublicPerformanceAvailability(() => {
+      setAvailabilityRevision((revision) => revision + 1);
+    });
+  }, [availabilitySource]);
+
+  useEffect(() => {
     const load = async () => {
-      setLoading(true);
-      setErrorMessage(null);
-      setCacheNotice(null);
+      // Realtime/periodic monitor sync must update values in place rather than
+      // replacing the table with a spinner between updates.
+      const isBackgroundRefresh = hasLoadedAvailabilityRef.current;
+      const showMonitorRefreshFailure = () => {
+        const lastSuccess = lastSuccessfulAvailabilityAtRef.current;
+        const elapsedMinutes =
+          lastSuccess === null
+            ? 0
+            : Math.floor((Date.now() - lastSuccess) / 60_000);
+        setCacheNotice(
+          `更新に失敗しました。${elapsedMinutes}分前の情報を表示しています。`,
+        );
+      };
+      if (!isBackgroundRefresh) {
+        setLoading(true);
+        setErrorMessage(null);
+        setCacheNotice(null);
+      }
 
       // 日付ごとの関数フィルターは復元できないため除外する。ほかの条件は
       // キーに含め、別画面の結果が混ざらないようにする。
@@ -145,12 +188,18 @@ const GymPerformancesTable = ({
       let availabilityError: unknown;
       try {
         const result = await withTimeout(
-          getPerformanceAvailability(),
+          getPerformanceAvailability(availabilitySource),
           SUPABASE_RESPONSE_TIMEOUT_MS,
         );
         availabilityData = result.data as GymPerformanceAvailabilityData | null;
         availabilityError = result.error;
       } catch {
+        if (isBackgroundRefresh) {
+          if (availabilitySource === 'monitor') {
+            showMonitorRefreshFailure();
+          }
+          return;
+        }
         if (!restoreCache()) {
           setErrorMessage('体育館公演の取得がタイムアウトしました。');
           setLoading(false);
@@ -159,6 +208,12 @@ const GymPerformancesTable = ({
       }
 
       if (availabilityError) {
+        if (isBackgroundRefresh) {
+          if (availabilitySource === 'monitor') {
+            showMonitorRefreshFailure();
+          }
+          return;
+        }
         setErrorMessage('体育館公演の取得に失敗しました。');
         setLoading(false);
         return;
@@ -184,6 +239,9 @@ const GymPerformancesTable = ({
 
       if (loadedPerformances.length === 0) {
         setRemainingByPerformanceId(new Map());
+        hasLoadedAvailabilityRef.current = true;
+        lastSuccessfulAvailabilityAtRef.current = Date.now();
+        setCacheNotice(null);
         setLoading(false);
         return;
       }
@@ -226,6 +284,9 @@ const GymPerformancesTable = ({
       }
 
       setRemainingByPerformanceId(remainingMap);
+      hasLoadedAvailabilityRef.current = true;
+      lastSuccessfulAvailabilityAtRef.current = Date.now();
+      setCacheNotice(null);
       if (canUseCache) {
         try {
           window.localStorage.setItem(
@@ -248,6 +309,8 @@ const GymPerformancesTable = ({
     filterAccepting,
     scheduleFilter,
     currentRemainingMode,
+    availabilityRevision,
+    availabilitySource,
   ]);
 
   const groupNames = useMemo(() => {

@@ -6,7 +6,12 @@ import { useLocation } from 'preact-iso';
 import type { AvailableSeatSelection } from '../../types/types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { withTimeout } from '../../utils/withTimeout';
-import { getPerformanceAvailability } from './performanceAvailability';
+import {
+  getPerformanceAvailability,
+  subscribeMonitorPerformanceAvailability,
+  subscribePublicPerformanceAvailability,
+  type AvailabilitySource,
+} from './performanceAvailability';
 import {
   getAvailabilityStatus,
   getCapacityForMode,
@@ -63,6 +68,7 @@ type PerformancesTableProps = {
   ) => boolean;
   hiddenPerformanceIds?: Set<number>;
   nonInteractivePerformanceIds?: Set<number>;
+  availabilitySource?: AvailabilitySource;
 };
 
 const PerformancesTable = ({
@@ -80,8 +86,11 @@ const PerformancesTable = ({
   scheduleFilter,
   hiddenPerformanceIds,
   nonInteractivePerformanceIds,
+  availabilitySource = 'public',
 }: PerformancesTableProps) => {
   const autoSelectedCellKeyRef = useRef<string | null>(null);
+  const hasLoadedAvailabilityRef = useRef(false);
+  const lastSuccessfulAvailabilityAtRef = useRef<number | null>(null);
   const [performances, setPerformances] = useState<PerformanceRow[]>([]);
   const [schedules, setSchedules] = useState<PerformanceSchedule[]>([]);
   const [selectedPerformanceId, setSelectedPerformanceId] = useState<
@@ -96,6 +105,7 @@ const PerformancesTable = ({
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cacheNotice, setCacheNotice] = useState<string | null>(null);
+  const [availabilityRevision, setAvailabilityRevision] = useState(0);
   const [currentRemainingMode, setCurrentRemainingMode] = useState<
     'general' | 'junior' | 'total'
   >(remainingMode);
@@ -107,6 +117,24 @@ const PerformancesTable = ({
   useEffect(() => {
     setCurrentRemainingMode(remainingMode);
   }, [remainingMode]);
+
+  useEffect(() => {
+    if (availabilitySource !== 'monitor') {
+      return;
+    }
+    return subscribeMonitorPerformanceAvailability(() => {
+      setAvailabilityRevision((revision) => revision + 1);
+    });
+  }, [availabilitySource]);
+
+  useEffect(() => {
+    if (availabilitySource !== 'public') {
+      return;
+    }
+    return subscribePublicPerformanceAvailability(() => {
+      setAvailabilityRevision((revision) => revision + 1);
+    });
+  }, [availabilitySource]);
 
   useEffect(() => {
     const wrapper = tableWrapperRef.current;
@@ -174,9 +202,24 @@ const PerformancesTable = ({
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
-      setLoading(true);
-      setErrorMessage(null);
-      setCacheNotice(null);
+      // A monitor keeps its current table visible while Realtime-triggered
+      // resyncs run. Only the first fetch may show the loading UI.
+      const isBackgroundRefresh = hasLoadedAvailabilityRef.current;
+      const showMonitorRefreshFailure = () => {
+        const lastSuccess = lastSuccessfulAvailabilityAtRef.current;
+        const elapsedMinutes =
+          lastSuccess === null
+            ? 0
+            : Math.floor((Date.now() - lastSuccess) / 60_000);
+        setCacheNotice(
+          `更新に失敗しました。${elapsedMinutes}分前の情報を表示しています。`,
+        );
+      };
+      if (!isBackgroundRefresh) {
+        setLoading(true);
+        setErrorMessage(null);
+        setCacheNotice(null);
+      }
 
       // 日付ごとの関数フィルターは復元できないため除外する。ほかの条件は
       // キーに含め、別画面の結果が混ざらないようにする。
@@ -222,12 +265,18 @@ const PerformancesTable = ({
       let availabilityError: unknown;
       try {
         const result = await withTimeout(
-          getPerformanceAvailability(),
+          getPerformanceAvailability(availabilitySource),
           SUPABASE_RESPONSE_TIMEOUT_MS,
         );
         availabilityData = result.data as PerformanceAvailabilityData | null;
         availabilityError = result.error;
       } catch {
+        if (isBackgroundRefresh) {
+          if (availabilitySource === 'monitor') {
+            showMonitorRefreshFailure();
+          }
+          return;
+        }
         if (isMounted && !restoreCache()) {
           setErrorMessage('公演空き状況の取得がタイムアウトしました。');
           setLoading(false);
@@ -240,6 +289,12 @@ const PerformancesTable = ({
       }
 
       if (availabilityError) {
+        if (isBackgroundRefresh) {
+          if (availabilitySource === 'monitor') {
+            showMonitorRefreshFailure();
+          }
+          return;
+        }
         setErrorMessage('公演空き状況の取得に失敗しました。');
         setLoading(false);
         return;
@@ -318,6 +373,9 @@ const PerformancesTable = ({
       setRemainingSeatMap(seatMap);
       setPerformances(loadedPerformances);
       setSchedules(loadedSchedules);
+      hasLoadedAvailabilityRef.current = true;
+      lastSuccessfulAvailabilityAtRef.current = Date.now();
+      setCacheNotice(null);
       if (canUseCache) {
         try {
           window.localStorage.setItem(
@@ -345,6 +403,8 @@ const PerformancesTable = ({
     restrictedClassName,
     filterAccepting,
     scheduleFilter,
+    availabilityRevision,
+    availabilitySource,
   ]);
 
   const statusByKey = useMemo(() => {
@@ -525,7 +585,9 @@ const PerformancesTable = ({
         }`}
         key={key}
         onClick={() => {
-          if (!canIssue) return;
+          if (!canIssue) {
+            return;
+          }
           handleAvailableCellClick({
             performanceId: performance.id,
             performanceName: performance.class_name,

@@ -15,7 +15,10 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { useTitle } from '../../hooks/useTitle';
 import { getPerformanceImageUrl, supabase } from '../../lib/supabase';
 import { RESTORE_PERFORMANCE_LIST_SCROLL_KEY } from '../../utils/ScrollToTop';
-import { getPerformanceAvailability } from '../../features/performances/performanceAvailability';
+import {
+  getPerformanceAvailability,
+  subscribePublicPerformanceAvailability,
+} from '../../features/performances/performanceAvailability';
 import {
   getAvailabilityStatus,
   getCapacityForMode,
@@ -184,26 +187,41 @@ const PerformanceDetail = ({
   }, []);
   useEffect(() => {
     let active = true;
-    void getPerformanceAvailability()
-      .then((result) => {
+    let hasLoadedAvailability = false;
+    const loadAvailability = async () => {
+      try {
+        const result = await getPerformanceAvailability();
         if (!active) {
           return;
         }
         if (result.error) {
-          setAvailabilityError(true);
+          if (!hasLoadedAvailability) {
+            setAvailabilityError(true);
+          }
         } else {
           setAvailability(result.data as Availability | null);
+          setAvailabilityError(false);
+          hasLoadedAvailability = true;
         }
-        setLoading(false);
-      })
-      .catch(() => {
-        if (active) {
+      } catch {
+        if (active && !hasLoadedAvailability) {
           setAvailabilityError(true);
+        }
+      } finally {
+        if (active) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void loadAvailability();
+    const unsubscribe = subscribePublicPerformanceAvailability(() => {
+      void loadAvailability();
+    });
+
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 

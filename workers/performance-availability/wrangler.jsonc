@@ -1,0 +1,30 @@
+{
+  "name": "gaiensai-performance-availability",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-26",
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PERFORMANCE_AVAILABILITY",
+        "class_name": "PerformanceAvailabilityDurableObject",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PerformanceAvailabilityDurableObject"],
+    },
+  ],
+  "routes": [
+    {
+      "pattern": "gaiensai.com/api/performance-availability*",
+      "zone_name": "gaiensai.com",
+    },
+    {
+      "pattern": "*.gaiensai.com/api/performance-availability*",
+      "zone_name": "*.gaiensai.com",
+    },
+  ],
+}

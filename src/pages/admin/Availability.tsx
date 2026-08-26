@@ -7,6 +7,7 @@ const Availability = () => (
       orientation='classes-as-columns'
       remainingMode='total'
       showFilters={false}
+      availabilitySource='monitor'
     />
   </AdminAuthLayout>
 );

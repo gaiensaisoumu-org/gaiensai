@@ -116,6 +116,16 @@ const pwaManifestDisplay = pwaDisplayOptions.includes(
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api/performance-availability': {
+        target:
+          process.env.VITE_PERFORMANCE_AVAILABILITY_DEV_ORIGIN ??
+          'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
+  },
   plugins: [
     preact(),
     sitemapPlugin(),
