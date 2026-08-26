@@ -27,4 +27,11 @@
       "zone_name": "*.gaiensai.com",
     },
   ],
+
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+  },
 }
