@@ -223,6 +223,13 @@ const Home = () => {
         </p>
       </Alert>
       <NormalSection className={styles.scrollSection} data-scroll-section=''>
+        <h2>ご来場の皆様へ</h2>
+        <p>
+          体育館公演をご覧になる方は、<strong>上履き</strong>をご持参ください。
+          クラス公演・展示部活のみをご覧になる方は上履きは不要です。
+        </p>
+      </NormalSection>
+      <NormalSection className={styles.scrollSection} data-scroll-section=''>
         <h2>中学生の皆様へ</h2>
         <p>
           現在、抽選結果のメールが届かないというお問い合わせを多数いただいております。まずは迷惑メールフォルダに振り分けられていないかご確認ください。メールが届かない場合は、

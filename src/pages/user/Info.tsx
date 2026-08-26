@@ -10,6 +10,16 @@ const Info = () => {
       <Modal2 />
       <h1 className={styles.pageTitle}>ご来場の注意</h1>
       <NormalSection>
+        <h2>お持ち物</h2>
+        <ul>
+          <li>電子チケット</li>
+          <li><strong>上履き</strong>（体育館公演(赤色のQRコード)をご覧の場合のみ）</li>
+          <li>お飲み物（校内の自動販売機もご利用可能ですが、売り切れる場合があります。）</li>
+          <li>うちわやハンディ扇風機など、暑さ対策用品</li>
+        </ul>
+        をお持ちください。
+      </NormalSection>
+      <NormalSection>
         <h2>青山高校への入退場</h2>
         <ul>
           <li>
