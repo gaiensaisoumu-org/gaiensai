@@ -536,6 +536,7 @@
 
 .issuedSection {
   margin: 0 1rem;
+  min-width: 0;
 }
 
 .issuedTitle {

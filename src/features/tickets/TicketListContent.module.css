@@ -88,12 +88,19 @@
   margin-top: 1rem;
 }
 
+.ticketGroup {
+  min-width: 0;
+}
+
 .ticketGroup h3 {
   margin: 1rem 0 0.5rem;
 }
 
 .tableScroll {
+  width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin-top: 0.75rem;
 }
 
@@ -132,6 +139,17 @@
   color: var(--error-text-color);
   font: inherit;
   cursor: pointer;
+}
+
+.copyButton {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--select-border-color);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--link-text-color);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .tableActions {

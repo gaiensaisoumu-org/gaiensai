@@ -474,6 +474,8 @@ const TicketTable = ({
   const [cancelledCodes, setCancelledCodes] = useState<Set<string>>(new Set());
   const [cancellingCode, setCancellingCode] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const visibleTickets = tickets.filter(
     (ticket) => !cancelledCodes.has(ticket.code),
   );
@@ -504,12 +506,25 @@ const TicketTable = ({
     setCancellingCode(null);
   };
 
+  const copyTicketUrl = async (ticket: TicketCardItem) => {
+    setCopyError(null);
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/t/${ticket.code}.${ticket.signature}`,
+      );
+      setCopiedCode(ticket.code);
+    } catch {
+      setCopyError('URLをコピーできませんでした。');
+    }
+  };
+
   if (visibleTickets.length === 0) {
     return <p>{emptyMessage}</p>;
   }
   return (
     <>
       {cancelError && <p className={styles.cancelError}>{cancelError}</p>}
+      {copyError && <p className={styles.cancelError}>{copyError}</p>}
       <p className={styles.tableScrollHint}>表は横にスクロールできます。</p>
       <div className={styles.tableScroll}>
         <table className={styles.ticketTable}>
@@ -544,6 +559,15 @@ const TicketTable = ({
                 <td>
                   {ticket.status === 'valid' ? (
                     <div className={styles.tableActions}>
+                      <button
+                        type='button'
+                        className={styles.copyButton}
+                        onClick={() => void copyTicketUrl(ticket)}
+                      >
+                        {copiedCode === ticket.code
+                          ? 'コピーしました'
+                          : 'URLをコピー'}
+                      </button>
                       <button
                         type='button'
                         className={styles.cancelButton}
