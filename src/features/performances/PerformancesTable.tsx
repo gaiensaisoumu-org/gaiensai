@@ -45,6 +45,8 @@ const PERFORMANCES_CACHE_KEY = 'performances-table-cache:v1';
 const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
 
 type PerformancesTableProps = {
+  orientation?: 'classes-as-rows' | 'classes-as-columns';
+  showFilters?: boolean;
   enableIssueJump?: boolean;
   issuePath?: string;
   onAvailableCellClick?: (selection: AvailableSeatSelection | null) => void;
@@ -64,6 +66,8 @@ type PerformancesTableProps = {
 };
 
 const PerformancesTable = ({
+  orientation = 'classes-as-rows',
+  showFilters = true,
   enableIssueJump = false,
   issuePath = '/students/issue',
   onAvailableCellClick,
@@ -499,6 +503,64 @@ const PerformancesTable = ({
     route(`${issuePath}?${searchParams.toString()}`);
   };
 
+  const renderCell = (
+    performance: PerformanceRow,
+    schedule: PerformanceSchedule,
+  ) => {
+    const key = `${performance.id}-${schedule.id}`;
+    const remaining = remainingSeatMap.get(key) ?? 0;
+    const status = statusByKey.get(key) ?? 'cross';
+    const canIssue =
+      remaining > 0 && !nonInteractivePerformanceIds?.has(performance.id);
+    const isInteractive =
+      canIssue && (enableIssueJump || Boolean(onAvailableCellClick));
+    const isSelected = selectedCellKey === key;
+
+    return (
+      <td
+        className={`${styles.td} ${getStatusClass(status)} ${
+          isInteractive ? styles.jumpableCell : ''
+        } ${isInteractive ? styles.interactiveCell : ''} ${
+          isSelected ? styles.selectedCell : ''
+        }`}
+        key={key}
+        onClick={() => {
+          if (!canIssue) return;
+          handleAvailableCellClick({
+            performanceId: performance.id,
+            performanceName: performance.class_name,
+            scheduleId: schedule.id,
+            scheduleName: schedule.round_name,
+            remaining,
+          });
+        }}
+        onKeyDown={(event) => {
+          if (!isInteractive || (event.key !== 'Enter' && event.key !== ' ')) {
+            return;
+          }
+          event.preventDefault();
+          handleAvailableCellClick({
+            performanceId: performance.id,
+            performanceName: performance.class_name,
+            scheduleId: schedule.id,
+            scheduleName: schedule.round_name,
+            remaining,
+          });
+        }}
+        tabIndex={isInteractive ? 0 : undefined}
+        role={isInteractive ? 'button' : undefined}
+        aria-label={
+          isInteractive
+            ? `${performance.class_name} ${schedule.round_name} 残り${remaining}席`
+            : undefined
+        }
+      >
+        <div className={styles.mark}>{getMark(status)}</div>
+        <div className={styles.remaining}>残り{remaining}席</div>
+      </td>
+    );
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -514,7 +576,7 @@ const PerformancesTable = ({
   if (filteredPerformances.length === 0 || filteredSchedules.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.filters}>
+        {showFilters && <div className={styles.filters}>
           <label className={styles.filterLabel} htmlFor='class-filter'>
             クラス
             <select
@@ -576,7 +638,7 @@ const PerformancesTable = ({
               </select>
             </label>
           )}
-        </div>
+        </div>}
         <p className={styles.emptyState}>該当するデータがありません。</p>
       </div>
     );
@@ -585,7 +647,7 @@ const PerformancesTable = ({
   return (
     <div className={styles.container}>
       {cacheNotice && <p>{cacheNotice}</p>}
-      <div className={styles.filters}>
+      {showFilters && <div className={styles.filters}>
         <label className={styles.filterLabel} htmlFor='class-filter'>
           クラス
           <select
@@ -644,7 +706,7 @@ const PerformancesTable = ({
             </select>
           </label>
         )}
-      </div>
+      </div>}
       <div className={styles.legend}>
         <span className={`${styles.legendItem} ${styles.statusCircle}`}>
           ○ 余裕あり
@@ -661,84 +723,40 @@ const PerformancesTable = ({
         <table className={styles.table}>
           <thead>
             <tr className={styles.tr}>
-              <th className={styles.th}>クラス</th>
-              {filteredSchedules.map((schedule) => (
-                <th className={styles.th} key={schedule.id}>
-                  {schedule.round_name}
-                </th>
-              ))}
+              <th className={styles.th}>
+                {orientation === 'classes-as-columns' ? '公演回' : 'クラス'}
+              </th>
+              {orientation === 'classes-as-columns'
+                ? filteredPerformances.map((performance) => (
+                    <th className={styles.th} key={performance.id}>
+                      {performance.class_name}
+                    </th>
+                  ))
+                : filteredSchedules.map((schedule) => (
+                    <th className={styles.th} key={schedule.id}>
+                      {schedule.round_name}
+                    </th>
+                  ))}
             </tr>
           </thead>
           <tbody>
-            {filteredPerformances.map((performance) => (
-              <tr key={performance.id} className={styles.tr}>
-                <th className={styles.th}>{performance.class_name}</th>
-                {filteredSchedules.map((schedule) => {
-                  const key = `${performance.id}-${schedule.id}`;
-                  const remaining = remainingSeatMap.get(key) ?? 0;
-                  const status = statusByKey.get(key) ?? 'cross';
-                  const canIssue =
-                    remaining > 0 &&
-                    !nonInteractivePerformanceIds?.has(performance.id);
-                  const isInteractive =
-                    canIssue &&
-                    (enableIssueJump || Boolean(onAvailableCellClick));
-                  const isSelected = selectedCellKey === key;
-
-                  return (
-                    <td
-                      className={`${styles.td} ${getStatusClass(status)} ${
-                        isInteractive ? styles.jumpableCell : ''
-                      } ${isInteractive ? styles.interactiveCell : ''} ${
-                        isSelected ? styles.selectedCell : ''
-                      }`}
-                      key={`${performance.id}-${schedule.id}`}
-                      onClick={() => {
-                        if (!canIssue) {
-                          return;
-                        }
-
-                        handleAvailableCellClick({
-                          performanceId: performance.id,
-                          performanceName: performance.class_name,
-                          scheduleId: schedule.id,
-                          scheduleName: schedule.round_name,
-                          remaining,
-                        });
-                      }}
-                      onKeyDown={(event) => {
-                        if (!isInteractive) {
-                          return;
-                        }
-
-                        if (event.key !== 'Enter' && event.key !== ' ') {
-                          return;
-                        }
-
-                        event.preventDefault();
-                        handleAvailableCellClick({
-                          performanceId: performance.id,
-                          performanceName: performance.class_name,
-                          scheduleId: schedule.id,
-                          scheduleName: schedule.round_name,
-                          remaining,
-                        });
-                      }}
-                      tabIndex={isInteractive ? 0 : undefined}
-                      role={isInteractive ? 'button' : undefined}
-                      aria-label={
-                        isInteractive
-                          ? `${performance.class_name} ${schedule.round_name} 残り${remaining}席`
-                          : undefined
-                      }
-                    >
-                      <div className={styles.mark}>{getMark(status)}</div>
-                      <div className={styles.remaining}>残り{remaining}席</div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {orientation === 'classes-as-columns'
+              ? filteredSchedules.map((schedule) => (
+                  <tr key={schedule.id} className={styles.tr}>
+                    <th className={styles.th}>{schedule.round_name}</th>
+                    {filteredPerformances.map((performance) =>
+                      renderCell(performance, schedule),
+                    )}
+                  </tr>
+                ))
+              : filteredPerformances.map((performance) => (
+                  <tr key={performance.id} className={styles.tr}>
+                    <th className={styles.th}>{performance.class_name}</th>
+                    {filteredSchedules.map((schedule) =>
+                      renderCell(performance, schedule),
+                    )}
+                  </tr>
+                ))}
           </tbody>
         </table>
       </div>

@@ -28,6 +28,7 @@ import {
   OrganizationAdmin,
   OrganizationAccounts,
   PerformancesManagement,
+  AdminAvailability,
   Availability,
   OrganizationRegister,
   OrganizationScanHistory,
@@ -160,6 +161,7 @@ const AdminPageLayout = () => (
         <Route path='settings' component={Settings} />
         <Route path='/public-rehearsals' component={PublicRehearsals} />
         <Route path='/status' component={Status} />
+        <Route path='/availability' component={AdminAvailability} />
         <Route path='/tickets' component={TicketManagement} />
         <Route path='/tickets/issue' component={AdminTicketIssue} />
         <Route path='/student-accounts' component={StudentAccounts} />
@@ -216,6 +218,8 @@ const InnerApp = () => {
       preload(Info);
     } else if (path.startsWith('/admin/scan')) {
       preload(AdminLayout, ScanLayout, Scan, AdminHome);
+    } else if (path.startsWith('/admin/availability')) {
+      preload(AdminAvailability);
     } else if (path.startsWith('/organization-scan')) {
       preload(OrganizationScan);
     } else if (path.startsWith('/organization-register')) {
@@ -233,6 +237,7 @@ const InnerApp = () => {
       <Route path='/students' component={Students} />
       <Route path='/students/*' component={Students} />
       <Route path='/admin/scan' component={AdminScanLayout} />
+      <Route path='/admin/availability' component={AdminAvailability} />
       <Route path='/organization-scan' component={OrganizationScan} />
       <Route path='/organization-register' component={OrganizationRegister} />
       <Route path='/admin/*' component={AdminPageLayout} />

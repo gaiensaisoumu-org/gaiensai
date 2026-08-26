@@ -74,6 +74,7 @@ interface AdminAuthLayoutProps {
   title: string;
   description?: string;
   onBack?: () => void;
+  minimal?: boolean;
 }
 
 export const AdminAuthLayout = ({
@@ -81,6 +82,7 @@ export const AdminAuthLayout = ({
   title,
   description,
   onBack,
+  minimal = false,
 }: AdminAuthLayoutProps) => {
   const [password, setPassword] = useState('');
   const [authState, setAuthState] = useState<
@@ -216,7 +218,7 @@ export const AdminAuthLayout = ({
   if (authState === 'checking') {
     return (
       <div className={styles.authContainer}>
-        <h1 className={styles.pageTitle}>{title}</h1>
+        {!minimal && <h1 className={styles.pageTitle}>{title}</h1>}
         <LoadingSpinner message='認証状態を確認しています...' />
       </div>
     );
@@ -225,7 +227,7 @@ export const AdminAuthLayout = ({
   if (authState === 'locked') {
     return (
       <div>
-        <h1 className={styles.pageTitle}>{title}</h1>
+        {!minimal && <h1 className={styles.pageTitle}>{title}</h1>}
         <NormalSection className={styles.authForm}>
           <h2>管理者ログイン</h2>
           <form className={styles.authLoginForm} onSubmit={handleUnlock}>
@@ -273,16 +275,20 @@ export const AdminAuthLayout = ({
 
   return (
     <AdminAuthContext.Provider value={{ lock }}>
-      {onBack ? <BackButton onClick={onBack} /> : <BackButton />}
-      <div className={styles.headerRow}>
-        <div className={styles.headerText}>
-          <h1 className={styles.pageTitle}>{title}</h1>
-          {description && <p className={styles.pageLead}>{description}</p>}
-        </div>
-        <button type='button' className={styles.lockButton} onClick={lock}>
-          ロック
-        </button>
-      </div>
+      {!minimal && (
+        <>
+          {onBack ? <BackButton onClick={onBack} /> : <BackButton />}
+          <div className={styles.headerRow}>
+            <div className={styles.headerText}>
+              <h1 className={styles.pageTitle}>{title}</h1>
+              {description && <p className={styles.pageLead}>{description}</p>}
+            </div>
+            <button type='button' className={styles.lockButton} onClick={lock}>
+              ロック
+            </button>
+          </div>
+        </>
+      )}
       {children}
     </AdminAuthContext.Provider>
   );
