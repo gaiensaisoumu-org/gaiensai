@@ -454,6 +454,47 @@ td.cellCount {
   gap: 0.8rem;
 }
 
+.summaryViewToggle {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.summaryViewButton,
+.summaryViewButtonActive {
+  border: 1px solid var(--select-border-color);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  background: transparent;
+  color: var(--heading-text-color);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.summaryViewButtonActive {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.summaryTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 220px;
+}
+
+.summaryTable th,
+.summaryTable td {
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid var(--table-border-color);
+  text-align: left;
+}
+
+.summaryTable th:last-child,
+.summaryTable td:last-child {
+  text-align: right;
+}
+
 .chartCard {
   border: 1px solid var(--table-border-color);
   border-radius: 12px;

@@ -850,6 +850,29 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
         return;
       }
 
+      let master = ticketMaster;
+      if (!master) {
+        try {
+          master = await preloadScanTicketMaster();
+          setTicketMaster(master);
+        } catch {
+          master = null;
+        }
+      }
+      const isRehearsalTicket = master?.ticketTypes.some(
+        (ticketType) =>
+          ticketType.id === decoded.ticketTypeId &&
+          ticketType.name === 'クラス公演(リハーサル)',
+      );
+      if (isRehearsalTicket) {
+        await saveScanResult(nextScannedValue, 'failed', 1);
+        setDecodeErrorWithSound({
+          title: 'リハーサル券',
+          message: 'リハーサル券がスキャンされました',
+        });
+        return;
+      }
+
       const defaultEntryCount = getDefaultEntryCount(decoded);
       const { ticketStatus, ticketUsedAt, lastUsedAt, masterStatus } =
         await fetchTicketStatus(code, { count: defaultEntryCount });

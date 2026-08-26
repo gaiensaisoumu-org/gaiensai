@@ -29,6 +29,7 @@ import { YEAR_BITS } from '../../../supabase/functions/_shared/ticketDataType';
 import { useTitle } from '../../hooks/useTitle';
 
 type ActiveTab = 'records' | 'tickets' | 'summary';
+type SummaryView = 'chart' | 'table';
 
 type ScanRecord = {
   id: number;
@@ -201,6 +202,7 @@ const SUMMARY_TOOLTIP_PROPS = {
 
 const OrganizationScanHistory = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('records');
+  const [summaryView, setSummaryView] = useState<SummaryView>('chart');
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [decodedTicketMap, setDecodedTicketMap] = useState<
@@ -477,10 +479,9 @@ const OrganizationScanHistory = () => {
       );
     });
 
-    const toSortedEntries = (map: Map<string, number>, limit = 10) =>
+    const toSortedEntries = (map: Map<string, number>) =>
       [...map.entries()]
         .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
         .map(([label, count]) => ({ label, count }));
 
     const hourly = [...hourlyMap.entries()]
@@ -836,178 +837,265 @@ const OrganizationScanHistory = () => {
               </div>
             </div>
 
-            <div className={styles.summaryGrid}>
-              <article className={styles.chartCard}>
-                <h2 className={styles.chartTitle}>時間帯ごとの読み取り数</h2>
-                {summary.hourly.length === 0 ? (
-                  <p className={styles.emptyText}>時間帯データがありません。</p>
-                ) : (
-                  <div className={styles.chartCanvas}>
-                    <ResponsiveContainer width='100%' height='100%'>
-                      <BarChart
-                        data={summary.hourly}
-                        margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
-                      >
-                        <defs>
-                          <linearGradient
-                            id='summaryBarGradient'
-                            x1='0'
-                            y1='0'
-                            x2='1'
-                            y2='0'
-                          >
-                            <stop
-                              offset='0%'
-                              stopColor='var(--summary-chart-start-color)'
-                            />
-                            <stop
-                              offset='100%'
-                              stopColor='var(--summary-chart-end-color)'
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray='3 3' />
-                        <XAxis dataKey='label' />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
-                        <Bar dataKey='count' fill='url(#summaryBarGradient)' />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </article>
-              <article className={styles.chartCard}>
-                <h2 className={styles.chartTitle}>クラス別</h2>
-                {summary.classStats.length === 0 ? (
-                  <p className={styles.emptyText}>
-                    クラス別データがありません。
-                  </p>
-                ) : (
-                  <div className={styles.chartCanvas}>
-                    <ResponsiveContainer width='100%' height='100%'>
-                      <BarChart
-                        data={summary.classStats}
-                        margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
-                      >
-                        <defs>
-                          <linearGradient
-                            id='summaryBarGradient'
-                            x1='0'
-                            y1='0'
-                            x2='1'
-                            y2='0'
-                          >
-                            <stop
-                              offset='0%'
-                              stopColor='var(--summary-chart-start-color)'
-                            />
-                            <stop
-                              offset='100%'
-                              stopColor='var(--summary-chart-end-color)'
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray='3 3' />
-                        <XAxis
-                          dataKey='label'
-                          tickFormatter={(value: string) =>
-                            truncateAxisLabel(value)
-                          }
-                        />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
-                        <Bar dataKey='count' fill='url(#summaryBarGradient)' />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </article>
-              <article className={styles.chartCard}>
-                <h2 className={styles.chartTitle}>公演回別</h2>
-                {summary.scheduleStats.length === 0 ? (
-                  <p className={styles.emptyText}>
-                    公演回別データがありません。
-                  </p>
-                ) : (
-                  <div className={styles.chartCanvas}>
-                    <ResponsiveContainer width='100%' height='100%'>
-                      <BarChart
-                        data={summary.scheduleStats}
-                        margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
-                      >
-                        <defs>
-                          <linearGradient
-                            id='summaryBarGradient'
-                            x1='0'
-                            y1='0'
-                            x2='1'
-                            y2='0'
-                          >
-                            <stop
-                              offset='0%'
-                              stopColor='var(--summary-chart-start-color)'
-                            />
-                            <stop
-                              offset='100%'
-                              stopColor='var(--summary-chart-end-color)'
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray='3 3' />
-                        <XAxis
-                          dataKey='label'
-                          tickFormatter={(value: string) =>
-                            truncateAxisLabel(value)
-                          }
-                        />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
-                        <Bar dataKey='count' fill='url(#summaryBarGradient)' />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </article>
-              <article className={styles.chartCard}>
-                <h2 className={styles.chartTitle}>間柄別</h2>
-                {summary.relationshipStats.length === 0 ? (
-                  <p className={styles.emptyText}>間柄別データがありません。</p>
-                ) : (
-                  <div className={styles.chartCanvas}>
-                    <ResponsiveContainer width='100%' height='100%'>
-                      <BarChart
-                        data={summary.relationshipStats}
-                        margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
-                      >
-                        <defs>
-                          <linearGradient
-                            id='summaryBarGradient'
-                            x1='0'
-                            y1='0'
-                            x2='1'
-                            y2='0'
-                          >
-                            <stop
-                              offset='0%'
-                              stopColor='var(--summary-chart-start-color)'
-                            />
-                            <stop
-                              offset='100%'
-                              stopColor='var(--summary-chart-end-color)'
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray='3 3' />
-                        <XAxis dataKey='label' />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
-                        <Bar dataKey='count' fill='url(#summaryBarGradient)' />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </article>
+            <div
+              className={styles.summaryViewToggle}
+              role='group'
+              aria-label='サマリーの表示形式'
+            >
+              <button
+                type='button'
+                className={
+                  summaryView === 'chart'
+                    ? styles.summaryViewButtonActive
+                    : styles.summaryViewButton
+                }
+                aria-pressed={summaryView === 'chart'}
+                onClick={() => setSummaryView('chart')}
+              >
+                グラフ
+              </button>
+              <button
+                type='button'
+                className={
+                  summaryView === 'table'
+                    ? styles.summaryViewButtonActive
+                    : styles.summaryViewButton
+                }
+                aria-pressed={summaryView === 'table'}
+                onClick={() => setSummaryView('table')}
+              >
+                表
+              </button>
             </div>
+
+            {summaryView === 'chart' ? (
+              <div className={styles.summaryGrid}>
+                <article className={styles.chartCard}>
+                  <h2 className={styles.chartTitle}>時間帯ごとの読み取り数</h2>
+                  {summary.hourly.length === 0 ? (
+                    <p className={styles.emptyText}>
+                      時間帯データがありません。
+                    </p>
+                  ) : (
+                    <div className={styles.chartCanvas}>
+                      <ResponsiveContainer width='100%' height='100%'>
+                        <BarChart
+                          data={summary.hourly}
+                          margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id='summaryBarGradient'
+                              x1='0'
+                              y1='0'
+                              x2='1'
+                              y2='0'
+                            >
+                              <stop
+                                offset='0%'
+                                stopColor='var(--summary-chart-start-color)'
+                              />
+                              <stop
+                                offset='100%'
+                                stopColor='var(--summary-chart-end-color)'
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray='3 3' />
+                          <XAxis dataKey='label' />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
+                          <Bar
+                            dataKey='count'
+                            fill='url(#summaryBarGradient)'
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </article>
+                <article className={styles.chartCard}>
+                  <h2 className={styles.chartTitle}>クラス別</h2>
+                  {summary.classStats.length === 0 ? (
+                    <p className={styles.emptyText}>
+                      クラス別データがありません。
+                    </p>
+                  ) : (
+                    <div className={styles.chartCanvas}>
+                      <ResponsiveContainer width='100%' height='100%'>
+                        <BarChart
+                          data={summary.classStats}
+                          margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id='summaryBarGradient'
+                              x1='0'
+                              y1='0'
+                              x2='1'
+                              y2='0'
+                            >
+                              <stop
+                                offset='0%'
+                                stopColor='var(--summary-chart-start-color)'
+                              />
+                              <stop
+                                offset='100%'
+                                stopColor='var(--summary-chart-end-color)'
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray='3 3' />
+                          <XAxis
+                            dataKey='label'
+                            tickFormatter={(value: string) =>
+                              truncateAxisLabel(value)
+                            }
+                          />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
+                          <Bar
+                            dataKey='count'
+                            fill='url(#summaryBarGradient)'
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </article>
+                <article className={styles.chartCard}>
+                  <h2 className={styles.chartTitle}>公演回別</h2>
+                  {summary.scheduleStats.length === 0 ? (
+                    <p className={styles.emptyText}>
+                      公演回別データがありません。
+                    </p>
+                  ) : (
+                    <div className={styles.chartCanvas}>
+                      <ResponsiveContainer width='100%' height='100%'>
+                        <BarChart
+                          data={summary.scheduleStats}
+                          margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id='summaryBarGradient'
+                              x1='0'
+                              y1='0'
+                              x2='1'
+                              y2='0'
+                            >
+                              <stop
+                                offset='0%'
+                                stopColor='var(--summary-chart-start-color)'
+                              />
+                              <stop
+                                offset='100%'
+                                stopColor='var(--summary-chart-end-color)'
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray='3 3' />
+                          <XAxis
+                            dataKey='label'
+                            tickFormatter={(value: string) =>
+                              truncateAxisLabel(value)
+                            }
+                          />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
+                          <Bar
+                            dataKey='count'
+                            fill='url(#summaryBarGradient)'
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </article>
+                <article className={styles.chartCard}>
+                  <h2 className={styles.chartTitle}>間柄別</h2>
+                  {summary.relationshipStats.length === 0 ? (
+                    <p className={styles.emptyText}>
+                      間柄別データがありません。
+                    </p>
+                  ) : (
+                    <div className={styles.chartCanvas}>
+                      <ResponsiveContainer width='100%' height='100%'>
+                        <BarChart
+                          data={summary.relationshipStats}
+                          margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
+                        >
+                          <defs>
+                            <linearGradient
+                              id='summaryBarGradient'
+                              x1='0'
+                              y1='0'
+                              x2='1'
+                              y2='0'
+                            >
+                              <stop
+                                offset='0%'
+                                stopColor='var(--summary-chart-start-color)'
+                              />
+                              <stop
+                                offset='100%'
+                                stopColor='var(--summary-chart-end-color)'
+                              />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray='3 3' />
+                          <XAxis dataKey='label' />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip {...SUMMARY_TOOLTIP_PROPS} />
+                          <Bar
+                            dataKey='count'
+                            fill='url(#summaryBarGradient)'
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </article>
+              </div>
+            ) : (
+              <div className={styles.summaryGrid}>
+                {[
+                  ['時間帯ごとの読み取り数', summary.hourly],
+                  ['クラス別', summary.classStats],
+                  ['公演回別', summary.scheduleStats],
+                  ['間柄別', summary.relationshipStats],
+                ].map(([title, rows]) => (
+                  <article className={styles.chartCard} key={title as string}>
+                    <h2 className={styles.chartTitle}>{title as string}</h2>
+                    {(rows as Array<{ label: string; count: number }>)
+                      .length === 0 ? (
+                      <p className={styles.emptyText}>データがありません。</p>
+                    ) : (
+                      <div className={styles.tableWrapper}>
+                        <table className={styles.summaryTable}>
+                          <thead>
+                            <tr>
+                              <th>項目</th>
+                              <th>読み取り数</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(
+                              rows as Array<{ label: string; count: number }>
+                            ).map((row) => (
+                              <tr key={row.label}>
+                                <td>{row.label}</td>
+                                <td>{row.count}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         )}
       </section>
