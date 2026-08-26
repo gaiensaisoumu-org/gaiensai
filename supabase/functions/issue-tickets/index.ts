@@ -1392,7 +1392,10 @@ export const handleIssueTicketsRequest = async (
         basePrefix,
         endSerial,
         personCount: personCountPerTicket,
-        encodingRelationshipId: getEncodingRelationshipId,
+        encodingRelationshipId:
+          isJuniorUser && !isDayTicket
+            ? getEncodingRelationshipId
+            : undefined,
         generateCode: generateTicketCode,
         signTicketCode: signCode,
       });
@@ -1445,6 +1448,18 @@ export const handleIssueTicketsRequest = async (
 
         issuedTickets =
           (data as Array<{ code: string; signature: string }>) ?? [];
+        if (isJuniorUser && !isDayTicket) {
+          const { error: juniorRelationshipError } = await adminClient.rpc(
+            'set_junior_ticket_relationships',
+            {
+              p_codes: [code],
+              p_relationships: [getEncodingRelationshipId(0)],
+            },
+          );
+          if (juniorRelationshipError) {
+            throw new HttpError(500, juniorRelationshipError.message);
+          }
+        }
         shouldRollbackCounter = false;
       } finally {
         if (shouldRollbackCounter) {

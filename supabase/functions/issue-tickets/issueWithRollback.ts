@@ -127,6 +127,24 @@ export const issueWithRollback = async ({
       throw new HttpError(409, issueError.message);
     }
 
+    if (encodingRelationshipId !== undefined) {
+      const juniorRelationships = codes.map((_, index) =>
+        typeof encodingRelationshipId === 'function'
+          ? encodingRelationshipId(index)
+          : encodingRelationshipId,
+      );
+      const { error: juniorRelationshipError } = await adminClient.rpc(
+        'set_junior_ticket_relationships',
+        {
+          p_codes: codes,
+          p_relationships: juniorRelationships,
+        },
+      );
+      if (juniorRelationshipError) {
+        throw new HttpError(500, juniorRelationshipError.message);
+      }
+    }
+
     shouldRollbackCounter = false;
     return (issuedTickets as Array<{ code: string; signature: string }>) ?? [];
   } finally {
