@@ -683,7 +683,7 @@ export const handleIssueTicketsRequest = async (
       if (isJuniorUser) {
         throw new HttpError(
           403,
-          '中学生は自主リハーサルのチケットを取得できません。',
+          '中学生はリハーサルのチケットを取得できません。',
         );
       }
       const { data: rehearsal, error: rehearsalError } = await adminClient
@@ -691,12 +691,11 @@ export const handleIssueTicketsRequest = async (
         .select('id')
         .eq('class_id', body.performanceId)
         .eq('round_id', body.scheduleId)
-        .eq('type', 'unofficial')
         .eq('is_active', true)
         .gt('start_time', new Date().toISOString())
         .maybeSingle();
       if (rehearsalError || !rehearsal) {
-        throw new HttpError(403, 'この自主リハーサルは現在発券できません。');
+        throw new HttpError(403, 'このリハーサルは現在発券できません。');
       }
     } else if (issueMode === 'gym') {
       const { data: perfData, error: perfError } = await adminClient
@@ -785,11 +784,10 @@ export const handleIssueTicketsRequest = async (
       ) {
         const { data: rehearsalRow, error: rehearsalError } = await adminClient
           .from('rehearsals')
-          .select('id')
+          .select('id, type')
           .eq('class_id', body.performanceId)
           .eq('round_id', body.scheduleId)
           .eq('is_active', true)
-          .eq('type', 'unofficial')
           .limit(1)
           .maybeSingle();
         if (rehearsalError) {
@@ -798,7 +796,9 @@ export const handleIssueTicketsRequest = async (
             '公開リハーサル情報の取得に失敗しました。時間をおいて再度お試しください。',
           );
         }
-        if (!rehearsalRow) {
+        if (!rehearsalRow ||
+          (ticketIssueControls.rehearsalInvite === 'self-rehearsals' && rehearsalRow.type !== 'unofficial') ||
+          (ticketIssueControls.rehearsalInvite === 'public-rehearsals' && rehearsalRow.type !== 'official')) {
           throw new HttpError(
             403,
             ticketIssueControls.rehearsalInvite === 'self-rehearsals'

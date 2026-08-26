@@ -156,6 +156,155 @@
   margin-top: 0.85rem;
 }
 
+.rehearsalSubheading {
+  margin: 1.25rem 0 0.5rem;
+}
+
+.officialRehearsalTableWrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: var(--normal-section-bg-color);
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.2);
+}
+
+.officialRehearsalScrollHint {
+  margin: 0 0 0.5rem;
+  color: var(--main-text-color);
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.officialRehearsalTableWrap[data-scroll-fade='start'] {
+  mask-image: linear-gradient(to right, black calc(100% - 5rem), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 5rem),
+    transparent
+  );
+}
+
+.officialRehearsalTableWrap[data-scroll-fade='end'] {
+  mask-image: linear-gradient(to right, transparent, black 5rem);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5rem);
+}
+
+.officialRehearsalTableWrap[data-scroll-fade='middle'] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent
+  );
+}
+
+.officialRehearsalTable {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+}
+
+.officialRehearsalTh,
+.officialRehearsalTd {
+  padding: 0.85rem 0.75rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.officialRehearsalTh {
+  color: var(--heading-text-color);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.1);
+  font-size: 0.8rem;
+}
+
+.officialRehearsalTh:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--normal-section-bg-color);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1));
+  backdrop-filter: blur(2px);
+}
+
+.officialRehearsalTd {
+  color: var(--main-text-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.2s ease;
+}
+
+.officialRehearsalEmptyCell {
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.officialRehearsalCell {
+  display: grid;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.officialRehearsalMark {
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.officialRehearsalRemaining {
+  margin-top: 0.15rem;
+  font-size: 0.69rem;
+  opacity: 0.9;
+  letter-spacing: 0.02em;
+}
+
+.officialRehearsalCircle {
+  background-color: var(--success-bg-color);
+  color: var(--success-text-color);
+}
+
+.officialRehearsalTriangle {
+  background-color: var(--warning-bg-color);
+  color: var(--warning-text-color);
+}
+
+.officialRehearsalCross {
+  background-color: var(--error-bg-color);
+  color: var(--error-text-color);
+}
+
+.officialRehearsalTd button {
+  opacity: 1 !important;
+}
+
+.officialRehearsalSelectedCell {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65);
+}
+
+.officialRehearsalCell:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .rehearsalRow {
   display: flex;
   width: 100%;
@@ -176,6 +325,7 @@
 .rehearsalRowSelected {
   background: var(--translucent-w-bg-color);
 }
+
 .rehearsalRow:disabled {
   cursor: default;
   color: var(--sub-text-color);
@@ -193,15 +343,19 @@
   align-items: center;
   gap: 0.5rem;
 }
+
 .rehearsalRemaining svg {
   font-size: 1.5rem;
 }
+
 .rehearsalCircle {
   color: var(--success-text-color);
 }
+
 .rehearsalTriangle {
   color: #b7791f;
 }
+
 .rehearsalCross {
   color: var(--error-text-color);
 }
@@ -211,13 +365,16 @@
     align-items: start;
     flex-direction: column;
   }
+
   .rehearsalSort,
   .rehearsalSort select {
     width: 100%;
   }
+
   .rehearsalRow {
     gap: 0.5rem;
   }
+
   .rehearsalRemaining {
     align-items: center;
     flex-direction: column;
@@ -495,6 +652,7 @@
   from {
     transform: translateX(100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -504,6 +662,7 @@
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -513,6 +672,7 @@
   from {
     transform: translateX(0);
   }
+
   to {
     transform: translateX(-100%);
   }
@@ -522,6 +682,7 @@
   from {
     transform: translateX(0);
   }
+
   to {
     transform: translateX(100%);
   }

@@ -24,6 +24,8 @@ type ControlPanelSettings = {
     max_tickets_per_user: number;
   }[];
   maxTicketsPerOtherClubUser: number;
+  maxOfficialRehearsalTicketsPerUser: number;
+  showPublicRehearsalDashboard: boolean;
   gymTicketLimitsByClub: Record<string, number>;
   maxTicketsPerJuniorUser: number;
   maxAdmissionOnlyJuniorAccounts: number;
@@ -178,6 +180,11 @@ const NUMERIC_SETTING_META = {
     min: 1,
     max: 100,
   },
+  maxOfficialRehearsalTicketsPerUser: {
+    label: '公開リハの生徒1人あたり発行上限',
+    min: 0,
+    max: 100,
+  },
   maxTicketsPerJuniorUser: {
     label: '中学生のチケット購入上限',
     min: 1,
@@ -240,6 +247,8 @@ const SettingsContent = () => {
     maxTicketsPerOtherPerformanceUser: 40,
     classTicketLimits: [],
     maxTicketsPerOtherClubUser: 20,
+    maxOfficialRehearsalTicketsPerUser: 1,
+    showPublicRehearsalDashboard: true,
     gymTicketLimitsByClub: {},
     maxTicketsPerJuniorUser: 2,
     maxAdmissionOnlyJuniorAccounts: 100,
@@ -644,6 +653,8 @@ const SettingsContent = () => {
           typeof nextSettings.maxTicketsPerOtherPerformanceUser !== 'number' ||
           !Array.isArray(nextSettings.classTicketLimits) ||
           typeof nextSettings.maxTicketsPerOtherClubUser !== 'number' ||
+          typeof nextSettings.maxOfficialRehearsalTicketsPerUser !== 'number' ||
+          typeof nextSettings.showPublicRehearsalDashboard !== 'boolean' ||
           !nextSettings.gymTicketLimitsByClub ||
           typeof nextSettings.gymTicketLimitsByClub !== 'object' ||
           Array.isArray(nextSettings.gymTicketLimitsByClub) ||
@@ -836,6 +847,10 @@ const SettingsContent = () => {
             ]),
           ),
           maxTicketsPerOtherClubUser: nextSettings.maxTicketsPerOtherClubUser,
+          maxOfficialRehearsalTicketsPerUser:
+            nextSettings.maxOfficialRehearsalTicketsPerUser,
+          showPublicRehearsalDashboard:
+            nextSettings.showPublicRehearsalDashboard,
           gymTicketLimitsByClub: nextSettings.gymTicketLimitsByClub,
           maxTicketsPerJuniorUser: nextSettings.maxTicketsPerJuniorUser,
           maxAdmissionOnlyJuniorAccounts:
@@ -1740,6 +1755,23 @@ const SettingsContent = () => {
       </NormalSection>
 
       <NormalSection>
+        <div className={styles.headerRow}>
+          <div>
+            <h2>公開リハーサル</h2>
+            <p className={styles.settingHint}>
+              総務が公開リハの作成・編集・中止を管理します。
+            </p>
+          </div>
+          <a
+            className={styles.inlineEditButton}
+            href='/admin/public-rehearsals'
+          >
+            公開リハを管理
+          </a>
+        </div>
+      </NormalSection>
+
+      <NormalSection>
         <h2>チケット発券</h2>
         <div className={styles.formGrid}>
           <div>
@@ -1774,6 +1806,28 @@ const SettingsContent = () => {
                     });
                   }}
                   checked={settings.ticketIssuingEnabled}
+                />
+              </label>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.settingLabel}>
+                ダッシュボードに公開リハ表を表示
+              </label>
+              <label>
+                <Switch
+                  checked={settings.showPublicRehearsalDashboard}
+                  onChange={(checked) => {
+                    if (isSettingsLoading || isSyncingSetting) {
+                      return;
+                    }
+                    void syncSettings(
+                      { ...settings, showPublicRehearsalDashboard: checked },
+                      checked
+                        ? 'ダッシュボードの公開リハ表を表示しました。'
+                        : 'ダッシュボードの公開リハ表を非表示にしました。',
+                      'ticketSection',
+                    );
+                  }}
                 />
               </label>
             </div>
@@ -2330,6 +2384,32 @@ const SettingsContent = () => {
                   className={styles.inlineEditButton}
                   onClick={() =>
                     openNumericEditModal('maxTicketsPerJuniorUser')
+                  }
+                  disabled={isSettingsLoading || isSyncingSetting}
+                >
+                  変更する
+                </button>
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label
+                className={styles.settingLabel}
+                htmlFor='ticket-public-rehearsal-max-per-user'
+              >
+                公開リハの生徒1人あたり発行上限
+              </label>
+              <div className={styles.settingControlGroup}>
+                <span
+                  id='ticket-public-rehearsal-max-per-user'
+                  className={styles.fieldValue}
+                >
+                  {settings.maxOfficialRehearsalTicketsPerUser}
+                </span>
+                <button
+                  type='button'
+                  className={styles.inlineEditButton}
+                  onClick={() =>
+                    openNumericEditModal('maxOfficialRehearsalTicketsPerUser')
                   }
                   disabled={isSettingsLoading || isSyncingSetting}
                 >

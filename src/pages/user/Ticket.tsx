@@ -59,6 +59,7 @@ type TicketDisplay = TicketDecodedDisplaySeed & {
   scheduleTime: string;
   scheduleEndTime: string;
   rehearsalEndAt?: string | null;
+  isOfficialRehearsal?: boolean;
   ticketTypeLabel: string;
   relationshipName: string;
   ticketName: string | null;
@@ -321,6 +322,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
   const [ticketStatus, setTicketStatus] = useState<TicketStatus>('unknown');
   const [cacheVersion, setCacheVersion] = useState(0);
   const [qrSize, setQrSize] = useState(350);
+  const [isOfficialRehearsal, setIsOfficialRehearsal] = useState(false);
 
   // 中学生チケットかどうかを判定（affiliationが100000超なら中学生）
   const isJuniorTicket = useMemo(() => {
@@ -386,7 +388,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
           setLoading(false);
           return;
         }
-      } catch {
+      } catch (e) {
         setErrorMessages(['チケット情報の復元に失敗しました。']);
         setTicketStatus('unknown');
         setLoading(false);
@@ -460,6 +462,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
         }
 
         setTicket(resolvedCachedTicket);
+        setIsOfficialRehearsal(
+          resolvedCachedTicket.isOfficialRehearsal === true,
+        );
         setTicketStatus(cached.status);
         setErrorMessages(nonBlockingErrors);
         setLoading(false);
@@ -473,7 +478,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               isCachedRehearsalTicket
                 ? supabase
                     .from('rehearsals')
-                    .select('round_name, start_time, end_time')
+                    .select('round_name, start_time, end_time, is_active, type')
                     .eq('class_id', decoded.performanceId)
                     .eq('round_id', decoded.scheduleId)
                     .maybeSingle()
@@ -499,6 +504,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
             hasUpdates = true;
           }
           if (isCachedRehearsalTicket && rehearsalResult.data?.start_time) {
+            setIsOfficialRehearsal(rehearsalResult.data.type === 'official');
             const startAt = new Date(rehearsalResult.data.start_time);
             const endAt = rehearsalResult.data.end_time
               ? new Date(rehearsalResult.data.end_time)
@@ -522,12 +528,22 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               : '';
             updatedTicket.rehearsalEndAt =
               rehearsalResult.data.end_time ?? null;
+            updatedTicket.isOfficialRehearsal =
+              rehearsalResult.data.type === 'official';
+            if (rehearsalResult.data.is_active === false) {
+              updatedTicket.status = 'cancelled';
+              setErrorMessages((prev) =>
+                prev.includes('この公開リハは中止されました。')
+                  ? prev
+                  : [...prev, 'この公開リハは中止されました。'],
+              );
+            }
             hasUpdates = true;
           }
 
           if (hasUpdates) {
             setTicket(updatedTicket);
-            setTicketStatus(validityResult.status);
+            setTicketStatus(updatedTicket.status);
             writeTicketDisplayCache(code, updatedTicket);
           }
 
@@ -821,7 +837,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 .maybeSingle(),
               supabase
                 .from('rehearsals')
-                .select('round_name, start_time, end_time')
+                .select('round_name, start_time, end_time, is_active, type')
                 .eq('class_id', decoded.performanceId)
                 .eq('round_id', decoded.scheduleId)
                 .maybeSingle(),
@@ -842,6 +858,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
 
             const isRehearsalTicket =
               ticketTypeRes.data?.name === 'クラス公演(リハーサル)';
+            setIsOfficialRehearsal(
+              isRehearsalTicket && rehearsalRes.data?.type === 'official',
+            );
             const isResolvedGymPerformance =
               isGymPerformance && !isRehearsalTicket;
 
@@ -931,6 +950,8 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               rehearsalEndAt: isRehearsalTicket
                 ? (rehearsalRes.data?.end_time ?? null)
                 : null,
+              isOfficialRehearsal:
+                isRehearsalTicket && rehearsalRes.data?.type === 'official',
               ticketTypeLabel: resolveTicketTypeLabel({
                 ticketTypeId: decoded.ticketTypeId,
                 name: ticketTypeRes.data.name,
@@ -951,6 +972,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                 scheduleTime: updatedTicket.scheduleTime,
                 scheduleEndTime: updatedTicket.scheduleEndTime,
                 rehearsalEndAt: updatedTicket.rehearsalEndAt,
+                isOfficialRehearsal: updatedTicket.isOfficialRehearsal,
                 ticketTypeLabel: updatedTicket.ticketTypeLabel,
                 relationshipName: updatedTicket.relationshipName,
                 relationshipId: updatedTicket.relationshipId,
@@ -1027,13 +1049,16 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
         ticketType.id === ticket.ticketTypeId &&
         ticketType.name === 'クラス公演(リハーサル)',
     ) || ticket.ticketTypeLabel.includes('リハーサル');
-  const qrColor = isRehearsalTicket
-    ? '#16803c'
-    : ticket.performanceId > 0 && ticket.scheduleId === 0
-      ? '#d61322'
-      : undefined;
+  const qrColor = isOfficialRehearsal
+    ? '#57487a'
+    : isRehearsalTicket
+      ? '#16803c'
+      : ticket.performanceId > 0 && ticket.scheduleId === 0
+        ? '#d61322'
+        : undefined;
   const canChangeRelationship =
     (!isDayTicket || isJuniorTicket) &&
+    !isRehearsalTicket &&
     !loading &&
     !cancelLoading &&
     !isChangingRelationship &&
@@ -1566,7 +1591,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
           </ul>
         </section>
 
-        {(!isDayTicket || isJuniorTicket) && (
+        {!isRehearsalTicket && (!isDayTicket || isJuniorTicket) && (
           <section className={styles.noPrint}>
             <h3>間柄の変更</h3>
             <div className={styles.relationshipChangeSection}>
@@ -1585,103 +1610,109 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
           </section>
         )}
 
-        {(!isDayTicket || isJuniorTicket) && isRelationshipModalOpen && (
-          <div
-            className={`${styles.relationshipModalOverlay} ${styles.noPrint}`}
-            role='presentation'
-            onMouseDown={(event) => {
-              if (
-                event.target === event.currentTarget &&
-                !isChangingRelationship
-              ) {
-                setIsRelationshipModalOpen(false);
-              }
-            }}
-          >
+        {!isRehearsalTicket &&
+          (!isDayTicket || isJuniorTicket) &&
+          isRelationshipModalOpen && (
             <div
-              className={styles.relationshipModal}
-              role='dialog'
-              aria-modal='true'
-              aria-labelledby='relationship-change-modal-title'
-              onClick={(event) => event.stopPropagation()}
+              className={`${styles.relationshipModalOverlay} ${styles.noPrint}`}
+              role='presentation'
+              onMouseDown={(event) => {
+                if (
+                  event.target === event.currentTarget &&
+                  !isChangingRelationship
+                ) {
+                  setIsRelationshipModalOpen(false);
+                }
+              }}
             >
-              <h2
-                id='relationship-change-modal-title'
-                className={styles.relationshipModalTitle}
+              <div
+                className={styles.relationshipModal}
+                role='dialog'
+                aria-modal='true'
+                aria-labelledby='relationship-change-modal-title'
+                onClick={(event) => event.stopPropagation()}
               >
-                間柄を変更する
-              </h2>
-              <p className={styles.relationshipModalMessage}>
-                間柄を変更して再発行します（再発行とキャンセルは一括で処理され、どちらか片方だけ成功することはありません）。続行しますか?
-              </p>
-              {maintenanceConfig.maintenanceMode && (
-                <p className={styles.relationshipError}>
-                  現在メンテナンス中のため、間柄を変更できません。終了予定時刻:{' '}
-                  {formatMaintenanceEndAt(maintenanceConfig.endsAt) ?? '未定'}
+                <h2
+                  id='relationship-change-modal-title'
+                  className={styles.relationshipModalTitle}
+                >
+                  間柄を変更する
+                </h2>
+                <p className={styles.relationshipModalMessage}>
+                  間柄を変更して再発行します（再発行とキャンセルは一括で処理され、どちらか片方だけ成功することはありません）。続行しますか?
                 </p>
-              )}
+                {maintenanceConfig.maintenanceMode && (
+                  <p className={styles.relationshipError}>
+                    現在メンテナンス中のため、間柄を変更できません。終了予定時刻:{' '}
+                    {formatMaintenanceEndAt(maintenanceConfig.endsAt) ?? '未定'}
+                  </p>
+                )}
 
-              <label
-                className={styles.relationshipField}
-                htmlFor='relationship-select'
-              >
-                新しい間柄
-                <select
-                  id='relationship-select'
-                  className={styles.relationshipSelect}
-                  value={selectedRelationshipId ?? ''}
-                  onChange={(event) =>
-                    setSelectedRelationshipId(Number(event.currentTarget.value))
-                  }
-                  disabled={
-                    relationshipLoading ||
-                    isChangingRelationship ||
-                    maintenanceConfig.maintenanceMode
-                  }
+                <label
+                  className={styles.relationshipField}
+                  htmlFor='relationship-select'
                 >
-                  <option value='' disabled={true}>
-                    選択してください
-                  </option>
-                  {relationships.map((relationship) => (
-                    <option key={relationship.id} value={relationship.id}>
-                      {relationship.name}
+                  新しい間柄
+                  <select
+                    id='relationship-select'
+                    className={styles.relationshipSelect}
+                    value={selectedRelationshipId ?? ''}
+                    onChange={(event) =>
+                      setSelectedRelationshipId(
+                        Number(event.currentTarget.value),
+                      )
+                    }
+                    disabled={
+                      relationshipLoading ||
+                      isChangingRelationship ||
+                      maintenanceConfig.maintenanceMode
+                    }
+                  >
+                    <option value='' disabled={true}>
+                      選択してください
                     </option>
-                  ))}
-                </select>
-              </label>
+                    {relationships.map((relationship) => (
+                      <option key={relationship.id} value={relationship.id}>
+                        {relationship.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              {relationshipLoading && (
-                <LoadingSpinner message='間柄を読み込み中...' />
-              )}
-              {relationshipError && (
-                <p className={styles.relationshipError}>{relationshipError}</p>
-              )}
+                {relationshipLoading && (
+                  <LoadingSpinner message='間柄を読み込み中...' />
+                )}
+                {relationshipError && (
+                  <p className={styles.relationshipError}>
+                    {relationshipError}
+                  </p>
+                )}
 
-              <div className={styles.relationshipModalActions}>
-                <button
-                  type='button'
-                  className={styles.modalCloseButton}
-                  onClick={() => setIsRelationshipModalOpen(false)}
-                  disabled={isChangingRelationship}
-                >
-                  キャンセル
-                </button>
-                <button
-                  type='button'
-                  className={styles.changeRelationshipConfirmButton}
-                  onClick={handleChangeRelationship}
-                  disabled={
-                    relationshipLoading ||
-                    isChangingRelationship ||
-                    maintenanceConfig.maintenanceMode
-                  }
-                >
-                  {isChangingRelationship ? '変更中...' : '続行する'}
-                </button>
+                <div className={styles.relationshipModalActions}>
+                  <button
+                    type='button'
+                    className={styles.modalCloseButton}
+                    onClick={() => setIsRelationshipModalOpen(false)}
+                    disabled={isChangingRelationship}
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type='button'
+                    className={styles.changeRelationshipConfirmButton}
+                    onClick={handleChangeRelationship}
+                    disabled={
+                      relationshipLoading ||
+                      isChangingRelationship ||
+                      maintenanceConfig.maintenanceMode
+                    }
+                  >
+                    {isChangingRelationship ? '変更中...' : '続行する'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         <section className={styles.noPrint}>
           <h3>他のチケット</h3>

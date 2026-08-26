@@ -48,6 +48,7 @@ const IssueResult = () => {
               scheduleDate: parsed.scheduleDate,
               scheduleTime: parsed.scheduleTime,
               scheduleEndTime: parsed.scheduleEndTime,
+              isOfficialRehearsal: parsed.isOfficialRehearsal,
               ticketTypeLabel: parsed.ticketTypeLabel,
               relationshipName: parsed.relationshipName,
               relationshipId: parsed.relationshipId,
@@ -94,6 +95,7 @@ const IssueResult = () => {
               scheduleName: result.scheduleName,
               ticketTypeLabel: result.ticketTypeLabel,
               relationshipName: result.relationshipName,
+              isOfficialRehearsal: result.isOfficialRehearsal,
               status: 'valid',
             }))}
           />

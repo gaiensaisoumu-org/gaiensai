@@ -55,9 +55,11 @@ export type Performance = {
 export type AvailableSeatSelection = {
   performanceId: number;
   performanceName: string;
+  performanceTitle?: string | null;
   scheduleId: number;
   scheduleName: string;
   remaining: number;
+  isOfficialRehearsal?: boolean;
 };
 export type CachedTicketDisplay = TicketCardItem & {
   serial?: number;

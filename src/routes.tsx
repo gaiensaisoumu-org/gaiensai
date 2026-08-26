@@ -42,6 +42,7 @@ export const OrganizationScanHistory = lazy(
 export const Register = lazy(() => import('./pages/admin/Register'));
 export const ScanHistory = lazy(() => import('./pages/admin/ScanHistory'));
 export const Settings = lazy(() => import('./pages/admin/Settings'));
+export const PublicRehearsals = lazy(() => import('./pages/admin/PublicRehearsals'));
 export const Status = lazy(() => import('./pages/admin/Status'));
 export const TicketManagement = lazy(
   () => import('./pages/admin/TicketManagement'),

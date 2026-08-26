@@ -14,6 +14,7 @@ export type IssueResultPayload = {
   scheduleDate: string;
   scheduleTime: string;
   scheduleEndTime: string;
+  isOfficialRehearsal?: boolean;
   ticketTypeLabel: string;
   relationshipName: string;
   relationshipId: number;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useLocation } from 'preact-iso';
 import { supabase } from '../../../lib/supabase';
 import performancesSnapshot from '../../../generated/performances-static.json';
 import {
@@ -31,6 +32,7 @@ import styles from './Dashboard.module.css';
 import { IoMdAdd } from 'react-icons/io';
 import PerformancesTable from '../../../features/performances/PerformancesTable';
 import GymPerformancesTable from '../../../features/performances/GymPerformancesTable';
+import IssueStepRehearsal from '../../../features/issue/IssueStepRehearsal';
 import { readCachedTicketCards, writeCachedTicketCards } from './offlineCache';
 import Alert from '../../../components/ui/Alert';
 import { formatDateText } from '../../../utils/formatDateText';
@@ -109,6 +111,7 @@ type OwnIssueLimitTarget = {
 const ticketSnapshot = performancesSnapshot as TicketSnapshot;
 
 const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
+  const { route } = useLocation();
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const { config } = useEventConfig();
   const { saveTicketToCache } = useTicketStorage();
@@ -126,6 +129,10 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     return () => window.clearInterval(intervalId);
   }, []);
   const [issuedTicketNumber, setIssuedTicketNumber] = useState(0);
+  const [officialRehearsalIssueLimit, setOfficialRehearsalIssueLimit] =
+    useState<number | null>(null);
+  const [showPublicRehearsalDashboard, setShowPublicRehearsalDashboard] =
+    useState(true);
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketNotice, setTicketNotice] = useState<string | null>(null);
@@ -163,6 +170,9 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   >('open');
   const [gymInviteMode, setGymInviteMode] = useState<
     'open' | 'only-own' | 'off'
+  >('open');
+  const [rehearsalInviteMode, setRehearsalInviteMode] = useState<
+    'open' | 'public-rehearsals' | 'self-rehearsals' | 'off'
   >('open');
   const [ownClassName, setOwnClassName] = useState<string | null>(null);
   const [hasReachedIssueLimit, setHasReachedIssueLimit] = useState(false);
@@ -438,6 +448,30 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         schedules?: unknown[];
       };
       const controls = dashboard.controls;
+      const { data: officialRehearsalConfig } = await supabase
+        .from('configs')
+        .select(
+          'max_official_rehearsal_tickets_per_user, show_public_rehearsal_dashboard',
+        )
+        .order('id', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (
+        typeof officialRehearsalConfig?.max_official_rehearsal_tickets_per_user ===
+        'number'
+      ) {
+        setOfficialRehearsalIssueLimit(
+          officialRehearsalConfig.max_official_rehearsal_tickets_per_user,
+        );
+      }
+      if (
+        typeof officialRehearsalConfig?.show_public_rehearsal_dashboard ===
+        'boolean'
+      ) {
+        setShowPublicRehearsalDashboard(
+          officialRehearsalConfig.show_public_rehearsal_dashboard,
+        );
+      }
       if (dashboard.profile?.account_confirmed === false) {
         setIsAccountConfirmationModalOpen(true);
       }
@@ -461,6 +495,13 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       if (controls) {
         setClassInviteMode(controls.class_invite_mode ?? 'open');
         setGymInviteMode(controls.gym_invite_mode ?? 'open');
+        setRehearsalInviteMode(
+          controls.rehearsal_invite_mode === 'public-rehearsals' ||
+            controls.rehearsal_invite_mode === 'self-rehearsals' ||
+            controls.rehearsal_invite_mode === 'off'
+            ? controls.rehearsal_invite_mode
+            : 'open',
+        );
         setHasAnyActiveInviteTicketType(
           controls.class_invite_mode !== 'off' ||
             controls.rehearsal_invite_mode !== 'off' ||
@@ -593,7 +634,9 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       const { data: rehearsalData } = rehearsalIds.length
         ? await supabase
             .from('rehearsals')
-            .select('class_id, round_id, round_name, start_time, end_time')
+            .select(
+              'class_id, round_id, round_name, start_time, end_time, type',
+            )
             .in('class_id', rehearsalIds)
         : { data: [] };
       const rehearsalMap = new Map(
@@ -828,6 +871,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
                 })
               : scheduleTimes?.scheduleEndTime,
           rehearsalEndAt: rehearsal?.end_time ?? null,
+          isOfficialRehearsal: rehearsal?.type === 'official',
           ticketTypeLabel: decoded
             ? (ticketTypeMap.get(decoded.ticketTypeId) ??
               `券種${decoded.ticketTypeId}`)
@@ -991,6 +1035,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
               scheduleTime,
               scheduleEndTime,
               rehearsalEndAt: rehearsal?.end_time ?? null,
+              isOfficialRehearsal: rehearsal?.type === 'official',
               ticketTypeLabel: decoded
                 ? (ticketTypeMap.get(decoded.ticketTypeId) ??
                   `券種${decoded.ticketTypeId}`)
@@ -1063,6 +1108,21 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         return false;
       }),
     [ticketCardsWithLastOpenedAt, myAffiliation, currentTime],
+  );
+  const rehearsalTicketCounts = useMemo(
+    () => ({
+      official: ticketCards.filter(
+        (ticket) =>
+          ticket.ticketTypeLabel.includes('クラス公演(リハーサル)') &&
+          ticket.isOfficialRehearsal,
+      ).length,
+      unofficial: ticketCards.filter(
+        (ticket) =>
+          ticket.ticketTypeLabel.includes('クラス公演(リハーサル)') &&
+          !ticket.isOfficialRehearsal,
+      ).length,
+    }),
+    [ticketCards],
   );
 
   const handleLogout = async () => {
@@ -1192,7 +1252,9 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       <h1 className={subPageStyles.pageTitle}>ダッシュボード</h1>
       <Alert type='info'>
         <h3>リハーサル機能が追加されました!</h3>
-        <p>各クラス監督団に配布した、クラス用管理者ページから自主リハーサルを追加できます。非公式公開リハ等で整理券を使いたい時に活用してください。</p>
+        <p>
+          各クラス監督団に配布した、クラス用管理者ページから自主リハーサルを追加できます。非公式公開リハ等で整理券を使いたい時に活用してください。
+        </p>
         <p>※ 今年度は公開リハは整理券なしで行います。</p>
       </Alert>
       <section>
@@ -1274,6 +1336,25 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
               </p>
               <p className={styles.ticketSummaryLabel}>招待者用</p>
             </div>
+            <div className={styles.ticketSummaryItem}>
+              <p className={styles.ticketSummaryNumber}>
+                {rehearsalTicketCounts.unofficial}
+              </p>
+              <p className={styles.ticketSummaryLabel}>自主リハ</p>
+            </div>
+            <div className={styles.ticketSummaryItem}>
+              <p className={styles.ticketSummaryNumber}>
+                {rehearsalTicketCounts.official}
+                {officialRehearsalIssueLimit !== null && (
+                  <>
+                    <span className={styles.ticketSummaryUnit}>枚</span>/
+                    {officialRehearsalIssueLimit}
+                    <span className={styles.ticketSummaryUnit}>枚中</span>
+                  </>
+                )}
+              </p>
+              <p className={styles.ticketSummaryLabel}>公開リハ</p>
+            </div>
             {ownIssueLimitSummaries?.map((summary) => (
               <div className={styles.ticketSummaryItem} key={summary.label}>
                 <p className={styles.ticketSummaryNumber}>
@@ -1337,6 +1418,22 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           emptyMessage='招待者用のチケットはまだありません。'
         />
       </NormalSection>
+
+      {showPublicRehearsalDashboard && (
+          <IssueStepRehearsal
+            selectedPerformance={null}
+            onSelectPerformance={() => undefined}
+            inviteMode={rehearsalInviteMode}
+            dashboardMode
+            onOfficialCellClick={
+              rehearsalInviteMode === 'open' ||
+              rehearsalInviteMode === 'public-rehearsals'
+                ? () => route('/students/issue')
+                : undefined
+            }
+          />
+      )}
+
       <NormalSection>
         <h2>公演空き状況</h2>
         <a href='/performances' className={styles.smallButtonLink}>

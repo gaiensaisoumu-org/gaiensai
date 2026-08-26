@@ -111,6 +111,8 @@ type AdminAuthRequest = {
   maxTicketsPerOtherPerformanceUser?: unknown;
   classTicketLimitsById?: unknown;
   maxTicketsPerOtherClubUser?: unknown;
+  maxOfficialRehearsalTicketsPerUser?: unknown;
+  showPublicRehearsalDashboard?: unknown;
   gymTicketLimitsByClub?: unknown;
   maxTicketsPerJuniorUser?: unknown;
   juniorReleaseOpen?: unknown;
@@ -166,6 +168,14 @@ type AdminAuthRequest = {
   endAt?: unknown;
   roundName?: unknown;
   isActive?: unknown;
+  // 公開リハ管理
+  id?: unknown;
+  classId?: unknown;
+  startTime?: unknown;
+  endTime?: unknown;
+  capacity?: unknown;
+  roundNameId?: unknown;
+  sortOrder?: unknown;
 };
 
 const CAPACITY_SETTING_KEYS = [
@@ -203,6 +213,26 @@ type AdminAuthBody =
   | { mode: 'logoutSession' }
   | { mode: 'changePassword'; currentPassword: string; newPassword: string }
   | { mode: 'getSettings' }
+  | { mode: 'getOfficialRehearsals' }
+  | {
+      mode: 'saveRehearsalRoundName';
+      id?: number;
+      name: string;
+      sortOrder: number;
+      startTime: string;
+      endTime: string;
+    }
+  | { mode: 'deleteRehearsalRoundName'; id: number }
+  | {
+      mode: 'saveOfficialRehearsal';
+      id?: number;
+      classId: number;
+      roundName: string;
+      startTime: string;
+      endTime: string;
+      capacity: number;
+    }
+  | { mode: 'deleteOfficialRehearsal'; id: number }
   | { mode: 'triggerRedeploy' }
   | { mode: 'getTeachers' }
   | { mode: 'updateTeacher'; teacherId: number; name: string }
@@ -259,6 +289,8 @@ type AdminAuthBody =
       maxTicketsPerOtherPerformanceUser: number;
       classTicketLimitsById: Record<string, number>;
       maxTicketsPerOtherClubUser: number;
+      maxOfficialRehearsalTicketsPerUser: number;
+      showPublicRehearsalDashboard: boolean;
       gymTicketLimitsByClub: Record<string, number>;
       maxTicketsPerJuniorUser: number;
       maxAdmissionOnlyJuniorAccounts: number;
@@ -353,6 +385,8 @@ type AdminSettingsRow = {
   max_tickets_per_other_class_user: number;
   max_tickets_per_other_performance_user: number;
   max_tickets_per_other_club_user: number;
+  max_official_rehearsal_tickets_per_user: number;
+  show_public_rehearsal_dashboard: boolean;
   gym_ticket_limits_by_club: Record<string, number>;
   max_tickets_per_junior_user: number;
   max_admission_only_junior_accounts: number;
@@ -635,6 +669,84 @@ const parseBody = (body: unknown): AdminAuthBody => {
 
   if (action === 'getTeachers') {
     return { mode: 'getTeachers' };
+  }
+
+  if (action === 'getOfficialRehearsals') {
+    return { mode: 'getOfficialRehearsals' };
+  }
+  if (action === 'saveRehearsalRoundName') {
+    const values = body as AdminAuthRequest;
+    const name = typeof values.name === 'string' ? values.name.trim() : '';
+    if (
+      name.length === 0 ||
+      name.length > 100 ||
+      typeof values.startTime !== 'string' ||
+      typeof values.endTime !== 'string' ||
+      Number.isNaN(Date.parse(values.startTime)) ||
+      Number.isNaN(Date.parse(values.endTime)) ||
+      Date.parse(values.endTime) <= Date.parse(values.startTime)
+    ) {
+      throw new HttpError(400, '回名の入力内容が不正です。');
+    }
+    return {
+      mode: 'saveRehearsalRoundName',
+      id:
+        values.roundNameId === undefined || values.roundNameId === null
+          ? undefined
+          : normalizeInteger(values.roundNameId, 'roundNameId', 1, 32767),
+      name,
+      sortOrder: normalizeInteger(
+        values.sortOrder,
+        'sortOrder',
+        -1000000,
+        1000000,
+      ),
+      startTime: values.startTime,
+      endTime: values.endTime,
+    };
+  }
+  if (action === 'deleteRehearsalRoundName') {
+    return {
+      mode: 'deleteRehearsalRoundName',
+      id: normalizeInteger(
+        (body as AdminAuthRequest).roundNameId,
+        'roundNameId',
+        1,
+        32767,
+      ),
+    };
+  }
+  if (action === 'deleteOfficialRehearsal') {
+    return {
+      mode: 'deleteOfficialRehearsal',
+      id: normalizeInteger((body as AdminAuthRequest).id, 'id', 1, 32767),
+    };
+  }
+  if (action === 'saveOfficialRehearsal') {
+    const values = body as AdminAuthRequest;
+    const roundName =
+      typeof values.roundName === 'string' ? values.roundName.trim() : '';
+    if (
+      !roundName ||
+      typeof values.startTime !== 'string' ||
+      typeof values.endTime !== 'string' ||
+      Number.isNaN(Date.parse(values.startTime)) ||
+      Number.isNaN(Date.parse(values.endTime))
+    ) {
+      throw new HttpError(400, '公開リハの入力内容が不正です。');
+    }
+    return {
+      mode: 'saveOfficialRehearsal',
+      id:
+        values.id === undefined || values.id === null
+          ? undefined
+          : normalizeInteger(values.id, 'id', 1, 32767),
+      classId: normalizeInteger(values.classId, 'classId', 1, 32767),
+      roundName,
+      startTime: values.startTime,
+      endTime: values.endTime,
+      capacity: normalizeInteger(values.capacity, 'capacity', 1, 32767),
+    };
   }
 
   if (action === 'changePassword') {
@@ -1178,6 +1290,8 @@ const parseBody = (body: unknown): AdminAuthBody => {
       maxTicketsPerOtherPerformanceUser,
       classTicketLimitsById,
       maxTicketsPerOtherClubUser,
+      maxOfficialRehearsalTicketsPerUser,
+      showPublicRehearsalDashboard,
       gymTicketLimitsByClub,
       maxTicketsPerJuniorUser,
       juniorReleaseOpen,
@@ -1256,6 +1370,12 @@ const parseBody = (body: unknown): AdminAuthBody => {
     if (typeof maintenanceMode !== 'boolean') {
       throw new HttpError(400, 'maintenanceMode は真偽値で送信してください。');
     }
+    if (typeof showPublicRehearsalDashboard !== 'boolean') {
+      throw new HttpError(
+        400,
+        'showPublicRehearsalDashboard は真偽値で送信してください。',
+      );
+    }
     if (
       maintenanceEndsAt !== null &&
       (typeof maintenanceEndsAt !== 'string' ||
@@ -1292,6 +1412,13 @@ const parseBody = (body: unknown): AdminAuthBody => {
         1,
         100,
       ),
+      maxOfficialRehearsalTicketsPerUser: normalizeInteger(
+        maxOfficialRehearsalTicketsPerUser,
+        'maxOfficialRehearsalTicketsPerUser',
+        0,
+        100,
+      ),
+      showPublicRehearsalDashboard,
       gymTicketLimitsByClub: normalizeGymTicketLimitsByClub(
         gymTicketLimitsByClub,
       ),
@@ -1449,7 +1576,7 @@ const fetchAdminSettings = async (adminClient: SupabaseClient) => {
   const { data, error } = await adminClient
     .from('configs')
     .select(
-      'id, event_year, show_length, max_tickets_per_other_class_user, max_tickets_per_other_performance_user, max_tickets_per_other_club_user, gym_ticket_limits_by_club, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active, maintenance_mode, maintenance_ends_at',
+      'id, event_year, show_length, max_tickets_per_other_class_user, max_tickets_per_other_performance_user, max_tickets_per_other_club_user, max_official_rehearsal_tickets_per_user, show_public_rehearsal_dashboard, gym_ticket_limits_by_club, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active, maintenance_mode, maintenance_ends_at',
     )
     .limit(1);
 
@@ -2879,6 +3006,10 @@ Deno.serve(async (req) => {
             classTicketLimits: classLimits ?? [],
             maxTicketsPerOtherClubUser:
               settings.max_tickets_per_other_club_user,
+            maxOfficialRehearsalTicketsPerUser:
+              settings.max_official_rehearsal_tickets_per_user,
+            showPublicRehearsalDashboard:
+              settings.show_public_rehearsal_dashboard,
             gymTicketLimitsByClub: settings.gym_ticket_limits_by_club ?? {},
             maxTicketsPerJuniorUser: settings.max_tickets_per_junior_user,
             maxAdmissionOnlyJuniorAccounts:
@@ -2915,6 +3046,200 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (body.mode === 'getOfficialRehearsals') {
+      const session = await requireValidSession(adminClient, req);
+      const [rehearsalsResult, namesResult, classesResult] = await Promise.all([
+        adminClient
+          .from('rehearsals')
+          .select(
+            'id, class_id, round_id, round_name, start_time, end_time, capacity, is_active, active_ticket_count, class_performances(class_name, total_capacity)',
+          )
+          .eq('type', 'official')
+          .order('start_time'),
+        adminClient
+          .from('rehearsal_round_names')
+          .select('id, name, sort_order, start_time, end_time')
+          .order('sort_order'),
+        adminClient
+          .from('class_performances')
+          .select('id, class_name, total_capacity')
+          .order('class_name'),
+      ]);
+      if (rehearsalsResult.error || namesResult.error || classesResult.error) {
+        throw (
+          rehearsalsResult.error ?? namesResult.error ?? classesResult.error
+        );
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(
+        JSON.stringify({
+          rehearsals: rehearsalsResult.data,
+          roundNames: namesResult.data,
+          classes: classesResult.data,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    if (body.mode === 'saveOfficialRehearsal') {
+      const session = await requireValidSession(adminClient, req);
+      const rpc = body.id
+        ? 'update_official_rehearsal'
+        : 'create_official_rehearsal';
+      const args = body.id
+        ? {
+            p_id: body.id,
+            p_round_name: body.roundName,
+            p_start_time: body.startTime,
+            p_end_time: body.endTime,
+            p_capacity: body.capacity,
+          }
+        : {
+            p_class_id: body.classId,
+            p_round_name: body.roundName,
+            p_start_time: body.startTime,
+            p_end_time: body.endTime,
+            p_capacity: body.capacity,
+          };
+      const { error } = await adminClient.rpc(rpc, args);
+      if (error) {
+        throw new HttpError(400, error.message);
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ updated: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'saveRehearsalRoundName') {
+      const session = await requireValidSession(adminClient, req);
+      if (body.id) {
+        const { data: current, error: currentError } = await adminClient
+          .from('rehearsal_round_names')
+          .select('name')
+          .eq('id', body.id)
+          .single();
+        if (currentError || !current) {
+          throw new HttpError(404, '回名が見つかりません。');
+        }
+        if (current.name !== body.name) {
+          const { count, error: countError } = await adminClient
+            .from('rehearsals')
+            .select('id', { count: 'exact', head: true })
+            .eq('type', 'official')
+            .eq('round_name', current.name);
+          if (countError) {
+            throw countError;
+          }
+          if ((count ?? 0) > 0) {
+            throw new HttpError(
+              409,
+              '公開リハで使用中の回名は名称変更できません。表示順または日時のみ変更してください。',
+            );
+          }
+        }
+      }
+      const query = body.id
+        ? adminClient
+            .from('rehearsal_round_names')
+            .update({
+              name: body.name,
+              sort_order: body.sortOrder,
+              start_time: body.startTime,
+              end_time: body.endTime,
+            })
+            .eq('id', body.id)
+        : adminClient.from('rehearsal_round_names').insert({
+            name: body.name,
+            sort_order: body.sortOrder,
+            start_time: body.startTime,
+            end_time: body.endTime,
+          });
+      const { error } = await query;
+      if (error) {
+        throw new HttpError(400, error.message);
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ updated: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'deleteRehearsalRoundName') {
+      const session = await requireValidSession(adminClient, req);
+      const { count, error: countError } = await adminClient
+        .from('rehearsals')
+        .select('id', { count: 'exact', head: true })
+        .eq('type', 'official')
+        .eq(
+          'round_name',
+          (
+            await adminClient
+              .from('rehearsal_round_names')
+              .select('name')
+              .eq('id', body.id)
+              .single()
+          ).data?.name ?? '',
+        );
+      if (countError) {
+        throw countError;
+      }
+      if ((count ?? 0) > 0) {
+        throw new HttpError(
+          409,
+          '公開リハで使用中の回名は削除できません。使用不可に変更してください。',
+        );
+      }
+      const { error } = await adminClient
+        .from('rehearsal_round_names')
+        .delete()
+        .eq('id', body.id);
+      if (error) {
+        throw new HttpError(400, error.message);
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ deleted: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (body.mode === 'deleteOfficialRehearsal') {
+      const session = await requireValidSession(adminClient, req);
+      const { data, error } = await adminClient.rpc(
+        'delete_or_deactivate_official_rehearsal',
+        { p_id: body.id },
+      );
+      if (error) {
+        throw new HttpError(400, error.message);
+      }
+      await adminClient
+        .from('admin_sessions')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return new Response(JSON.stringify({ deactivated: data === true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (body.mode === 'updateSettings') {
       const session = await requireValidSession(adminClient, req);
       const currentSettings = await fetchAdminSettings(adminClient);
@@ -2928,6 +3253,9 @@ Deno.serve(async (req) => {
           max_tickets_per_other_performance_user:
             body.maxTicketsPerOtherPerformanceUser,
           max_tickets_per_other_club_user: body.maxTicketsPerOtherClubUser,
+          max_official_rehearsal_tickets_per_user:
+            body.maxOfficialRehearsalTicketsPerUser,
+          show_public_rehearsal_dashboard: body.showPublicRehearsalDashboard,
           gym_ticket_limits_by_club: body.gymTicketLimitsByClub,
           max_tickets_per_junior_user: body.maxTicketsPerJuniorUser,
           max_admission_only_junior_accounts:

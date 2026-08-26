@@ -19,6 +19,7 @@ export type TicketCardItem = {
   scheduleTime?: string;
   scheduleEndTime?: string;
   rehearsalEndAt?: string | null;
+  isOfficialRehearsal?: boolean;
   ticketTypeLabel: string;
   relationshipName: string;
   ticketName?: string | null;
@@ -192,12 +193,17 @@ export const compareTicketByRecentOpen = (
   return 0;
 };
 
-const ticketTypeMarkerClass = (ticketTypeLabel: string): string | null => {
+const ticketTypeMarkerClass = (
+  ticketTypeLabel: string,
+  isOfficialRehearsal?: boolean,
+): string | null => {
   if (ticketTypeLabel.includes('入場専用券')) {
     return styles.markerAdmissionOnly;
   }
   if (ticketTypeLabel.includes('クラス公演(リハーサル)')) {
-    return styles.markerRehearsal;
+    return isOfficialRehearsal
+      ? styles.markerOfficialRehearsal
+      : styles.markerRehearsal;
   }
   if (ticketTypeLabel.includes('クラス公演')) {
     return styles.markerClassSameDay;
@@ -365,7 +371,10 @@ const IssuedTicketCardList = ({
                 ? '入場専用券'
                 : ticket.performanceName;
               const isEditingName = editingTicketCode === ticket.code;
-              const markerClass = ticketTypeMarkerClass(ticket.ticketTypeLabel);
+              const markerClass = ticketTypeMarkerClass(
+                ticket.ticketTypeLabel,
+                ticket.isOfficialRehearsal,
+              );
 
               return (
                 <article

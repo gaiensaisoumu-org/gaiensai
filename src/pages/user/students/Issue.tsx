@@ -20,6 +20,7 @@ import BackButton from '../../../components/ui/BackButton';
 import { formatDateText } from '../../../utils/formatDateText';
 import { useEventConfig } from '../../../hooks/useEventConfig';
 import { formatTicketTypeLabel } from '../../../features/tickets/formatTicketTypeLabel';
+import { useTicketStorage } from '../../../features/tickets/useTicketStorage';
 import Alert from '../../../components/ui/Alert';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useTitle } from '../../../hooks/useTitle';
@@ -155,6 +156,10 @@ const Issue = () => {
     number | null
   >(null);
   const [issueCount, setIssueCount] = useState(1);
+  const [officialRehearsalIssueCount, setOfficialRehearsalIssueCount] =
+    useState(0);
+  const [officialRehearsalIssueLimit, setOfficialRehearsalIssueLimit] =
+    useState<number | null>(null);
   const [remainingIssueCapacity, setRemainingIssueCapacity] = useState<{
     class: number;
     gym: number;
@@ -194,8 +199,35 @@ const Issue = () => {
 
   const { route } = useLocation();
   const { config } = useEventConfig();
+  const { saveTicketToCache } = useTicketStorage();
 
   useTitle('チケット発券 - 生徒用ページ');
+
+  useEffect(() => {
+    void Promise.all([
+      supabase
+        .from('configs')
+        .select('max_official_rehearsal_tickets_per_user')
+        .order('id', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('student_rehearsal_issue_counters')
+        .select('issued_count')
+        .eq('rehearsal_type', 'official')
+        .maybeSingle(),
+    ]).then(([configResult, counterResult]) => {
+      if (
+        typeof configResult.data?.max_official_rehearsal_tickets_per_user ===
+        'number'
+      ) {
+        setOfficialRehearsalIssueLimit(
+          configResult.data.max_official_rehearsal_tickets_per_user,
+        );
+      }
+      setOfficialRehearsalIssueCount(counterResult.data?.issued_count ?? 0);
+    });
+  }, []);
 
   useEffect(() => {
     const loadPerformanceRemaining = async () => {
@@ -876,15 +908,22 @@ const Issue = () => {
           ? remainingIssueCapacity.class
           : null;
   const isAtClassIssueLimit =
+    !isRehearsalTicket &&
     remainingIssueCapacity !== null &&
     selectedPerformance?.performanceId === classRemainingPerformanceId &&
     remainingIssueCapacity.class <= 0;
   const isAtGymIssueLimit =
+    !isRehearsalTicket &&
     isGymPerformanceTicket &&
     selectedPerformance?.performanceId !== undefined &&
     (gymRemainingByPerformanceId.get(selectedPerformance.performanceId) ?? 1) <=
       0;
   const isAtAllIssueLimits = isAtClassIssueLimit && isAtGymIssueLimit;
+  const isOfficialRehearsalLimitReached =
+    isRehearsalTicket &&
+    selectedPerformance?.isOfficialRehearsal === true &&
+    officialRehearsalIssueLimit !== null &&
+    officialRehearsalIssueCount >= officialRehearsalIssueLimit;
   const reachedClassNames = [...classRemainingByPerformanceId]
     .filter(([, remaining]) => remaining <= 0)
     .map(([id]) => classPerformanceNames.get(id))
@@ -1111,7 +1150,6 @@ const Issue = () => {
         .select('start_time,end_time')
         .eq('class_id', selectedPerformance.performanceId)
         .eq('round_id', selectedPerformance.scheduleId)
-        .eq('type', 'unofficial')
         .maybeSingle();
       const startAt = rehearsal.data?.start_time
         ? new Date(rehearsal.data.start_time)
@@ -1230,27 +1268,48 @@ const Issue = () => {
       return;
     }
 
+    const resultPayload = {
+      performanceName:
+        selectedPerformance.performanceId === 0 &&
+        selectedPerformance.scheduleId === 0
+          ? ADMISSION_ONLY_TICKET_NAME
+          : selectedPerformance.performanceName,
+      performanceTitle:
+        performanceTitle?.title ?? selectedPerformance.performanceTitle ?? null,
+      scheduleName: selectedPerformance.scheduleName,
+      scheduleDate,
+      scheduleTime,
+      scheduleEndTime,
+      isOfficialRehearsal: selectedPerformance.isOfficialRehearsal ?? false,
+      ticketTypeLabel: formatTicketTypeLabel({
+        type: selectedTicketType.type,
+        name: selectedTicketType.name,
+      }),
+      relationshipName: selectedRelationshipName ?? '-',
+      relationshipId: selectedRelationshipId ?? 1,
+      issuedTickets,
+    };
+
+    // 発券直後にチケットを開いても、公演名を含む選択時の情報を表示できるようにする。
+    await Promise.all(
+      issuedTickets.map((ticket) =>
+        saveTicketToCache(ticket.code, ticket.signature, {
+          performanceName: resultPayload.performanceName,
+          performanceTitle: resultPayload.performanceTitle,
+          scheduleName: resultPayload.scheduleName,
+          scheduleDate: resultPayload.scheduleDate,
+          scheduleTime: resultPayload.scheduleTime,
+          scheduleEndTime: resultPayload.scheduleEndTime,
+          isOfficialRehearsal: resultPayload.isOfficialRehearsal,
+          ticketTypeLabel: resultPayload.ticketTypeLabel,
+          relationshipName: resultPayload.relationshipName,
+          relationshipId: resultPayload.relationshipId,
+        }),
+      ),
+    );
     window.sessionStorage.setItem(
       ISSUE_RESULT_STORAGE_KEY,
-      JSON.stringify({
-        performanceName:
-          selectedPerformance.performanceId === 0 &&
-          selectedPerformance.scheduleId === 0
-            ? ADMISSION_ONLY_TICKET_NAME
-            : selectedPerformance.performanceName,
-        performanceTitle: performanceTitle?.title,
-        scheduleName: selectedPerformance.scheduleName,
-        scheduleDate,
-        scheduleTime,
-        scheduleEndTime,
-        ticketTypeLabel: formatTicketTypeLabel({
-          type: selectedTicketType.type,
-          name: selectedTicketType.name,
-        }),
-        relationshipName: selectedRelationshipName ?? '-',
-        relationshipId: selectedRelationshipId ?? 1,
-        issuedTickets,
-      }),
+      JSON.stringify(resultPayload),
     );
     setIssueCount(1);
     setSelectedRelationshipId(null);
@@ -1335,6 +1394,13 @@ const Issue = () => {
           </p>
         </Alert>
       )}
+      {isOfficialRehearsalLimitReached && (
+        <Alert type='info' className={styles.onlyOwnClassAlert}>
+          <p>
+            公開リハのチケット発行上限に達しています。不要な公開リハのチケットをキャンセルすると、再度発券できます。
+          </p>
+        </Alert>
+      )}
       {!isRehearsalTicket &&
         selectedPerformance &&
         selectedPerformance.performanceId > 0 &&
@@ -1348,7 +1414,8 @@ const Issue = () => {
             </p>
           </Alert>
         )}
-      {selectedPerformance &&
+      {!isRehearsalTicket &&
+        selectedPerformance &&
         selectedPerformance.performanceId > 0 &&
         selectedPerformance.scheduleId === 0 &&
         gymRemainingByPerformanceId.has(selectedPerformance.performanceId) && (
@@ -1377,6 +1444,7 @@ const Issue = () => {
             <IssueStepRehearsal
               selectedPerformance={selectedPerformance}
               onSelectPerformance={setSelectedPerformance}
+              inviteMode={issueControls?.rehearsal_invite_mode ?? 'off'}
             />
           ) : (
             <IssueStepPerformance
@@ -1516,7 +1584,8 @@ const Issue = () => {
                 isIssuing ||
                 !isTicketIssuingEnabled ||
                 isAtIssueLimit ||
-                isOverRemainingIssueCapacity
+                isOverRemainingIssueCapacity ||
+                isOfficialRehearsalLimitReached
               }
               style={step !== 3 ? { display: 'none' } : undefined}
             >

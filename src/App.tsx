@@ -19,6 +19,7 @@ import {
   Pamphlet,
   Info,
   Settings,
+  PublicRehearsals,
   Status,
   TicketManagement,
   AdminTicketIssue,
@@ -157,6 +158,7 @@ const AdminPageLayout = () => (
         <Route path='/register' component={Register} />
         <Route path='/history' component={ScanHistory} />
         <Route path='settings' component={Settings} />
+        <Route path='/public-rehearsals' component={PublicRehearsals} />
         <Route path='/status' component={Status} />
         <Route path='/tickets' component={TicketManagement} />
         <Route path='/tickets/issue' component={AdminTicketIssue} />
