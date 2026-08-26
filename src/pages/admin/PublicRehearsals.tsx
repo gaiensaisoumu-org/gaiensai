@@ -31,8 +31,35 @@ type RoundName = {
   start_time: string | null;
   end_time: string | null;
 };
-const localValue = (value: string) =>
-  new Date(value).toISOString().slice(0, 16);
+const jstDateTimeFormatter = new Intl.DateTimeFormat('ja-JP', {
+  timeZone: 'Asia/Tokyo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+const jstTimeFormatter = new Intl.DateTimeFormat('ja-JP', {
+  timeZone: 'Asia/Tokyo',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+const jstInputValue = (value: string) => {
+  const parts = Object.fromEntries(
+    jstDateTimeFormatter
+      .formatToParts(new Date(value))
+      .filter(({ type }) => type !== 'literal')
+      .map(({ type, value: partValue }) => [type, partValue]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+};
+const formatJstDateTime = (value: string | Date) =>
+  jstDateTimeFormatter.format(new Date(value));
+const formatJstTime = (value: string | Date) =>
+  jstTimeFormatter.format(new Date(value));
+const inputValueAsJstDate = (value: string) => new Date(`${value}:00+09:00`);
 
 export default function PublicRehearsals() {
   useTitle('公開リハ管理');
@@ -99,8 +126,10 @@ export default function PublicRehearsals() {
   const selectRoundName = (value: string) => {
     setRoundName(value);
     const selected = names.find((item) => item.name === value);
-    setStartTime(selected?.start_time ? localValue(selected.start_time) : '');
-    setEndTime(selected?.end_time ? localValue(selected.end_time) : '');
+    setStartTime(
+      selected?.start_time ? jstInputValue(selected.start_time) : '',
+    );
+    setEndTime(selected?.end_time ? jstInputValue(selected.end_time) : '');
   };
   const save = async (event: Event) => {
     event.preventDefault();
@@ -134,8 +163,8 @@ export default function PublicRehearsals() {
     setEditing(row.id);
     setClassId(String(row.class_id));
     setRoundName(row.round_name);
-    setStartTime(localValue(row.start_time));
-    setEndTime(localValue(row.end_time));
+    setStartTime(jstInputValue(row.start_time));
+    setEndTime(jstInputValue(row.end_time));
     setCapacity(String(row.capacity));
   };
   const remove = async (id: number) => {
@@ -193,8 +222,8 @@ export default function PublicRehearsals() {
     setRoundNameId(item.id);
     setRoundNameDraft(item.name);
     setSortOrderDraft(String(item.sort_order));
-    setRoundStartDraft(item.start_time ? localValue(item.start_time) : '');
-    setRoundEndDraft(item.end_time ? localValue(item.end_time) : '');
+    setRoundStartDraft(item.start_time ? jstInputValue(item.start_time) : '');
+    setRoundEndDraft(item.end_time ? jstInputValue(item.end_time) : '');
   };
   const deleteRoundName = async (id: number) => {
     if (!confirm('この回名を削除しますか？')) {
@@ -300,11 +329,11 @@ export default function PublicRehearsals() {
                   <td>{item.sort_order}</td>
                   <td>
                     {item.start_time
-                      ? new Date(item.start_time).toLocaleString('ja-JP')
+                      ? formatJstDateTime(item.start_time)
                       : '開始未設定'}{' '}
                     ─{' '}
                     {item.end_time
-                      ? new Date(item.end_time).toLocaleTimeString('ja-JP')
+                      ? formatJstTime(item.end_time)
                       : '終了未設定'}
                   </td>
                   <td>
@@ -377,9 +406,9 @@ export default function PublicRehearsals() {
             <p className={`${styles.fullWidth} ${styles.hint}`}>
               日時:{' '}
               {startTime
-                ? new Date(startTime).toLocaleString('ja-JP')
+                ? formatJstDateTime(inputValueAsJstDate(startTime))
                 : '回名を選択してください'}
-              {endTime && ` ─ ${new Date(endTime).toLocaleTimeString('ja-JP')}`}
+              {endTime && ` ─ ${formatJstTime(inputValueAsJstDate(endTime))}`}
             </p>
             <label>
               定員
@@ -428,8 +457,8 @@ export default function PublicRehearsals() {
                     <td>{row.class_performances?.class_name ?? '-'}</td>
                     <td>{row.round_name}</td>
                     <td>
-                      {new Date(row.start_time).toLocaleString('ja-JP')} ─{' '}
-                      {new Date(row.end_time).toLocaleTimeString('ja-JP')}
+                      {formatJstDateTime(row.start_time)} ─{' '}
+                      {formatJstTime(row.end_time)}
                     </td>
                     <td>{row.capacity}</td>
                     <td>{row.active_ticket_count}</td>
@@ -593,9 +622,10 @@ export default function PublicRehearsals() {
               </label>
               <p className={`${styles.fullWidth} ${styles.hint}`}>
                 日時:{' '}
-                {startTime ? new Date(startTime).toLocaleString('ja-JP') : '-'}
-                {endTime &&
-                  ` ─ ${new Date(endTime).toLocaleTimeString('ja-JP')}`}
+                {startTime
+                  ? formatJstDateTime(inputValueAsJstDate(startTime))
+                  : '-'}
+                {endTime && ` ─ ${formatJstTime(inputValueAsJstDate(endTime))}`}
               </p>
               <label>
                 定員
