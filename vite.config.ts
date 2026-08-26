@@ -118,7 +118,7 @@ const pwaManifestDisplay = pwaDisplayOptions.includes(
 export default defineConfig({
   server: {
     proxy: {
-      '/api/performance-availability': {
+      '/performances-availability': {
         target:
           process.env.VITE_PERFORMANCE_AVAILABILITY_DEV_ORIGIN ??
           'http://localhost:8787',

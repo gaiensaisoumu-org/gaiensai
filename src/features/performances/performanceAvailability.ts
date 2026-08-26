@@ -33,7 +33,9 @@ let publicRefreshTimer: number | null = null;
 
 const getPublicAvailabilityUrl = () =>
   import.meta.env.VITE_PERFORMANCE_AVAILABILITY_API_URL ||
-  '/api/performance-availability';
+  (import.meta.env.DEV
+    ? '/performances-availability'
+    : 'https://api.gaiensai.com/performances-availability');
 
 const fetchPublicAvailability = async (): Promise<AvailabilityResponse> => {
   const response = await fetch(getPublicAvailabilityUrl(), {

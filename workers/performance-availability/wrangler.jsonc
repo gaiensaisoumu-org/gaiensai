@@ -19,13 +19,9 @@
   ],
   "routes": [
     {
-      "pattern": "gaiensai.com/api/performance-availability*",
+      "pattern": "api.gaiensai.com/performances-availability*",
       "zone_name": "gaiensai.com",
-    },
-    {
-      "pattern": "*.gaiensai.com/api/performance-availability*",
-      "zone_name": "*.gaiensai.com",
-    },
+    }
   ],
 
   "observability": {

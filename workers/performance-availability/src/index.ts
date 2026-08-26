@@ -59,7 +59,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    if (url.pathname !== '/api/performance-availability') {
+    if (url.pathname !== '/performances-availability') {
       return new Response('Not Found', { status: 404 });
     }
 

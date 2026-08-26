@@ -1,14 +1,14 @@
 # Performance availability Worker
 
-This Worker exposes `GET /api/performance-availability`. Its Durable Object is
+This Worker exposes `GET https://api.gaiensai.com/performances-availability`.
+Its Durable Object is
 the single Cloudflare-side Supabase Realtime subscriber and stores the latest
 result of the existing public `get_performance_availability` RPC.
 
 ## Deploy
 
-1. Configure the Worker route `/api/performance-availability` on the host
-   serving the frontend in the Cloudflare dashboard (or add that route to
-   `wrangler.jsonc`).
+1. Ensure `api.gaiensai.com` is a proxied DNS record in the `gaiensai.com`
+   Cloudflare zone. The Worker route is configured in `wrangler.jsonc`.
 2. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` as Worker secrets. The current
    RPC is public, so a service-role key is neither needed nor accepted here.
 3. Deploy with `npx wrangler deploy --config workers/performance-availability/wrangler.jsonc`.
