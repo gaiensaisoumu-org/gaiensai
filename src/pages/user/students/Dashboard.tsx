@@ -133,8 +133,10 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     useState<number | null>(null);
   const [showPublicRehearsalDashboard, setShowPublicRehearsalDashboard] =
     useState(true);
-  const [showUnofficialRehearsalDashboard, setShowUnofficialRehearsalDashboard] =
-    useState(true);
+  const [
+    showUnofficialRehearsalDashboard,
+    setShowUnofficialRehearsalDashboard,
+  ] = useState(true);
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketNotice, setTicketNotice] = useState<string | null>(null);
@@ -470,7 +472,10 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           officialRehearsalConfig.max_official_rehearsal_tickets_per_user,
         );
       }
-      if (typeof officialRehearsalConfig?.show_unofficial_rehearsal_dashboard === 'boolean') {
+      if (
+        typeof officialRehearsalConfig?.show_unofficial_rehearsal_dashboard ===
+        'boolean'
+      ) {
         setShowUnofficialRehearsalDashboard(
           officialRehearsalConfig.show_unofficial_rehearsal_dashboard,
         );
@@ -507,7 +512,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         setClassInviteMode(controls.class_invite_mode ?? 'open');
         setGymInviteMode(controls.gym_invite_mode ?? 'open');
         setRehearsalInviteMode(
-            controls.rehearsal_invite_mode === 'public-rehearsals' ||
+          controls.rehearsal_invite_mode === 'public-rehearsals' ||
             controls.rehearsal_invite_mode === 'self-rehearsals' ||
             controls.rehearsal_invite_mode === 'self-rehearsals-list-only' ||
             controls.rehearsal_invite_mode === 'off'
@@ -1439,19 +1444,25 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
           dashboardMode
           showOfficialSchedule={showPublicRehearsalDashboard}
           showUnofficialSchedule={showUnofficialRehearsalDashboard}
-            onOfficialCellClick={
-              rehearsalInviteMode === 'open' ||
-              rehearsalInviteMode === 'public-rehearsals'
-                ? () => route('/students/issue')
-                : undefined
-            }
-            onUnofficialRowClick={
-              rehearsalInviteMode === 'open' ||
-              rehearsalInviteMode === 'self-rehearsals'
-                ? () => route('/students/issue')
-                : undefined
-            }
-          />
+          onOfficialCellClick={
+            rehearsalInviteMode === 'open' ||
+            rehearsalInviteMode === 'public-rehearsals'
+              ? (row) =>
+                  route(
+                    `/students/issue?venue=rehearsal&performanceId=${row.class_id}&scheduleId=${row.round_id}`,
+                  )
+              : undefined
+          }
+          onUnofficialRowClick={
+            rehearsalInviteMode === 'open' ||
+            rehearsalInviteMode === 'self-rehearsals'
+              ? (row) =>
+                  route(
+                    `/students/issue?venue=rehearsal&performanceId=${row.class_id}&scheduleId=${row.round_id}`,
+                  )
+              : undefined
+          }
+        />
       )}
 
       <NormalSection>

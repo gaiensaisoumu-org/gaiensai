@@ -60,8 +60,8 @@ export default function IssueStepRehearsal({
   dashboardMode?: boolean;
   showOfficialSchedule?: boolean;
   showUnofficialSchedule?: boolean;
-  onOfficialCellClick?: () => void;
-  onUnofficialRowClick?: () => void;
+  onOfficialCellClick?: (row: Row) => void;
+  onUnofficialRowClick?: (row: Row) => void;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [roundNames, setRoundNames] = useState<string[]>([]);
@@ -253,7 +253,7 @@ export default function IssueStepRehearsal({
                             aria-pressed={isSelected}
                             onClick={() => {
                               if (dashboardMode) {
-                                onOfficialCellClick?.();
+                                onOfficialCellClick?.(row);
                                 return;
                               }
                               onSelectPerformance({
@@ -372,7 +372,7 @@ export default function IssueStepRehearsal({
                   aria-pressed={isSelected}
                   onClick={() => {
                     if (dashboardMode) {
-                      onUnofficialRowClick?.();
+                      onUnofficialRowClick?.(row);
                       return;
                     }
                     onSelectPerformance({

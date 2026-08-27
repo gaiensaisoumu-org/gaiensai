@@ -596,6 +596,65 @@ const Issue = () => {
         return picked?.id ?? null;
       };
 
+      if (venue === 'rehearsal') {
+        if (
+          !Number.isInteger(performanceId) ||
+          !Number.isInteger(scheduleId) ||
+          performanceId <= 0 ||
+          scheduleId <= 0
+        ) {
+          return;
+        }
+        const { data: rehearsal, error } = await supabase
+          .from('rehearsals')
+          .select(
+            'class_id, round_id, round_name, capacity, active_ticket_count, type, is_active, is_ticket_accepting',
+          )
+          .eq('class_id', performanceId)
+          .eq('round_id', scheduleId)
+          .maybeSingle();
+        if (
+          error ||
+          !rehearsal ||
+          !rehearsal.is_active ||
+          rehearsal.is_ticket_accepting === false ||
+          rehearsal.active_ticket_count >= rehearsal.capacity
+        ) {
+          return;
+        }
+        const { data: classPerformance, error: classPerformanceError } =
+          await supabase
+            .from('class_performances')
+            .select('class_name, title')
+            .eq('id', rehearsal.class_id)
+            .maybeSingle();
+        if (classPerformanceError || !classPerformance) {
+          return;
+        }
+        const rehearsalTicketType = ticketTypes.find(
+          (ticketType) => ticketType.name === 'クラス公演(リハーサル)',
+        );
+        if (!rehearsalTicketType) {
+          return;
+        }
+        setSelectedTicketTypeId(rehearsalTicketType.id);
+        setSelectedPerformance({
+          performanceId: rehearsal.class_id,
+          performanceName: classPerformance.class_name,
+          performanceTitle: classPerformance.title,
+          scheduleId: rehearsal.round_id,
+          scheduleName: rehearsal.round_name,
+          remaining: Math.max(
+            rehearsal.capacity - rehearsal.active_ticket_count,
+            0,
+          ),
+          isOfficialRehearsal: rehearsal.type === 'official',
+        });
+        setStep(3);
+        setIsInitializing(false);
+        return;
+      }
+
       if (venue === 'gym') {
         if (!Number.isInteger(performanceId) || performanceId <= 0) {
           return;
