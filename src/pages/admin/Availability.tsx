@@ -66,6 +66,7 @@ const Availability = () => {
             <a href='https://gaiensai.com/availability'>
               https://gaiensai.com/availability
             </a>
+            <p>または「<strong>外苑祭 空き状況」</strong>と検索</p>
           </div>
           <QRCode
             value='https://gaiensai.com/availability'
