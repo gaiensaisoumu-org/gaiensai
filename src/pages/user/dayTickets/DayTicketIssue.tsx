@@ -8,6 +8,7 @@ import {
   type IssueResultPayload,
 } from '../../../features/issue/issueResultStorage';
 import { supabase } from '../../../lib/supabase';
+import { getCachedAppData } from '../../../features/cache/appData';
 import performancesSnapshot from '../../../generated/performances-static.json';
 import type {
   SelectedPerformance,
@@ -130,12 +131,8 @@ const DayTicketIssue = () => {
 
   useEffect(() => {
     const loadIssuingState = async () => {
-      const { data } = await supabase
-        .from('configs')
-        .select('is_active')
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      const { configs } = await getCachedAppData();
+      const data = configs[0] as { is_active?: boolean } | undefined;
 
       if (typeof data?.is_active === 'boolean') {
         setIsTicketIssuingEnabled(data.is_active);
@@ -147,15 +144,13 @@ const DayTicketIssue = () => {
 
   useEffect(() => {
     const loadIssueControls = async () => {
-      const { data, error } = await supabase
-        .from('ticket_issue_controls')
-        .select('same_day_class_mode, same_day_gym_mode')
-        .eq('id', 1)
-        .maybeSingle();
-
-      if (error) {
-        return;
-      }
+      const { ticket_issue_controls } = await getCachedAppData();
+      const data = ticket_issue_controls[0] as
+        | {
+            same_day_class_mode: 'open' | 'auto' | 'off';
+            same_day_gym_mode: 'open' | 'auto' | 'off';
+          }
+        | undefined;
 
       if (data) {
         setIssueControls(data);

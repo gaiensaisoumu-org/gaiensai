@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import NormalSection from '../../components/ui/NormalSection';
 import { supabase } from '../../lib/supabase';
+import { getCachedAppData } from '../cache/appData';
 import type { SelectedPerformance } from '../../types/Issue.types';
 import styles from '../../pages/user/students/Issue.module.css';
 
@@ -18,6 +19,7 @@ type Row = {
   end_time: string;
   capacity: number;
   active_ticket_count: number;
+  is_active: boolean;
   type: 'official' | 'unofficial';
   is_ticket_accepting: boolean;
 };
@@ -69,23 +71,25 @@ export default function IssueStepRehearsal({
   const officialTableWrapperRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     void Promise.all([
-      supabase
-        .from('rehearsals')
-        .select('*, class_performances(class_name, title)')
-        .eq('is_active', true),
-      supabase.from('rehearsal_round_names').select('name').order('sort_order'),
+      getCachedAppData(),
       supabase
         .from('student_rehearsal_issue_counters')
         .select('rehearsal_type, issued_count'),
-    ]).then(([rehearsalResult, namesResult]) => {
+    ]).then(([appData]) => {
       setRows(
-        ((rehearsalResult.data ?? []) as RehearsalRow[]).map((row) => ({
-          ...row,
-          class_name: row.class_performances?.class_name ?? '未設定クラス',
-          performance_title: row.class_performances?.title ?? null,
-        })),
+        (appData.rehearsals as unknown as RehearsalRow[])
+          .filter((row) => row.is_active)
+          .map((row) => ({
+            ...row,
+            class_name: row.class_performances?.class_name ?? '未設定クラス',
+            performance_title: row.class_performances?.title ?? null,
+          })),
       );
-      setRoundNames((namesResult.data ?? []).map((item) => item.name));
+      setRoundNames(
+        (appData.rehearsal_round_names as Array<{ name: string }>).map(
+          (item) => item.name,
+        ),
+      );
     });
   }, []);
   const [now] = useState(() => new Date().getTime());

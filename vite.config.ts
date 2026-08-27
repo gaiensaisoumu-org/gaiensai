@@ -124,6 +124,11 @@ export default defineConfig({
           'http://localhost:8787',
         changeOrigin: true,
       },
+      '/app-data-cache': {
+        target:
+          process.env.VITE_APP_DATA_CACHE_DEV_ORIGIN ?? 'http://localhost:8787',
+        changeOrigin: true,
+      },
     },
   },
   plugins: [

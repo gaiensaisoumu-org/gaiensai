@@ -5,6 +5,10 @@ import Alert from '../../components/ui/Alert.tsx';
 import QRCode from '../../components/ui/QRCode.tsx';
 import { useEventConfig } from '../../hooks/useEventConfig.ts';
 import { supabase } from '../../lib/supabase.ts';
+import {
+  getCachedAppData,
+  getCachedTicketStatus,
+} from '../../features/cache/appData.ts';
 import performancesSnapshot from '../../generated/performances-static.json';
 import {
   listTicketDisplayCache,
@@ -77,6 +81,7 @@ type TicketValidityCheckResult = {
 type SnapshotPerformance = {
   id: number;
   class_name: string;
+  title?: string | null;
 };
 
 type SnapshotGymPerformance = {
@@ -96,10 +101,21 @@ type SnapshotSchedule = {
 type SnapshotNamedMaster = {
   id: number;
   name: string;
+  is_accepting?: boolean | null;
 };
 
 type SnapshotTicketType = SnapshotNamedMaster & {
   type?: string | null;
+};
+
+type SnapshotRehearsal = {
+  class_id: number;
+  round_id: number;
+  round_name: string;
+  start_time: string | null;
+  end_time: string | null;
+  is_active: boolean;
+  type: 'official' | 'unofficial';
 };
 
 type RelationshipOption = {
@@ -114,6 +130,7 @@ type TicketSnapshot = {
   schedules: SnapshotSchedule[];
   ticketTypes?: SnapshotTicketType[];
   relationships?: SnapshotNamedMaster[];
+  rehearsals?: SnapshotRehearsal[];
   showLengthMinutes?: number | null;
 };
 
@@ -163,13 +180,10 @@ const checkTicketValidity = async (
     };
   }
 
-  const { data, error } = await supabase
-    .from('tickets')
-    .select('status, ticket_name')
-    .eq('code', code)
-    .maybeSingle();
-
-  if (error) {
+  let data: { status: string; ticket_name: string | null } | null;
+  try {
+    data = await getCachedTicketStatus(code);
+  } catch {
     return {
       status: 'unknown',
       ticketName: null,
@@ -476,12 +490,17 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               verifyTicketSignature(code, signature),
               checkTicketValidity(code),
               isCachedRehearsalTicket
-                ? supabase
-                    .from('rehearsals')
-                    .select('round_name, start_time, end_time, is_active, type')
-                    .eq('class_id', decoded.performanceId)
-                    .eq('round_id', decoded.scheduleId)
-                    .maybeSingle()
+                ? getCachedAppData().then((appData) => ({
+                    data:
+                      (
+                        appData.rehearsals as unknown as SnapshotRehearsal[]
+                      ).find(
+                        (rehearsal) =>
+                          rehearsal.class_id === decoded.performanceId &&
+                          rehearsal.round_id === decoded.scheduleId,
+                      ) ?? null,
+                    error: null,
+                  }))
                 : Promise.resolve({ data: null, error: null }),
             ]);
 
@@ -739,21 +758,26 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               decoded.relationshipId,
             );
             const [ticketTypeRes, relationshipRes] = await Promise.all([
-              supabase
-                .from('ticket_types')
-                .select('name')
-                .eq('id', decoded.ticketTypeId)
-                .maybeSingle(),
+              Promise.resolve({
+                data:
+                  (ticketSnapshot.ticketTypes ?? []).find(
+                    (ticketType) => ticketType.id === decoded.ticketTypeId,
+                  ) ?? null,
+                error: null,
+              }),
               juniorRelationshipName !== null
                 ? Promise.resolve({
                     data: { name: juniorRelationshipName },
                     error: null,
                   })
-                : supabase
-                    .from('relationships')
-                    .select('name')
-                    .eq('id', decoded.relationshipId)
-                    .maybeSingle(),
+                : Promise.resolve({
+                    data:
+                      (ticketSnapshot.relationships ?? []).find(
+                        (relationship) =>
+                          relationship.id === decoded.relationshipId,
+                      ) ?? null,
+                    error: null,
+                  }),
             ]);
 
             if (
@@ -803,11 +827,13 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               gymPerformanceRes,
               configRes,
             ] = await Promise.all([
-              supabase
-                .from('ticket_types')
-                .select('name')
-                .eq('id', decoded.ticketTypeId)
-                .maybeSingle(),
+              Promise.resolve({
+                data:
+                  (ticketSnapshot.ticketTypes ?? []).find(
+                    (ticketType) => ticketType.id === decoded.ticketTypeId,
+                  ) ?? null,
+                error: null,
+              }),
               (() => {
                 const juniorRelationshipName = resolveJuniorRelationshipName(
                   decoded.ticketTypeId,
@@ -819,41 +845,52 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
                     error: null,
                   });
                 }
-                return supabase
-                  .from('relationships')
-                  .select('name')
-                  .eq('id', decoded.relationshipId)
-                  .maybeSingle();
+                return Promise.resolve({
+                  data:
+                    (ticketSnapshot.relationships ?? []).find(
+                      (relationship) =>
+                        relationship.id === decoded.relationshipId,
+                    ) ?? null,
+                  error: null,
+                });
               })(),
-              supabase
-                .from('class_performances')
-                .select('class_name, title')
-                .eq('id', decoded.performanceId)
-                .maybeSingle(),
-              supabase
-                .from('performances_schedule')
-                .select('round_name, start_at')
-                .eq('id', decoded.scheduleId)
-                .maybeSingle(),
-              supabase
-                .from('rehearsals')
-                .select('round_name, start_time, end_time, is_active, type')
-                .eq('class_id', decoded.performanceId)
-                .eq('round_id', decoded.scheduleId)
-                .maybeSingle(),
+              Promise.resolve({
+                data:
+                  ticketSnapshot.performances.find(
+                    (performance) => performance.id === decoded.performanceId,
+                  ) ?? null,
+                error: null,
+              }),
+              Promise.resolve({
+                data:
+                  ticketSnapshot.schedules.find(
+                    (schedule) => schedule.id === decoded.scheduleId,
+                  ) ?? null,
+                error: null,
+              }),
+              Promise.resolve({
+                data:
+                  (ticketSnapshot.rehearsals ?? []).find(
+                    (rehearsal) =>
+                      rehearsal.class_id === decoded.performanceId &&
+                      rehearsal.round_id === decoded.scheduleId,
+                  ) ?? null,
+                error: null,
+              }),
               isGymPerformance
-                ? supabase
-                    .from('gym_performances')
-                    .select('group_name, round_name, start_at, end_at')
-                    .eq('id', decoded.performanceId)
-                    .maybeSingle()
+                ? Promise.resolve({
+                    data:
+                      (ticketSnapshot.gymPerformances ?? []).find(
+                        (performance) =>
+                          performance.id === decoded.performanceId,
+                      ) ?? null,
+                    error: null,
+                  })
                 : { data: null, error: null },
-              supabase
-                .from('configs')
-                .select('show_length')
-                .order('id', { ascending: true })
-                .limit(1)
-                .maybeSingle(),
+              Promise.resolve({
+                data: { show_length: ticketSnapshot.showLengthMinutes },
+                error: null,
+              }),
             ]);
 
             const isRehearsalTicket =
@@ -886,7 +923,7 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
               return;
             }
 
-            // Supabaseから取得した詳細情報を処理
+            // ビルド時に生成した静的スナップショットの詳細情報を処理
             const updatedPerformanceName = isResolvedGymPerformance
               ? (gymPerformanceRes.data?.group_name ?? '-')
               : (classPerformanceRes.data?.class_name ?? '-');
@@ -1008,19 +1045,9 @@ const Ticket = (props: RoutePropsForPath<'/t/:id'>) => {
       setRelationshipLoading(true);
       setRelationshipError(null);
 
-      const { data, error } = await supabase
-        .from('relationships')
-        .select('id, name')
-        .eq('is_accepting', true)
-        .order('id', { ascending: true });
-
-      if (error) {
-        setRelationshipError('間柄の取得に失敗しました。');
-        setRelationshipLoading(false);
-        return;
-      }
-
-      let options = (data ?? []) as RelationshipOption[];
+      let options = (ticketSnapshot.relationships ?? []).filter(
+        (relationship) => relationship.is_accepting !== false,
+      ) as RelationshipOption[];
       // 中学生チケットの場合、選択可能な間柄を特定の3つに制限する
       if (isJuniorTicket) {
         options = [

@@ -9,6 +9,10 @@
         "name": "PERFORMANCE_AVAILABILITY",
         "class_name": "PerformanceAvailabilityDurableObject",
       },
+      {
+        "name": "APP_DATA_CACHE",
+        "class_name": "AppDataCacheDurableObject",
+      },
     ],
   },
   "migrations": [
@@ -16,12 +20,20 @@
       "tag": "v1",
       "new_sqlite_classes": ["PerformanceAvailabilityDurableObject"],
     },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["AppDataCacheDurableObject"],
+    },
   ],
   "routes": [
     {
       "pattern": "api.gaiensai.com/performances-availability*",
       "zone_name": "gaiensai.com",
-    }
+    },
+    {
+      "pattern": "api.gaiensai.com/app-data-cache*",
+      "zone_name": "gaiensai.com",
+    },
   ],
 
   "observability": {

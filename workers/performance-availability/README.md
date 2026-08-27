@@ -1,9 +1,17 @@
 # Performance availability Worker
 
-This Worker exposes `GET https://api.gaiensai.com/performances-availability`.
+This Worker exposes `GET https://api.gaiensai.com/performances-availability`
+and `GET https://api.gaiensai.com/app-data-cache`.
 Its Durable Object is
 the single Cloudflare-side Supabase Realtime subscriber and stores the latest
-result of the existing public `get_performance_availability` RPC.
+result of the existing public `get_performance_availability` RPC. A second
+Durable Object keeps a shared snapshot of configs (with credentials removed),
+leaderboard, rehearsal data, issue controls, and the three QR-validation ticket
+fields. Ticket fields are only returned through
+`/app-data-cache/ticket?code=...`, which returns one matching ticket rather
+than the whole ticket list. `/app-data-cache/user-counters` is separately
+cached by a hash of the authenticated user's token, so student counters are
+never shared between users.
 
 ## Deploy
 

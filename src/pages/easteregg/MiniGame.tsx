@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import styles from '../../styles/sub-pages.module.css';
 import { useTitle } from '../../hooks/useTitle';
 import { supabase } from '../../lib/supabase';
+import { getCachedAppData } from '../../features/cache/appData';
 import NormalSection from '../../components/ui/NormalSection';
 
 type LeaderboardItem = {
@@ -105,32 +106,14 @@ export const MiniGame = () => {
     return () => window.removeEventListener('resize', updateScale);
   }, []);
 
-  const fetchLeaderboard = async () => {
-    const { data, error } = await supabase
-      .from('flappy_leaderboard')
-      .select('id, player_name, score, created_at')
-      .order('score', { ascending: false })
-      .order('created_at', { ascending: true })
-      .limit(LIMIT_COUNT);
-    if (!error && data) {
-      setLeaderboard(data);
-    }
-  };
-
   const fetchFullLeaderboard = async () => {
-    const { data, error } = await supabase
-      .from('flappy_leaderboard')
-      .select('id, player_name, score, created_at')
-      .order('score', { ascending: false })
-      .order('created_at', { ascending: true })
-      .limit(100);
-    if (!error && data) {
-      setFullLeaderboard(data);
-    }
+    const data = await getCachedAppData();
+    const rows = data.flappy_leaderboard as unknown as LeaderboardItem[];
+    setFullLeaderboard(rows);
+    setLeaderboard(rows.slice(0, LIMIT_COUNT));
   };
 
   useEffect(() => {
-    fetchLeaderboard();
     fetchFullLeaderboard();
   }, []);
 
@@ -165,7 +148,6 @@ export const MiniGame = () => {
         setUserRank(Number(rankData[0].player_rank));
       }
 
-      fetchLeaderboard();
       fetchFullLeaderboard();
     }
   };
@@ -249,7 +231,6 @@ export const MiniGame = () => {
 
       if (birdTop <= 0 || birdBottom >= groundY) {
         setGameState('gameover');
-        fetchLeaderboard();
         fetchFullLeaderboard();
         return;
       }
@@ -261,7 +242,6 @@ export const MiniGame = () => {
             birdBottom > pipe.gapY + gapSizeRef.current
           ) {
             setGameState('gameover');
-            fetchLeaderboard();
             fetchFullLeaderboard();
             return;
           }
