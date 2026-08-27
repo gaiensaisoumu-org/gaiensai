@@ -31,6 +31,7 @@ const Availability = () => {
   return (
     <>
       <header className={styles.header}>
+        <h1>公演空き状況</h1>
         <div className={styles.filters} aria-label='表示対象の絞り込み'>
           <fieldset>
             <legend>学年</legend>

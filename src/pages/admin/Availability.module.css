@@ -1,8 +1,12 @@
 .header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+}
+
+.header h1 {
+  margin-left: 1rem;
+  margin-top: 1.7rem;
 }
 
 .filters {
