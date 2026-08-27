@@ -62,7 +62,7 @@ const Availability = () => {
         </div>
         <aside className={styles.guide}>
           <div>
-            <h3 style={{margin: '0.5em 0'}}>他のクラス・日は こちら</h3>
+            <h3 style={{margin: '0.5em 0'}}>他のクラス・日はこちら</h3>
             <a href='https://gaiensai.com/availability'>
               https://gaiensai.com/availability
             </a>
