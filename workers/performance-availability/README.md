@@ -21,9 +21,9 @@ result of the existing public `get_performance_availability` RPC.
 Worker after the `CI` workflow succeeds for `main`. Configure these repository
 secrets in GitHub before the first push:
 
-- `CF_API_TOKEN`: a scoped Cloudflare API token with permission to
+- `CF_WORKERS_API_TOKEN`: a scoped Cloudflare API token with permission to
   deploy Workers and update the `gaiensai.com` Worker route.
-- `CF_ACCOUNT_ID`: the Cloudflare account ID that owns the Worker.
+- `CF_WORKERS_ACCOUNT_ID`: the Cloudflare account ID that owns the Worker.
 
 `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` remain Cloudflare Worker Secrets. Do
 not add them to GitHub Actions; Wrangler preserves existing Worker Secrets
