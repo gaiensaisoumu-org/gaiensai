@@ -273,13 +273,18 @@ const PerformancesTable = ({
 
       let availabilityData: PerformanceAvailabilityData | null = null;
       let availabilityError: unknown;
+      let usedCloudflareFallback = false;
       try {
-        const result = await withTimeout(
-          getPerformanceAvailability(availabilitySource),
-          SUPABASE_RESPONSE_TIMEOUT_MS,
-        );
+        const result =
+          availabilitySource === 'monitor'
+            ? await getPerformanceAvailability(availabilitySource)
+            : await withTimeout(
+                getPerformanceAvailability(availabilitySource),
+                SUPABASE_RESPONSE_TIMEOUT_MS,
+              );
         availabilityData = result.data as PerformanceAvailabilityData | null;
         availabilityError = result.error;
+        usedCloudflareFallback = result.usedCloudflareFallback === true;
       } catch {
         if (isBackgroundRefresh) {
           if (availabilitySource === 'monitor') {
@@ -298,7 +303,7 @@ const PerformancesTable = ({
         return;
       }
 
-      if (availabilityError) {
+      if (availabilityError && !availabilityData) {
         if (isBackgroundRefresh) {
           if (availabilitySource === 'monitor') {
             showMonitorRefreshFailure();
@@ -391,7 +396,11 @@ const PerformancesTable = ({
       setSchedules(loadedSchedules);
       hasLoadedAvailabilityRef.current = true;
       lastSuccessfulAvailabilityAtRef.current = Date.now();
-      setCacheNotice(null);
+      setCacheNotice(
+        usedCloudflareFallback
+          ? '更新に失敗したため、Cloudflare のキャッシュ情報を表示しています。'
+          : null,
+      );
       if (canUseCache) {
         try {
           window.localStorage.setItem(

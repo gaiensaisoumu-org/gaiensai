@@ -13,6 +13,7 @@ export type PerformanceAvailabilityData = {
 export type AvailabilityResponse = {
   data: PerformanceAvailabilityData | null;
   error: Error | null;
+  usedCloudflareFallback?: boolean;
 };
 
 export type AvailabilitySource = 'public' | 'monitor';
@@ -28,6 +29,7 @@ let publicCachedResponse: {
 const PUBLIC_CACHE_TTL_MS = 3_000;
 const PUBLIC_REFRESH_MS = 5_000;
 const MONITOR_RESYNC_MS = 60_000;
+const MONITOR_DIRECT_TIMEOUT_MS = 8_000;
 const publicRefreshSubscribers = new Set<() => void>();
 let publicRefreshTimer: number | null = null;
 const monitorRefreshSubscribers = new Set<() => void>();
@@ -55,17 +57,54 @@ const fetchPublicAvailability = async (): Promise<AvailabilityResponse> => {
   };
 };
 
+const withMonitorTimeout = async <T>(promise: PromiseLike<T>): Promise<T> => {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(
+      () => reject(new Error('Supabase availability request timed out')),
+      MONITOR_DIRECT_TIMEOUT_MS,
+    );
+  });
+
+  try {
+    return await Promise.race([Promise.resolve(promise), timeout]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
+};
+
 export const getPerformanceAvailability = async (
   source: AvailabilitySource = 'public',
 ): Promise<AvailabilityResponse> => {
   // The monitor deliberately bypasses Cloudflare. Its initial and recovery
-  // fetches use the existing Supabase RPC directly.
+  // fetches use the existing Supabase RPC directly. If that path is down,
+  // show Cloudflare's most recent snapshot while retaining an error signal.
   if (source === 'monitor') {
-    const result = await supabase.rpc('get_performance_availability');
-    return {
-      data: (result.data as PerformanceAvailabilityData | null) ?? null,
-      error: result.error,
-    };
+    try {
+      const result = await withMonitorTimeout(
+        supabase.rpc('get_performance_availability'),
+      );
+      if (!result.error) {
+        return {
+          data: (result.data as PerformanceAvailabilityData | null) ?? null,
+          error: null,
+        };
+      }
+
+      const fallback = await fetchPublicAvailability();
+      return {
+        ...fallback,
+        error: result.error,
+        usedCloudflareFallback: true,
+      };
+    } catch (error) {
+      const fallback = await fetchPublicAvailability();
+      return {
+        ...fallback,
+        error: error instanceof Error ? error : new Error('Supabase availability request failed'),
+        usedCloudflareFallback: true,
+      };
+    }
   }
 
   if (publicCachedResponse && publicCachedResponse.expiresAt > Date.now()) {
