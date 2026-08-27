@@ -512,7 +512,9 @@ const OrganizationAdmin = () => {
           headers: sessionHeaders(),
         },
       );
-      if (invokeError) throw invokeError;
+      if (invokeError) {
+        throw invokeError;
+      }
       await load();
     } catch (reason) {
       setError(await readErrorMessage(reason));
