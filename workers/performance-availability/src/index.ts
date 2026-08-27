@@ -8,7 +8,7 @@
 export interface Env {
   PERFORMANCE_AVAILABILITY: DurableObjectNamespace;
   SUPABASE_URL: string;
-  SUPABASE_ANON_KEY: string;
+  SUPABASE_PUBLISHABLE_KEY: string;
 }
 
 type AvailabilitySnapshot = Record<string, unknown>;
@@ -132,9 +132,10 @@ export class PerformanceAvailabilityDurableObject {
 
     try {
       await this.ensureReady();
-    } catch {
+    } catch (error) {
       // Do not expose Supabase error details and do not make callers fall back
       // to Supabase. A stored snapshot remains useful during a transient outage.
+      console.error('Availability snapshot synchronization failed', error);
       if (!this.snapshot) {
         return new Response('Availability temporarily unavailable', { status: 503 });
       }
@@ -191,15 +192,18 @@ export class PerformanceAvailabilityDurableObject {
       {
         method: 'POST',
         headers: {
-          apikey: this.env.SUPABASE_ANON_KEY,
-          authorization: `Bearer ${this.env.SUPABASE_ANON_KEY}`,
+          apikey: this.env.SUPABASE_PUBLISHABLE_KEY,
+          authorization: `Bearer ${this.env.SUPABASE_PUBLISHABLE_KEY}`,
           'content-type': 'application/json',
         },
         body: '{}',
       },
     );
     if (!response.ok) {
-      throw new Error(`Supabase availability RPC: ${response.status}`);
+      const detail = (await response.text()).slice(0, 1_000);
+      throw new Error(
+        `Supabase availability RPC: ${response.status}${detail ? ` ${detail}` : ''}`,
+      );
     }
 
     this.snapshot = (await response.json()) as AvailabilitySnapshot;
@@ -219,7 +223,7 @@ export class PerformanceAvailabilityDurableObject {
     const realtimeUrl = new URL(
       `${this.env.SUPABASE_URL.replace(/^http/, 'ws').replace(/\/$/, '')}/realtime/v1/websocket`,
     );
-    realtimeUrl.searchParams.set('apikey', this.env.SUPABASE_ANON_KEY);
+    realtimeUrl.searchParams.set('apikey', this.env.SUPABASE_PUBLISHABLE_KEY);
     realtimeUrl.searchParams.set('vsn', '1.0.0');
     const socket = new WebSocket(realtimeUrl.toString());
     this.socket = socket;
@@ -235,7 +239,7 @@ export class PerformanceAvailabilityDurableObject {
             table,
           })),
         },
-        access_token: this.env.SUPABASE_ANON_KEY,
+        access_token: this.env.SUPABASE_PUBLISHABLE_KEY,
       });
       this.startHeartbeat(socket);
     });
