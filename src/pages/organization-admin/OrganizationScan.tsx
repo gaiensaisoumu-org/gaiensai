@@ -297,7 +297,7 @@ const OrganizationScan = ({
         <NormalSection className={styles.targetSelectionCard}>
           <h2>{isRegisterMode ? '登録対象を選択' : 'スキャン対象を選択'}</h2>
           <p>
-            受付するクラス公演・自主リハーサル・部活と、公演回を選択してください。
+            受付するクラス公演・非公式公開リハーサル・部活と、公演回を選択してください。
           </p>
           {!master ? (
             <p>公演情報を読み込んでいます...</p>

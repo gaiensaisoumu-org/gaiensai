@@ -26,6 +26,7 @@ type ControlPanelSettings = {
   maxTicketsPerOtherClubUser: number;
   maxOfficialRehearsalTicketsPerUser: number;
   showPublicRehearsalDashboard: boolean;
+  showUnofficialRehearsalDashboard: boolean;
   gymTicketLimitsByClub: Record<string, number>;
   maxTicketsPerJuniorUser: number;
   maxAdmissionOnlyJuniorAccounts: number;
@@ -50,6 +51,7 @@ type TicketTypeControlValue =
   | 'outside-own-self-only'
   | 'public-rehearsals'
   | 'self-rehearsals'
+  | 'self-rehearsals-list-only'
   | 'auto'
   | 'off';
 
@@ -159,6 +161,7 @@ const isTicketTypeControlValue = (
   value === 'outside-own-self-only' ||
   value === 'public-rehearsals' ||
   value === 'self-rehearsals' ||
+  value === 'self-rehearsals-list-only' ||
   value === 'auto' ||
   value === 'off';
 
@@ -249,6 +252,7 @@ const SettingsContent = () => {
     maxTicketsPerOtherClubUser: 20,
     maxOfficialRehearsalTicketsPerUser: 1,
     showPublicRehearsalDashboard: true,
+    showUnofficialRehearsalDashboard: true,
     gymTicketLimitsByClub: {},
     maxTicketsPerJuniorUser: 2,
     maxAdmissionOnlyJuniorAccounts: 100,
@@ -655,6 +659,7 @@ const SettingsContent = () => {
           typeof nextSettings.maxTicketsPerOtherClubUser !== 'number' ||
           typeof nextSettings.maxOfficialRehearsalTicketsPerUser !== 'number' ||
           typeof nextSettings.showPublicRehearsalDashboard !== 'boolean' ||
+          typeof nextSettings.showUnofficialRehearsalDashboard !== 'boolean' ||
           !nextSettings.gymTicketLimitsByClub ||
           typeof nextSettings.gymTicketLimitsByClub !== 'object' ||
           Array.isArray(nextSettings.gymTicketLimitsByClub) ||
@@ -851,6 +856,8 @@ const SettingsContent = () => {
             nextSettings.maxOfficialRehearsalTicketsPerUser,
           showPublicRehearsalDashboard:
             nextSettings.showPublicRehearsalDashboard,
+          showUnofficialRehearsalDashboard:
+            nextSettings.showUnofficialRehearsalDashboard,
           gymTicketLimitsByClub: nextSettings.gymTicketLimitsByClub,
           maxTicketsPerJuniorUser: nextSettings.maxTicketsPerJuniorUser,
           maxAdmissionOnlyJuniorAccounts:
@@ -1831,6 +1838,31 @@ const SettingsContent = () => {
                 />
               </label>
             </div>
+            <div className={styles.field}>
+              <label className={styles.settingLabel}>
+                ダッシュボードに非公式リハ一覧を表示
+              </label>
+              <label>
+                <Switch
+                  checked={settings.showUnofficialRehearsalDashboard}
+                  onChange={(checked) => {
+                    if (isSettingsLoading || isSyncingSetting) {
+                      return;
+                    }
+                    void syncSettings(
+                      {
+                        ...settings,
+                        showUnofficialRehearsalDashboard: checked,
+                      },
+                      checked
+                        ? 'ダッシュボードの非公式リハ一覧を表示しました。'
+                        : 'ダッシュボードの非公式リハ一覧を非表示にしました。',
+                      'ticketSection',
+                    );
+                  }}
+                />
+              </label>
+            </div>
             <h3>メンテナスモード</h3>
             <div className={styles.field}>
               <label className={styles.settingLabel} htmlFor='maintenance-mode'>
@@ -1946,7 +1978,9 @@ const SettingsContent = () => {
               >
                 <option value='open'>すべて</option>
                 <option value='public-rehearsals'>公開リハーサルのみ</option>
-                <option value='self-rehearsals'>自主リハーサルのみ</option>
+                <option value='self-rehearsals'>
+                  非公式公開リハーサルのみ
+                </option>
                 <option value='off'>無効</option>
               </select>
             </div>

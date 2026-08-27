@@ -143,7 +143,12 @@ const Issue = () => {
   const [issueControls, setIssueControls] = useState<{
     class_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
     rehearsal_invite_mode:
-      'open' | 'only-own' | 'public-rehearsals' | 'self-rehearsals' | 'off';
+      | 'open'
+      | 'only-own'
+      | 'public-rehearsals'
+      | 'self-rehearsals'
+      | 'self-rehearsals-list-only'
+      | 'off';
     gym_invite_mode: 'open' | 'only-own' | 'outside-own-self-only' | 'off';
     entry_only_mode: 'open' | 'only-own' | 'off';
   } | null>(null);
@@ -436,6 +441,7 @@ const Issue = () => {
                 | 'only-own'
                 | 'public-rehearsals'
                 | 'self-rehearsals'
+                | 'self-rehearsals-list-only'
                 | 'off';
               gym_invite_mode:
                 'open' | 'only-own' | 'outside-own-self-only' | 'off';

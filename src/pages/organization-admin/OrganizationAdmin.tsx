@@ -69,6 +69,7 @@ type Rehearsal = {
   capacity: number;
   is_active: boolean;
   active_ticket_count: number;
+  is_ticket_accepting: boolean;
 };
 type Dashboard = {
   username: string;
@@ -302,6 +303,8 @@ const OrganizationAdmin = () => {
   const [rehearsalStart, setRehearsalStart] = useState('');
   const [rehearsalEnd, setRehearsalEnd] = useState('');
   const [rehearsalCapacity, setRehearsalCapacity] = useState('');
+  const [rehearsalTicketAccepting, setRehearsalTicketAccepting] =
+    useState(true);
   const [namesByAffiliation, setNamesByAffiliation] = useState<NameDirectory>(
     {},
   );
@@ -438,6 +441,7 @@ const OrganizationAdmin = () => {
             startTime: new Date(rehearsalStart).toISOString(),
             endTime: new Date(rehearsalEnd).toISOString(),
             capacity: Number(rehearsalCapacity),
+            isTicketAccepting: rehearsalTicketAccepting,
           },
           headers: sessionHeaders(),
         },
@@ -449,7 +453,8 @@ const OrganizationAdmin = () => {
       setRehearsalStart('');
       setRehearsalEnd('');
       setRehearsalCapacity('');
-      setNotice('自主リハーサルを追加しました。');
+      setRehearsalTicketAccepting(true);
+      setNotice('非公式公開リハーサルを追加しました。');
       await load();
     } catch (reason) {
       setError(await readErrorMessage(reason));
@@ -459,7 +464,7 @@ const OrganizationAdmin = () => {
   };
 
   const cancelRehearsal = async (id: number) => {
-    if (!confirm('この自主リハーサルを中止・削除しますか？')) {
+    if (!confirm('この非公式公開リハーサルを中止・削除しますか？')) {
       return;
     }
     setBusy(true);
@@ -480,8 +485,34 @@ const OrganizationAdmin = () => {
       setNotice(
         data?.deactivated
           ? '発券済みのため中止にしました。既存チケットは無効です。'
-          : '自主リハーサルを削除しました。',
+          : '非公式公開リハーサルを削除しました。',
       );
+      await load();
+    } catch (reason) {
+      setError(await readErrorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateRehearsalTicketAcceptance = async (
+    id: number,
+    value: boolean,
+  ) => {
+    setBusy(true);
+    try {
+      const { error: invokeError } = await supabase.functions.invoke(
+        'organization-admin',
+        {
+          body: {
+            action: 'setUnofficialRehearsalTicketAcceptance',
+            id,
+            isTicketAccepting: value,
+          },
+          headers: sessionHeaders(),
+        },
+      );
+      if (invokeError) throw invokeError;
       await load();
     } catch (reason) {
       setError(await readErrorMessage(reason));
@@ -1174,7 +1205,7 @@ const OrganizationAdmin = () => {
       <div className={styles.shell} key='organization-admin-dashboard'>
         <Alert type='info'>
           <ul>
-            <li>自主リハーサル機能を追加しました</li>
+            <li>非公式公開リハーサル機能を追加しました</li>
             <li>
               公演詳細ページにリンク・ギャラリーを追加できるようにしました。準備風景などをあげられます。
             </li>
@@ -1205,7 +1236,7 @@ const OrganizationAdmin = () => {
 
         {dashboard.kind === 'class' && (
           <NormalSection>
-            <h2>自主リハーサル管理</h2>
+            <h2>非公式公開リハーサル管理</h2>
             <p>
               開始時刻前のみ編集できます。発券済みの回を中止すると、既存チケットも無効になります。
             </p>
@@ -1261,6 +1292,29 @@ const OrganizationAdmin = () => {
                   required
                 />
               </label>
+              <fieldset>
+                <legend>チケット受付</legend>
+                <label style={{ display: 'block', cursor: 'pointer' }}>
+                  <input
+                    type='radio'
+                    name='new-rehearsal-ticket-acceptance'
+                    checked={rehearsalTicketAccepting}
+                    onChange={() => setRehearsalTicketAccepting(true)}
+                    style={{ width: 'auto', marginRight: '1rem' }}
+                  />
+                  受け付ける
+                </label>
+                <label style={{ display: 'block', cursor: 'pointer' }}>
+                  <input
+                    type='radio'
+                    name='new-rehearsal-ticket-acceptance'
+                    checked={!rehearsalTicketAccepting}
+                    onChange={() => setRehearsalTicketAccepting(false)}
+                    style={{ width: 'auto', marginRight: '1rem' }}
+                  />
+                  表示のみ
+                </label>
+              </fieldset>
               <button disabled={busy}>
                 {busy ? '保存中...' : '＋ リハーサルを追加'}
               </button>
@@ -1287,6 +1341,44 @@ const OrganizationAdmin = () => {
                         {rehearsal.active_ticket_count}{' '}
                         {rehearsal.is_active ? '' : '／ 中止'}
                       </p>
+                      <p>
+                        {rehearsal.is_ticket_accepting
+                          ? 'チケット受付あり'
+                          : '表示のみ'}
+                      </p>
+                      <fieldset
+                        disabled={busy || started || !rehearsal.is_active}
+                      >
+                        <legend>チケット受付</legend>
+                        <label>
+                          <input
+                            type='radio'
+                            name={`rehearsal-ticket-acceptance-${rehearsal.id}`}
+                            checked={rehearsal.is_ticket_accepting}
+                            onChange={() =>
+                              void updateRehearsalTicketAcceptance(
+                                rehearsal.id,
+                                true,
+                              )
+                            }
+                          />
+                          受け付ける
+                        </label>
+                        <label>
+                          <input
+                            type='radio'
+                            name={`rehearsal-ticket-acceptance-${rehearsal.id}`}
+                            checked={!rehearsal.is_ticket_accepting}
+                            onChange={() =>
+                              void updateRehearsalTicketAcceptance(
+                                rehearsal.id,
+                                false,
+                              )
+                            }
+                          />
+                          表示のみ
+                        </label>
+                      </fieldset>
                     </div>
                     <button
                       type='button'

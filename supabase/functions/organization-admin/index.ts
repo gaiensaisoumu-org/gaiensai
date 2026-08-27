@@ -591,7 +591,7 @@ Deno.serve(async (req) => {
       const { data: rehearsals, error: rehearsalError } = await client
         .from('rehearsals')
         .select(
-          'id, round_id, round_name, start_time, end_time, capacity, is_active, active_ticket_count',
+          'id, round_id, round_name, start_time, end_time, capacity, is_active, is_ticket_accepting, active_ticket_count',
         )
         .eq('class_id', own.performance.id)
         .eq('type', 'unofficial')
@@ -643,14 +643,15 @@ Deno.serve(async (req) => {
     if (
       action === 'createUnofficialRehearsal' ||
       action === 'updateUnofficialRehearsal' ||
+      action === 'setUnofficialRehearsalTicketAcceptance' ||
       action === 'deleteUnofficialRehearsal'
     ) {
       const own = await ownPerformance(client, admin);
       if (own.kind !== 'class')
-        throw new HttpError(403, '自主リハーサルはクラスのみ管理できます。');
+        throw new HttpError(403, '非公式公開リハーサルはクラスのみ管理できます。');
       const classId = Number(own.performance.id);
       if (action === 'createUnofficialRehearsal') {
-        const { error } = await client.rpc('create_unofficial_rehearsal', {
+        const { data, error } = await client.rpc('create_unofficial_rehearsal', {
           p_class_id: classId,
           p_round_name: text(body.roundName, 'リハーサル名', 10000),
           p_start_time: body.startTime,
@@ -658,6 +659,11 @@ Deno.serve(async (req) => {
           p_capacity: Number(body.capacity),
         });
         if (error) throw new HttpError(400, error.message);
+        const { error: acceptanceError } = await client
+          .from('rehearsals')
+          .update({ is_ticket_accepting: body.isTicketAccepting !== false })
+          .eq('id', data.id);
+        if (acceptanceError) throw new HttpError(400, acceptanceError.message);
       } else if (action === 'updateUnofficialRehearsal') {
         const { error } = await client.rpc('update_unofficial_rehearsal', {
           p_id: Number(body.id),
@@ -667,6 +673,15 @@ Deno.serve(async (req) => {
           p_end_time: body.endTime,
           p_capacity: Number(body.capacity),
         });
+        if (error) throw new HttpError(400, error.message);
+      } else if (action === 'setUnofficialRehearsalTicketAcceptance') {
+        const { error } = await client
+          .from('rehearsals')
+          .update({ is_ticket_accepting: body.isTicketAccepting === true })
+          .eq('id', Number(body.id))
+          .eq('class_id', classId)
+          .eq('type', 'unofficial')
+          .eq('is_active', true);
         if (error) throw new HttpError(400, error.message);
       } else {
         const { data, error } = await client.rpc(

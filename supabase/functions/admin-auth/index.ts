@@ -113,6 +113,7 @@ type AdminAuthRequest = {
   maxTicketsPerOtherClubUser?: unknown;
   maxOfficialRehearsalTicketsPerUser?: unknown;
   showPublicRehearsalDashboard?: unknown;
+  showUnofficialRehearsalDashboard?: unknown;
   gymTicketLimitsByClub?: unknown;
   maxTicketsPerJuniorUser?: unknown;
   juniorReleaseOpen?: unknown;
@@ -192,6 +193,7 @@ type TicketIssueMode =
   | 'outside-own-self-only'
   | 'public-rehearsals'
   | 'self-rehearsals'
+  | 'self-rehearsals-list-only'
   | 'auto'
   | 'off';
 
@@ -291,6 +293,7 @@ type AdminAuthBody =
       maxTicketsPerOtherClubUser: number;
       maxOfficialRehearsalTicketsPerUser: number;
       showPublicRehearsalDashboard: boolean;
+      showUnofficialRehearsalDashboard: boolean;
       gymTicketLimitsByClub: Record<string, number>;
       maxTicketsPerJuniorUser: number;
       maxAdmissionOnlyJuniorAccounts: number;
@@ -387,6 +390,7 @@ type AdminSettingsRow = {
   max_tickets_per_other_club_user: number;
   max_official_rehearsal_tickets_per_user: number;
   show_public_rehearsal_dashboard: boolean;
+  show_unofficial_rehearsal_dashboard: boolean;
   gym_ticket_limits_by_club: Record<string, number>;
   max_tickets_per_junior_user: number;
   max_admission_only_junior_accounts: number;
@@ -429,6 +433,7 @@ const TICKET_ISSUE_MODE_VALUES = [
   'outside-own-self-only',
   'public-rehearsals',
   'self-rehearsals',
+  'self-rehearsals-list-only',
   'auto',
   'off',
 ] as const;
@@ -1292,6 +1297,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
       maxTicketsPerOtherClubUser,
       maxOfficialRehearsalTicketsPerUser,
       showPublicRehearsalDashboard,
+      showUnofficialRehearsalDashboard,
       gymTicketLimitsByClub,
       maxTicketsPerJuniorUser,
       juniorReleaseOpen,
@@ -1376,6 +1382,12 @@ const parseBody = (body: unknown): AdminAuthBody => {
         'showPublicRehearsalDashboard は真偽値で送信してください。',
       );
     }
+    if (typeof showUnofficialRehearsalDashboard !== 'boolean') {
+      throw new HttpError(
+        400,
+        'showUnofficialRehearsalDashboard は真偽値で送信してください。',
+      );
+    }
     if (
       maintenanceEndsAt !== null &&
       (typeof maintenanceEndsAt !== 'string' ||
@@ -1419,6 +1431,7 @@ const parseBody = (body: unknown): AdminAuthBody => {
         100,
       ),
       showPublicRehearsalDashboard,
+      showUnofficialRehearsalDashboard,
       gymTicketLimitsByClub: normalizeGymTicketLimitsByClub(
         gymTicketLimitsByClub,
       ),
@@ -1576,7 +1589,7 @@ const fetchAdminSettings = async (adminClient: SupabaseClient) => {
   const { data, error } = await adminClient
     .from('configs')
     .select(
-      'id, event_year, show_length, max_tickets_per_other_class_user, max_tickets_per_other_performance_user, max_tickets_per_other_club_user, max_official_rehearsal_tickets_per_user, show_public_rehearsal_dashboard, gym_ticket_limits_by_club, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active, maintenance_mode, maintenance_ends_at',
+      'id, event_year, show_length, max_tickets_per_other_class_user, max_tickets_per_other_performance_user, max_tickets_per_other_club_user, max_official_rehearsal_tickets_per_user, show_public_rehearsal_dashboard, show_unofficial_rehearsal_dashboard, gym_ticket_limits_by_club, max_tickets_per_junior_user, max_admission_only_junior_accounts, junior_release_open, is_active, maintenance_mode, maintenance_ends_at',
     )
     .limit(1);
 
@@ -3010,6 +3023,8 @@ Deno.serve(async (req) => {
               settings.max_official_rehearsal_tickets_per_user,
             showPublicRehearsalDashboard:
               settings.show_public_rehearsal_dashboard,
+            showUnofficialRehearsalDashboard:
+              settings.show_unofficial_rehearsal_dashboard,
             gymTicketLimitsByClub: settings.gym_ticket_limits_by_club ?? {},
             maxTicketsPerJuniorUser: settings.max_tickets_per_junior_user,
             maxAdmissionOnlyJuniorAccounts:
@@ -3256,6 +3271,8 @@ Deno.serve(async (req) => {
           max_official_rehearsal_tickets_per_user:
             body.maxOfficialRehearsalTicketsPerUser,
           show_public_rehearsal_dashboard: body.showPublicRehearsalDashboard,
+          show_unofficial_rehearsal_dashboard:
+            body.showUnofficialRehearsalDashboard,
           gym_ticket_limits_by_club: body.gymTicketLimitsByClub,
           max_tickets_per_junior_user: body.maxTicketsPerJuniorUser,
           max_admission_only_junior_accounts:

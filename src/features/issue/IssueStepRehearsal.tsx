@@ -19,6 +19,7 @@ type Row = {
   capacity: number;
   active_ticket_count: number;
   type: 'official' | 'unofficial';
+  is_ticket_accepting: boolean;
 };
 type RehearsalRow = Omit<Row, 'class_name'> & {
   type: 'official' | 'unofficial';
@@ -42,18 +43,29 @@ export default function IssueStepRehearsal({
   onSelectPerformance,
   inviteMode,
   dashboardMode = false,
+  showOfficialSchedule = true,
+  showUnofficialSchedule = true,
   onOfficialCellClick,
+  onUnofficialRowClick,
 }: {
   selectedPerformance: SelectedPerformance;
   onSelectPerformance: (value: SelectedPerformance) => void;
   inviteMode:
-    'open' | 'only-own' | 'public-rehearsals' | 'self-rehearsals' | 'off';
+    | 'open'
+    | 'only-own'
+    | 'public-rehearsals'
+    | 'self-rehearsals'
+    | 'self-rehearsals-list-only'
+    | 'off';
   dashboardMode?: boolean;
+  showOfficialSchedule?: boolean;
+  showUnofficialSchedule?: boolean;
   onOfficialCellClick?: () => void;
+  onUnofficialRowClick?: () => void;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [roundNames, setRoundNames] = useState<string[]>([]);
-  const [sortOrder, setSortOrder] = useState<SortOrder>('class');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('time');
   const officialTableWrapperRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     void Promise.all([
@@ -81,6 +93,7 @@ export default function IssueStepRehearsal({
     inviteMode === 'open' || inviteMode === 'public-rehearsals';
   const canIssueUnofficial =
     inviteMode === 'open' || inviteMode === 'self-rehearsals';
+  const showUnofficialListOnly = inviteMode === 'self-rehearsals-list-only';
   const officialRows = rows.filter((row) => row.type === 'official');
   const unofficialRows = rows.filter(
     (row) =>
@@ -138,36 +151,26 @@ export default function IssueStepRehearsal({
             <h2 className={styles.sectionTitle}>2. リハーサルを選択</h2>
             <p>
               {canIssueOfficial && canIssueUnofficial
-                ? '取得したい公開リハまたは自主リハを選択してください。'
+                ? '取得したい公開リハまたは非公式リハを選択してください。'
                 : canIssueOfficial
                   ? '取得したい公開リハを選択してください。'
                   : canIssueUnofficial
-                    ? '取得したい自主リハを選択してください。'
-                    : '現在リハーサルのチケット発券は停止中です。'}
+                    ? '取得したい非公式リハを選択してください。'
+                    : showUnofficialListOnly
+                      ? '非公式公開リハーサルの一覧を確認できます。チケットの受付は行っていません。'
+                      : '現在リハーサルのチケット発券は停止中です。'}
             </p>
           </div>
-          <label className={styles.rehearsalSort}>
-            並び順
-            <select
-              value={sortOrder}
-              onChange={(event) =>
-                setSortOrder(
-                  (event.target as HTMLSelectElement).value as SortOrder,
-                )
-              }
-            >
-              <option value='class'>クラス順</option>
-              <option value='time'>公演時間順</option>
-            </select>
-          </label>
         </div>
       )}
       {dashboardMode && <h2>公開リハ スケジュール</h2>}
-      {(dashboardMode || canIssueOfficial) && (
+      {((dashboardMode && showOfficialSchedule) || canIssueOfficial) && (
         <>
           {!dashboardMode && <h3>公開リハ</h3>}
           {!canIssueOfficial && (
-            <Alert type='info'>公開リハで整理券は使用しません。直接各クラスの前で並んでください。このテーブルはスケジュール確認にご利用ください。</Alert>
+            <Alert type='info'>
+              公開リハで整理券は使用しません。直接各クラスの前で並んでください。このテーブルはスケジュール確認にご利用ください。
+            </Alert>
           )}
           <p className={styles.officialRehearsalScrollHint}>
             ← 横にスクロールできます →
@@ -312,9 +315,34 @@ export default function IssueStepRehearsal({
             )}
         </>
       )}
-      {!dashboardMode && canIssueUnofficial && (
+      {((dashboardMode && showUnofficialSchedule) ||
+        canIssueUnofficial ||
+        showUnofficialListOnly) && (
         <>
-          <h3 className={styles.rehearsalSubheading}>自主リハ</h3>
+          <div className={styles.rehearsalSubheadingRow}>
+            <h3 className={styles.rehearsalSubheading}>
+              {dashboardMode ? '非公式リハ スケジュール' : '非公式リハ'}
+            </h3>
+            <label className={styles.rehearsalSort}>
+              並び順
+              <select
+                value={sortOrder}
+                onChange={(event) =>
+                  setSortOrder(
+                    (event.target as HTMLSelectElement).value as SortOrder,
+                  )
+                }
+              >
+                <option value='class'>クラス順</option>
+                <option value='time'>公演時間順</option>
+              </select>
+            </label>
+          </div>
+          {!dashboardMode && showUnofficialListOnly && (
+            <Alert type='info'>
+              非公式公開リハーサルでは整理券を使用しません。直接各クラスの前で並んでください。この一覧はスケジュール確認にご利用ください。
+            </Alert>
+          )}
           <div className={styles.rehearsalList}>
             {rehearsals.map((row) => {
               const remaining = Math.max(
@@ -335,9 +363,18 @@ export default function IssueStepRehearsal({
                   key={`${row.class_id}-${row.round_id}`}
                   type='button'
                   className={`${styles.rehearsalRow} ${isSelected ? styles.rehearsalRowSelected : ''}`}
-                  disabled={!canIssueUnofficial || remaining <= 0}
+                  disabled={
+                    (dashboardMode && !onUnofficialRowClick) ||
+                    !canIssueUnofficial ||
+                    !row.is_ticket_accepting ||
+                    remaining <= 0
+                  }
                   aria-pressed={isSelected}
-                  onClick={() =>
+                  onClick={() => {
+                    if (dashboardMode) {
+                      onUnofficialRowClick?.();
+                      return;
+                    }
                     onSelectPerformance({
                       performanceId: row.class_id,
                       performanceName: row.class_name,
@@ -346,8 +383,8 @@ export default function IssueStepRehearsal({
                       scheduleName: row.round_name,
                       remaining,
                       isOfficialRehearsal: false,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <span className={styles.rehearsalTime}>
                     <strong>
@@ -359,22 +396,34 @@ export default function IssueStepRehearsal({
                     </span>
                   </span>
                   <span
-                    className={`${styles.rehearsalRemaining} ${status === 'available' ? styles.rehearsalCircle : status === 'limited' ? styles.rehearsalTriangle : styles.rehearsalCross}`}
+                    className={`${styles.rehearsalRemaining} ${!row.is_ticket_accepting ? styles.rehearsalMinus : status === 'available' ? styles.rehearsalCircle : status === 'limited' ? styles.rehearsalTriangle : styles.rehearsalCross}`}
                   >
-                    {status === 'available' ? (
+                    {!row.is_ticket_accepting ? (
+                      <FaMinus />
+                    ) : status === 'available' ? (
                       <RiCircleLine />
                     ) : status === 'limited' ? (
                       <RiTriangleLine />
                     ) : (
                       <RiCloseLargeLine />
                     )}
-                    <span>{remaining > 0 ? `残り${remaining}席` : '満席'}</span>
+                    <span>
+                      {!row.is_ticket_accepting
+                        ? '整理券なし'
+                        : remaining > 0
+                          ? `残り${remaining}席`
+                          : '満席'}
+                    </span>
                   </span>
                 </button>
               );
             })}
             {rehearsals.length === 0 && (
-              <p>発券可能な自主リハーサルはありません。</p>
+              <p>
+                {dashboardMode || showUnofficialListOnly
+                  ? '表示できる非公式公開リハーサルはありません。'
+                  : '発券可能な非公式公開リハーサルはありません。'}
+              </p>
             )}
           </div>
         </>

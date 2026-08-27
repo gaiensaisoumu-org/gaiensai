@@ -42,6 +42,7 @@ type TicketIssueMode =
   | 'outside-own-self-only'
   | 'public-rehearsals'
   | 'self-rehearsals'
+  | 'self-rehearsals-list-only'
   | 'auto'
   | 'off';
 
@@ -64,6 +65,7 @@ const TICKET_ISSUE_MODE_VALUES = new Set<string>([
   'outside-own-self-only',
   'public-rehearsals',
   'self-rehearsals',
+  'self-rehearsals-list-only',
   'auto',
   'off',
 ]);
@@ -521,7 +523,7 @@ export const handleIssueTicketsRequest = async (
     ) {
       throw new HttpError(
         400,
-        '自主リハーサルは本人分のみ発券でき、差し替え発券には対応していません。',
+        '非公式公開リハーサルは本人分のみ発券でき、差し替え発券には対応していません。',
       );
     }
     const issueMode = isRehearsalTicket
@@ -778,13 +780,19 @@ export const handleIssueTicketsRequest = async (
       if (ticketIssueControls.rehearsalInvite === 'off') {
         throw new HttpError(409, 'リハーサル招待券の受付は停止中です。');
       }
+      if (ticketIssueControls.rehearsalInvite === 'self-rehearsals-list-only') {
+        throw new HttpError(
+          403,
+          '非公式公開リハーサルは一覧表示のみです。チケットは発券できません。',
+        );
+      }
       if (
         ticketIssueControls.rehearsalInvite === 'public-rehearsals' ||
         ticketIssueControls.rehearsalInvite === 'self-rehearsals'
       ) {
         const { data: rehearsalRow, error: rehearsalError } = await adminClient
           .from('rehearsals')
-          .select('id, type')
+          .select('id, type, is_ticket_accepting')
           .eq('class_id', body.performanceId)
           .eq('round_id', body.scheduleId)
           .eq('is_active', true)
@@ -796,14 +804,24 @@ export const handleIssueTicketsRequest = async (
             '公開リハーサル情報の取得に失敗しました。時間をおいて再度お試しください。',
           );
         }
-        if (!rehearsalRow ||
-          (ticketIssueControls.rehearsalInvite === 'self-rehearsals' && rehearsalRow.type !== 'unofficial') ||
-          (ticketIssueControls.rehearsalInvite === 'public-rehearsals' && rehearsalRow.type !== 'official')) {
+        if (
+          !rehearsalRow ||
+          (ticketIssueControls.rehearsalInvite === 'self-rehearsals' &&
+            rehearsalRow.type !== 'unofficial') ||
+          (ticketIssueControls.rehearsalInvite === 'public-rehearsals' &&
+            rehearsalRow.type !== 'official')
+        ) {
           throw new HttpError(
             403,
             ticketIssueControls.rehearsalInvite === 'self-rehearsals'
-              ? 'この設定では自主リハーサルのみ発券できます。'
+              ? 'この設定では非公式公開リハーサルのみ発券できます。'
               : 'この設定では公開リハーサルのみ発券できます。',
+          );
+        }
+        if (rehearsalRow.is_ticket_accepting === false) {
+          throw new HttpError(
+            403,
+            'このリハーサルは表示のみです。チケットは発券できません。',
           );
         }
       }

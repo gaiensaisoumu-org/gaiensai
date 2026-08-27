@@ -133,6 +133,8 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     useState<number | null>(null);
   const [showPublicRehearsalDashboard, setShowPublicRehearsalDashboard] =
     useState(true);
+  const [showUnofficialRehearsalDashboard, setShowUnofficialRehearsalDashboard] =
+    useState(true);
   const [ticketLoading, setTicketLoading] = useState(true);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketNotice, setTicketNotice] = useState<string | null>(null);
@@ -172,7 +174,11 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
     'open' | 'only-own' | 'off'
   >('open');
   const [rehearsalInviteMode, setRehearsalInviteMode] = useState<
-    'open' | 'public-rehearsals' | 'self-rehearsals' | 'off'
+    | 'open'
+    | 'public-rehearsals'
+    | 'self-rehearsals'
+    | 'self-rehearsals-list-only'
+    | 'off'
   >('open');
   const [ownClassName, setOwnClassName] = useState<string | null>(null);
   const [hasReachedIssueLimit, setHasReachedIssueLimit] = useState(false);
@@ -451,7 +457,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       const { data: officialRehearsalConfig } = await supabase
         .from('configs')
         .select(
-          'max_official_rehearsal_tickets_per_user, show_public_rehearsal_dashboard',
+          'max_official_rehearsal_tickets_per_user, show_public_rehearsal_dashboard, show_unofficial_rehearsal_dashboard',
         )
         .order('id', { ascending: true })
         .limit(1)
@@ -462,6 +468,11 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       ) {
         setOfficialRehearsalIssueLimit(
           officialRehearsalConfig.max_official_rehearsal_tickets_per_user,
+        );
+      }
+      if (typeof officialRehearsalConfig?.show_unofficial_rehearsal_dashboard === 'boolean') {
+        setShowUnofficialRehearsalDashboard(
+          officialRehearsalConfig.show_unofficial_rehearsal_dashboard,
         );
       }
       if (
@@ -496,8 +507,9 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         setClassInviteMode(controls.class_invite_mode ?? 'open');
         setGymInviteMode(controls.gym_invite_mode ?? 'open');
         setRehearsalInviteMode(
-          controls.rehearsal_invite_mode === 'public-rehearsals' ||
+            controls.rehearsal_invite_mode === 'public-rehearsals' ||
             controls.rehearsal_invite_mode === 'self-rehearsals' ||
+            controls.rehearsal_invite_mode === 'self-rehearsals-list-only' ||
             controls.rehearsal_invite_mode === 'off'
             ? controls.rehearsal_invite_mode
             : 'open',
@@ -1253,7 +1265,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       <Alert type='info'>
         <h3>リハーサル機能が追加されました!</h3>
         <p>
-          各クラス監督団に配布した、クラス用管理者ページから自主リハーサルを追加できます。非公式公開リハ等で整理券を使いたい時に活用してください。
+          各クラス監督団に配布した、クラス用管理者ページから非公式公開リハーサルを追加できます。整理券を使いたい時に活用してください。
         </p>
         <p>※ 今年度は公開リハは整理券なしで行います。</p>
       </Alert>
@@ -1340,7 +1352,7 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
               <p className={styles.ticketSummaryNumber}>
                 {rehearsalTicketCounts.unofficial}
               </p>
-              <p className={styles.ticketSummaryLabel}>自主リハ</p>
+              <p className={styles.ticketSummaryLabel}>非公式リハ</p>
             </div>
             <div className={styles.ticketSummaryItem}>
               <p className={styles.ticketSummaryNumber}>
@@ -1419,15 +1431,23 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         />
       </NormalSection>
 
-      {showPublicRehearsalDashboard && (
-          <IssueStepRehearsal
-            selectedPerformance={null}
-            onSelectPerformance={() => undefined}
-            inviteMode={rehearsalInviteMode}
-            dashboardMode
+      {(showPublicRehearsalDashboard || showUnofficialRehearsalDashboard) && (
+        <IssueStepRehearsal
+          selectedPerformance={null}
+          onSelectPerformance={() => undefined}
+          inviteMode={rehearsalInviteMode}
+          dashboardMode
+          showOfficialSchedule={showPublicRehearsalDashboard}
+          showUnofficialSchedule={showUnofficialRehearsalDashboard}
             onOfficialCellClick={
               rehearsalInviteMode === 'open' ||
               rehearsalInviteMode === 'public-rehearsals'
+                ? () => route('/students/issue')
+                : undefined
+            }
+            onUnofficialRowClick={
+              rehearsalInviteMode === 'open' ||
+              rehearsalInviteMode === 'self-rehearsals'
                 ? () => route('/students/issue')
                 : undefined
             }

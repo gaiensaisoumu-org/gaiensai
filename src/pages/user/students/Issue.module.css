@@ -160,6 +160,14 @@
   margin: 1.25rem 0 0.5rem;
 }
 
+.rehearsalSubheadingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
 .officialRehearsalTableWrap {
   width: 100%;
   overflow-x: auto;
@@ -321,7 +329,7 @@
   cursor: pointer;
 }
 
-.rehearsalRow:hover,
+.rehearsalRow:not(:disabled):hover,
 .rehearsalRowSelected {
   background: var(--translucent-w-bg-color);
 }
@@ -360,10 +368,16 @@
   color: var(--error-text-color);
 }
 
+.rehearsalMinus {
+  color: var(--sub-text-color);
+}
+
 @media (max-width: 500px) {
-  .rehearsalHeading {
+  .rehearsalHeading,
+  .rehearsalSubheadingRow {
     align-items: start;
     flex-direction: column;
+    gap: 0;
   }
 
   .rehearsalSort,
