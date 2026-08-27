@@ -110,16 +110,13 @@ const buildRosters = (data: ManagementData): Roster[] => {
   const gymTickets = new Map(
     data.gymTickets.map((ticket) => [ticket.id, ticket]),
   );
-  const rehearsalRoundKeys = new Set(
-    data.rehearsals.map(
-      (rehearsal) => `${rehearsal.class_id}:${rehearsal.round_id}`,
-    ),
+  const rehearsalTicketTypeIds = new Set(
+    data.ticketTypes
+      .filter((ticketType) => ticketType.name === 'クラス公演(リハーサル)')
+      .map((ticketType) => ticketType.id),
   );
   const validTickets = data.tickets.filter((ticket) => {
-    const classTicket = classTickets.get(ticket.id);
-    const isRehearsal =
-      classTicket !== undefined &&
-      rehearsalRoundKeys.has(`${classTicket.class_id}:${classTicket.round_id}`);
+    const isRehearsal = rehearsalTicketTypeIds.has(ticket.ticket_type);
     return (
       ticket.status === 'valid' &&
       ticket.ticket_type !== 5 &&
