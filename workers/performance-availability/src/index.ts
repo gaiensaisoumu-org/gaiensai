@@ -82,7 +82,9 @@ export default {
       return cached;
     }
 
-    const id = env.PERFORMANCE_AVAILABILITY.idFromName('global');
+    // Bump this cache-only object name when a deployment must discard a
+    // long-lived pre-change snapshot and perform the mandatory initial sync.
+    const id = env.PERFORMANCE_AVAILABILITY.idFromName('availability-v2');
     const response = await env.PERFORMANCE_AVAILABILITY.get(id).fetch(
       'https://availability.internal/snapshot',
     );
