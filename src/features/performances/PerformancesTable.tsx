@@ -48,10 +48,14 @@ type PerformanceAvailabilityData = {
 
 const PERFORMANCES_CACHE_KEY = 'performances-table-cache:v1';
 const SUPABASE_RESPONSE_TIMEOUT_MS = 8000;
+const DEFAULT_GRADE_FILTERS: Array<'1' | '2' | '3'> = ['1', '2', '3'];
+const DEFAULT_DAY_FILTERS: Array<'1' | '2'> = ['1', '2'];
 
 type PerformancesTableProps = {
   orientation?: 'classes-as-rows' | 'classes-as-columns';
   showFilters?: boolean;
+  showLegend?: boolean;
+  showScrollHint?: boolean;
   enableIssueJump?: boolean;
   issuePath?: string;
   onAvailableCellClick?: (selection: AvailableSeatSelection | null) => void;
@@ -69,11 +73,15 @@ type PerformancesTableProps = {
   hiddenPerformanceIds?: Set<number>;
   nonInteractivePerformanceIds?: Set<number>;
   availabilitySource?: AvailabilitySource;
+  gradeFilters?: Array<'1' | '2' | '3'>;
+  dayFilters?: Array<'1' | '2'>;
 };
 
 const PerformancesTable = ({
   orientation = 'classes-as-rows',
   showFilters = true,
+  showLegend = true,
+  showScrollHint = true,
   enableIssueJump = false,
   issuePath = '/students/issue',
   onAvailableCellClick,
@@ -87,6 +95,8 @@ const PerformancesTable = ({
   hiddenPerformanceIds,
   nonInteractivePerformanceIds,
   availabilitySource = 'public',
+  gradeFilters = DEFAULT_GRADE_FILTERS,
+  dayFilters = DEFAULT_DAY_FILTERS,
 }: PerformancesTableProps) => {
   const autoSelectedCellKeyRef = useRef<string | null>(null);
   const hasLoadedAvailabilityRef = useRef(false);
@@ -224,7 +234,7 @@ const PerformancesTable = ({
       // 日付ごとの関数フィルターは復元できないため除外する。ほかの条件は
       // キーに含め、別画面の結果が混ざらないようにする。
       const canUseCache = !scheduleFilter;
-      const cacheKey = `${PERFORMANCES_CACHE_KEY}:${currentRemainingMode}:${filterAccepting ? 'accepting' : 'all'}:${encodeURIComponent(restrictedClassName ?? 'all')}`;
+      const cacheKey = `${PERFORMANCES_CACHE_KEY}:${currentRemainingMode}:${filterAccepting ? 'accepting' : 'all'}:${encodeURIComponent(restrictedClassName ?? 'all')}:${gradeFilters.join('') || 'none'}:${dayFilters.join('') || 'none'}`;
       const restoreCache = () => {
         if (!canUseCache) {
           return false;
@@ -308,7 +318,10 @@ const PerformancesTable = ({
         (performance) =>
           (!filterPerformanceAccepting || performance.is_accepting === true) &&
           (!restrictedClassName ||
-            performance.class_name === restrictedClassName),
+            performance.class_name === restrictedClassName) &&
+          gradeFilters.some((grade) =>
+            performance.class_name.startsWith(`${grade}-`),
+          ),
       );
       const loadedSchedules = (
         (availabilityData?.schedules ?? []) as Array<
@@ -317,6 +330,9 @@ const PerformancesTable = ({
       ).filter(
         (schedule) =>
           (!filterAccepting || schedule.is_active === true) &&
+          dayFilters.some((day) =>
+            schedule.round_name.startsWith(`${day}日目`),
+          ) &&
           (!scheduleFilter ||
             scheduleFilter(
               schedule.id,
@@ -405,6 +421,8 @@ const PerformancesTable = ({
     scheduleFilter,
     availabilityRevision,
     availabilitySource,
+    gradeFilters,
+    dayFilters,
   ]);
 
   const statusByKey = useMemo(() => {
@@ -769,18 +787,22 @@ const PerformancesTable = ({
           </label>
         )}
       </div>}
-      <div className={styles.legend}>
-        <span className={`${styles.legendItem} ${styles.statusCircle}`}>
-          ○ 余裕あり
-        </span>
-        <span className={`${styles.legendItem} ${styles.statusTriangle}`}>
-          △ 残り10%以下
-        </span>
-        <span className={`${styles.legendItem} ${styles.statusCross}`}>
-          × 売り切れ
-        </span>
-      </div>
-      <p className={styles.scrollHint}>← 横にスクロールできます →</p>
+      {showLegend && (
+        <div className={styles.legend}>
+          <span className={`${styles.legendItem} ${styles.statusCircle}`}>
+            ○ 余裕あり
+          </span>
+          <span className={`${styles.legendItem} ${styles.statusTriangle}`}>
+            △ 残り10%以下
+          </span>
+          <span className={`${styles.legendItem} ${styles.statusCross}`}>
+            × 売り切れ
+          </span>
+        </div>
+      )}
+      {showScrollHint && (
+        <p className={styles.scrollHint}>← 横にスクロールできます →</p>
+      )}
       <div className={styles.tableWrapper} ref={tableWrapperRef}>
         <table className={styles.table}>
           <thead>
