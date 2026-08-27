@@ -30,6 +30,9 @@ const PUBLIC_REFRESH_MS = 5_000;
 const MONITOR_RESYNC_MS = 60_000;
 const publicRefreshSubscribers = new Set<() => void>();
 let publicRefreshTimer: number | null = null;
+const monitorRefreshSubscribers = new Set<() => void>();
+let monitorRefreshChannel: RealtimeChannel | null = null;
+let monitorRefreshTimer: number | null = null;
 
 const getPublicAvailabilityUrl = () =>
   import.meta.env.VITE_PERFORMANCE_AVAILABILITY_API_URL ||
@@ -116,27 +119,43 @@ export const subscribePublicPerformanceAvailability = (
 export const subscribeMonitorPerformanceAvailability = (
   onSyncNeeded: () => void,
 ): (() => void) => {
-  const channel: RealtimeChannel = supabase
-    .channel('monitor-performance-availability')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'class_ticket_counters' },
-      onSyncNeeded,
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'gym_ticket_counters' },
-      onSyncNeeded,
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        onSyncNeeded();
-      }
-    });
+  monitorRefreshSubscribers.add(onSyncNeeded);
+  if (!monitorRefreshChannel) {
+    const notifySubscribers = () => {
+      monitorRefreshSubscribers.forEach((subscriber) => subscriber());
+    };
+    monitorRefreshChannel = supabase
+      .channel('monitor-performance-availability')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'class_ticket_counters' },
+        notifySubscribers,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'gym_ticket_counters' },
+        notifySubscribers,
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          notifySubscribers();
+        }
+      });
+    monitorRefreshTimer = window.setInterval(
+      notifySubscribers,
+      MONITOR_RESYNC_MS,
+    );
+  }
 
-  const timer = window.setInterval(onSyncNeeded, MONITOR_RESYNC_MS);
   return () => {
-    window.clearInterval(timer);
-    void supabase.removeChannel(channel);
+    monitorRefreshSubscribers.delete(onSyncNeeded);
+    if (monitorRefreshSubscribers.size === 0 && monitorRefreshChannel) {
+      void supabase.removeChannel(monitorRefreshChannel);
+      monitorRefreshChannel = null;
+      if (monitorRefreshTimer !== null) {
+        window.clearInterval(monitorRefreshTimer);
+        monitorRefreshTimer = null;
+      }
+    }
   };
 };

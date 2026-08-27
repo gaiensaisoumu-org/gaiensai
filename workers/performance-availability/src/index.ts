@@ -23,6 +23,7 @@ const CACHE_TTL_SECONDS = 3;
 const RECONNECT_DELAY_MS = 5_000;
 const HEALTH_CHECK_SECONDS = 30;
 const HEARTBEAT_MS = 25_000;
+const FALLBACK_RESYNC_MS = 60_000;
 const REALTIME_TABLES = [
   'class_ticket_counters',
   'gym_ticket_counters',
@@ -44,6 +45,16 @@ const jsonResponse = (body: AvailabilitySnapshot, init?: ResponseInit) =>
     },
   });
 
+const getCacheKey = (request: Request, bucket: number): Request => {
+  const url = new URL(request.url);
+  // Cache API entries do not reliably expire from response Cache-Control alone.
+  // A bucketed key guarantees that a new shared entry is used every three
+  // seconds, while keeping cache-only details out of the public request URL.
+  url.search = '';
+  url.searchParams.set('__availability_cache_bucket', String(bucket));
+  return new Request(url.toString());
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
@@ -64,7 +75,9 @@ export default {
     }
 
     const cache = caches.default;
-    const cached = await cache.match(request);
+    const cacheBucket = Math.floor(Date.now() / (CACHE_TTL_SECONDS * 1_000));
+    const cacheKey = getCacheKey(request, cacheBucket);
+    const cached = await cache.match(cacheKey);
     if (cached) {
       return cached;
     }
@@ -84,7 +97,9 @@ export default {
         'access-control-allow-origin': '*',
       },
     });
-    await cache.put(request, publicResponse.clone());
+    await cache.put(cacheKey, publicResponse.clone());
+    // Prevent an ever-growing set of bucket keys in each edge cache.
+    await cache.delete(getCacheKey(request, cacheBucket - 1));
     return publicResponse;
   },
 };
@@ -143,7 +158,15 @@ export class PerformanceAvailabilityDurableObject {
   }
 
   private async ensureReady(): Promise<void> {
-    if (!this.snapshot || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+    const lastSyncedAt = await this.state.storage.get<number>('lastSyncedAt');
+    const needsFallbackSync =
+      !lastSyncedAt || Date.now() - lastSyncedAt >= FALLBACK_RESYNC_MS;
+    if (
+      !this.snapshot ||
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN ||
+      needsFallbackSync
+    ) {
       await this.syncAndConnect();
     }
   }
@@ -179,7 +202,11 @@ export class PerformanceAvailabilityDurableObject {
 
     this.snapshot = (await response.json()) as AvailabilitySnapshot;
     const updatedAt = new Date().toISOString();
-    await this.state.storage.put({ snapshot: this.snapshot, updatedAt });
+    await this.state.storage.put({
+      snapshot: this.snapshot,
+      updatedAt,
+      lastSyncedAt: Date.now(),
+    });
   }
 
   private connectRealtime(): void {
