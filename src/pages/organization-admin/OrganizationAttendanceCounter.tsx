@@ -154,6 +154,16 @@ const OrganizationAttendanceCounter = ({
     [targetKey],
   );
 
+  const decreaseTotalCount = useCallback(() => {
+    // 合計表示では通常、チケットありの人数を増減する。チケットありが
+    // 0 の場合は、合計を正しく減らせるようチケットなしを減らす。
+    if (ticketedEntryCount > 0) {
+      changeCount('ticketed', -1);
+      return;
+    }
+    changeCount('ticketless', -1);
+  }, [changeCount, ticketedEntryCount]);
+
   useEffect(() => {
     if (
       target.performanceId === null ||
@@ -283,7 +293,7 @@ const OrganizationAttendanceCounter = ({
             kind='total'
             count={ticketedEntryCount + ticketlessEntryCount}
             onIncrease={() => changeCount('ticketed', 1)}
-            onDecrease={() => changeCount('ticketed', -1)}
+            onDecrease={decreaseTotalCount}
           />
         )}
       </div>
