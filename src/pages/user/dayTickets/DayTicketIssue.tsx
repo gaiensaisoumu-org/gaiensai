@@ -42,6 +42,7 @@ const gymPerformanceSnapshot = performancesSnapshot as {
     start_at?: string | null;
     end_at?: string | null;
   }>;
+  showLengthMinutes?: number | null;
 };
 
 const readFunctionErrorMessage = async (error: unknown): Promise<string> => {
@@ -392,12 +393,9 @@ const DayTicketIssue = () => {
             .eq('id', selectedPerformance.performanceId)
             .maybeSingle()
         : { data: null },
-      supabase
-        .from('configs')
-        .select('show_length')
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
+      Promise.resolve({
+        data: { show_length: gymPerformanceSnapshot.showLengthMinutes },
+      }),
     ]);
 
     let scheduleDate = '-';

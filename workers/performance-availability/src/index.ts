@@ -101,7 +101,8 @@ export default {
     const url = new URL(request.url);
     if (
       url.pathname === '/app-data-cache/student-dashboard' ||
-      url.pathname === '/app-data-cache/junior-dashboard'
+      url.pathname === '/app-data-cache/junior-dashboard' ||
+      url.pathname === '/app-data-cache/student-issue-bootstrap'
     ) {
       const cacheBucket = Math.floor(Date.now() / (CACHE_TTL_SECONDS * 1_000));
       const cacheKey = await getUserCounterCacheKey(request, cacheBucket);
@@ -139,7 +140,9 @@ export default {
                 },
               ),
             ])
-          : [await rpc('get_junior_my_page')];
+          : url.pathname === '/app-data-cache/student-issue-bootstrap'
+            ? [await rpc('get_student_issue_bootstrap')]
+            : [await rpc('get_junior_my_page')];
       if (responses.some((response) => !response.ok)) {
         return new Response('Unable to load dashboard', { status: 502 });
       }
@@ -150,7 +153,9 @@ export default {
               remaining: await responses[1].json(),
               rehearsalCounters: await responses[2].json(),
             })
-          : JSON.stringify({ dashboard: await responses[0].json() });
+          : url.pathname === '/app-data-cache/student-issue-bootstrap'
+            ? JSON.stringify({ data: await responses[0].json() })
+            : JSON.stringify({ dashboard: await responses[0].json() });
       const privateResponse = new Response(body, {
         headers: {
           'content-type': 'application/json; charset=utf-8',

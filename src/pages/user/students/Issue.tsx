@@ -43,6 +43,7 @@ const gymPerformanceSnapshot = performancesSnapshot as {
     start_at?: string | null;
     end_at?: string | null;
   }>;
+  showLengthMinutes?: number | null;
 };
 
 type ClassTicketCounterRow = {
@@ -238,10 +239,10 @@ const Issue = () => {
 
   useEffect(() => {
     const loadPerformanceRemaining = async () => {
-      const { data, error } = await supabase.rpc(
-        'get_student_performance_ticket_remaining',
-      );
-      if (error) {
+      let data: unknown;
+      try {
+        data = (await getCachedStudentDashboard()).remaining;
+      } catch {
         return;
       }
       const result = data as {
@@ -1198,12 +1199,9 @@ const Issue = () => {
             .eq('id', selectedPerformance.performanceId)
             .maybeSingle()
         : { data: null },
-      supabase
-        .from('configs')
-        .select('show_length')
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
+      Promise.resolve({
+        data: { show_length: gymPerformanceSnapshot.showLengthMinutes },
+      }),
     ]);
 
     // Calculate schedule date/time

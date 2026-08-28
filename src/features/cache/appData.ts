@@ -105,4 +105,7 @@ export const getCachedStudentDashboard = () =>
 
 export const getCachedJuniorDashboard = () =>
   getPrivateCachedData<{ dashboard: unknown }>('junior-dashboard');
+
+export const getCachedStudentIssueBootstrap = () =>
+  getPrivateCachedData<{ data: unknown }>('student-issue-bootstrap');
 import { supabase } from '../../lib/supabase';
