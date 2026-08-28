@@ -100,10 +100,6 @@
   font-weight: 700;
 }
 
-.gradeSection {
-  margin-bottom: 2rem;
-}
-
 .gradeSection h2 {
   margin: 1rem;
 }
@@ -116,4 +112,15 @@
   .guide {
     align-self: center;
   }
+}
+
+.userGuide {
+  font-weight: 700;
+  text-align: center;
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.userGuideHighlight {
+  color: var(--accent-color);
 }

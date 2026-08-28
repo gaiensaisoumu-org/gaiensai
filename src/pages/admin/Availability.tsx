@@ -103,6 +103,7 @@ const Availability = () => {
             />
           </section>
         ))}
+        <p className={styles.userGuide}>空きがある公演をご観覧される場合は、<span className={styles.userGuideHighlight}>各クラス前のチケットなしの列</span>に直接お並びください。</p>
     </>
   );
 };
