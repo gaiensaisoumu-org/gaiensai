@@ -74,4 +74,12 @@ export default defineConfig([
       // 旧プラグインの "react/react-in-jsx-scope" は不要なので削除して問題ありません。
     },
   },
+  {
+    files: ['load-tests/k6/**/*.js'],
+    languageOptions: {
+      globals: {
+        __ENV: 'readonly',
+      },
+    },
+  },
 ]);
