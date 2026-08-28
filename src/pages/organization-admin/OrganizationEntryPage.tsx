@@ -44,6 +44,14 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { supabase } from '../../lib/supabase';
 import { useEventConfig } from '../../hooks/useEventConfig';
 import { isJuniorTicketTypeId } from '../../features/tickets/juniorRelationship';
+import {
+  getPerformanceAvailability,
+  subscribeMonitorPerformanceAvailability,
+} from '../../features/performances/performanceAvailability';
+import {
+  getClassRemaining,
+  getGymRemaining,
+} from '../../features/performances/availabilityHelpers';
 
 const RESULT_CLEAR_DELAY_MS = 4000;
 const RESULT_EXIT_DURATION_MS = 1000;
@@ -112,6 +120,33 @@ type DecodeError = {
 
 type EntryMode = 'register' | 'scan';
 
+type AvailabilityClassPerformance = {
+  id: number;
+  total_capacity: number | null;
+  junior_capacity: number | null;
+};
+
+type AvailabilityGymPerformance = {
+  id: number;
+  capacity: number | null;
+  junior_capacity: number | null;
+};
+
+type AvailabilityClassCounter = {
+  class_id: number;
+  round_id: number;
+  issued_general: number | null;
+  issued_junior: number | null;
+  issued_other: number | null;
+};
+
+type AvailabilityGymCounter = {
+  performance_id: number;
+  issued_general: number | null;
+  issued_junior: number | null;
+  issued_other: number | null;
+};
+
 const OrganizationEntryPage = ({
   mode,
   isPerformanceInProgress = false,
@@ -155,6 +190,9 @@ const OrganizationEntryPage = ({
 
   const [entryCount, setEntryCount] = useState<number>(0);
   const [ticketlessEntryCount, setTicketlessEntryCount] = useState(0);
+  const [performanceRemaining, setPerformanceRemaining] = useState<
+    number | null
+  >(null);
   const [entryCountValue, setEntryCountValue] = useState<number>(1);
   const [currentLogId, setCurrentLogId] = useState<number | null>(null);
   const [currentTicketCode, setCurrentTicketCode] = useState<string>('');
@@ -221,8 +259,98 @@ const OrganizationEntryPage = ({
         performance.group_name,
         performance,
       ]),
-    ).values(),
+  ).values(),
   );
+
+  useEffect(() => {
+    if (
+      scanTarget.performanceId === null ||
+      (scanTarget.kind === 'class' && scanTarget.scheduleId === null) ||
+      scanTarget.kind === 'rehearsal'
+    ) {
+      setPerformanceRemaining(null);
+      return;
+    }
+
+    let isActive = true;
+    const refreshRemaining = async () => {
+      const result = await getPerformanceAvailability('monitor');
+      if (!isActive || !result.data) {
+        return;
+      }
+
+      if (scanTarget.kind === 'class') {
+        const performance = (
+          result.data.class_performances ?? []
+        ).find(
+          (item): item is AvailabilityClassPerformance =>
+            typeof item === 'object' &&
+            item !== null &&
+            (item as AvailabilityClassPerformance).id ===
+              scanTarget.performanceId,
+        );
+        const counter = (result.data.class_counters ?? []).find(
+          (item): item is AvailabilityClassCounter =>
+            typeof item === 'object' &&
+            item !== null &&
+            (item as AvailabilityClassCounter).class_id ===
+              scanTarget.performanceId &&
+            (item as AvailabilityClassCounter).round_id ===
+              scanTarget.scheduleId,
+        );
+        setPerformanceRemaining(
+          performance
+            ? getClassRemaining({
+                totalCapacity: Number(performance.total_capacity ?? 0),
+                juniorCapacity: Number(performance.junior_capacity ?? 0),
+                issuedGeneral: Number(counter?.issued_general ?? 0),
+                issuedJunior: Number(counter?.issued_junior ?? 0),
+                issuedOther: Number(counter?.issued_other ?? 0),
+                mode: 'total',
+                isJuniorReleased: true,
+              })
+            : null,
+        );
+        return;
+      }
+
+      const performance = (result.data.gym_performances ?? []).find(
+        (item): item is AvailabilityGymPerformance =>
+          typeof item === 'object' &&
+          item !== null &&
+          (item as AvailabilityGymPerformance).id === scanTarget.performanceId,
+      );
+      const counter = (result.data.gym_counters ?? []).find(
+        (item): item is AvailabilityGymCounter =>
+          typeof item === 'object' &&
+          item !== null &&
+          (item as AvailabilityGymCounter).performance_id ===
+            scanTarget.performanceId,
+      );
+      setPerformanceRemaining(
+        performance
+          ? getGymRemaining({
+              totalCapacity: Number(performance.capacity ?? 0),
+              juniorCapacity: Number(performance.junior_capacity ?? 0),
+              issuedGeneral: Number(counter?.issued_general ?? 0),
+              issuedJunior: Number(counter?.issued_junior ?? 0),
+              issuedOther: Number(counter?.issued_other ?? 0),
+              mode: 'total',
+              isJuniorReleased: true,
+            })
+          : null,
+      );
+    };
+
+    void refreshRemaining();
+    const unsubscribe = subscribeMonitorPerformanceAvailability(() => {
+      void refreshRemaining();
+    });
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [scanTarget.kind, scanTarget.performanceId, scanTarget.scheduleId]);
 
   const formatIssuerDisplay = (ticket: TicketDecodedDisplaySeed): string => {
     if (ticket.affiliation === '1600') {
@@ -1558,7 +1686,10 @@ const OrganizationEntryPage = ({
                 <FaMinus />
               </button>
               <span className={scanStyles.ticketlessEntryCount}>
-                {ticketlessEntryCount}人
+                {ticketlessEntryCount}人{' '}
+                <span className={scanStyles.smallText}>
+                  / {performanceRemaining ?? '-'}席
+                </span>
               </span>
               <button
                 type='button'
@@ -1696,7 +1827,10 @@ const OrganizationEntryPage = ({
                   <FaMinus />
                 </button>
                 <span className={scanStyles.ticketlessEntryCount}>
-                  {ticketlessEntryCount}人
+                  {ticketlessEntryCount}人{' '}
+                  <span className={scanStyles.smallText}>
+                    / {performanceRemaining ?? '-'}席
+                  </span>
                 </span>
                 <button
                   type='button'
