@@ -51,6 +51,7 @@ type TicketIssueControls = {
   rehearsalInvite: TicketIssueMode;
   gymInvite: TicketIssueMode;
   entryOnly: TicketIssueMode;
+  juniorEntryOnly: TicketIssueMode;
   sameDayClass: TicketIssueMode;
   sameDayGym: TicketIssueMode;
 };
@@ -74,6 +75,7 @@ const DEFAULT_TICKET_ISSUE_CONTROLS: TicketIssueControls = {
   rehearsalInvite: 'open',
   gymInvite: 'open',
   entryOnly: 'open',
+  juniorEntryOnly: 'open',
   sameDayClass: 'open',
   sameDayGym: 'open',
 };
@@ -233,7 +235,7 @@ const readTicketIssueControls = async (
   const { data, error } = await adminClient
     .from('ticket_issue_controls')
     .select(
-      'class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode, same_day_class_mode, same_day_gym_mode',
+      'class_invite_mode, rehearsal_invite_mode, gym_invite_mode, entry_only_mode, junior_entry_only_mode, same_day_class_mode, same_day_gym_mode',
     )
     .eq('id', 1)
     .maybeSingle();
@@ -255,6 +257,8 @@ const readTicketIssueControls = async (
     .rehearsal_invite_mode;
   const gymInvite = (data as Record<string, unknown>).gym_invite_mode;
   const entryOnly = (data as Record<string, unknown>).entry_only_mode;
+  const juniorEntryOnly = (data as Record<string, unknown>)
+    .junior_entry_only_mode;
   const sameDayClass = (data as Record<string, unknown>).same_day_class_mode;
   const sameDayGym = (data as Record<string, unknown>).same_day_gym_mode;
 
@@ -263,6 +267,7 @@ const readTicketIssueControls = async (
     typeof rehearsalInvite !== 'string' ||
     typeof gymInvite !== 'string' ||
     typeof entryOnly !== 'string' ||
+    typeof juniorEntryOnly !== 'string' ||
     typeof sameDayClass !== 'string' ||
     typeof sameDayGym !== 'string'
   ) {
@@ -274,6 +279,7 @@ const readTicketIssueControls = async (
     !TICKET_ISSUE_MODE_VALUES.has(rehearsalInvite) ||
     !TICKET_ISSUE_MODE_VALUES.has(gymInvite) ||
     !TICKET_ISSUE_MODE_VALUES.has(entryOnly) ||
+    !TICKET_ISSUE_MODE_VALUES.has(juniorEntryOnly) ||
     !TICKET_ISSUE_MODE_VALUES.has(sameDayClass) ||
     !TICKET_ISSUE_MODE_VALUES.has(sameDayGym)
   ) {
@@ -285,6 +291,7 @@ const readTicketIssueControls = async (
     rehearsalInvite: rehearsalInvite as TicketIssueMode,
     gymInvite: gymInvite as TicketIssueMode,
     entryOnly: entryOnly as TicketIssueMode,
+    juniorEntryOnly: juniorEntryOnly as TicketIssueMode,
     sameDayClass: sameDayClass as TicketIssueMode,
     sameDayGym: sameDayGym as TicketIssueMode,
   };
@@ -856,7 +863,10 @@ export const handleIssueTicketsRequest = async (
       (entryOnlyId !== undefined && body.ticketTypeId === entryOnlyId) ||
       body.ticketTypeId === juniorEntryOnlyId
     ) {
-      if (ticketIssueControls.entryOnly === 'off') {
+      const entryOnlyMode = isJuniorEntryOnlyTicket
+        ? ticketIssueControls.juniorEntryOnly
+        : ticketIssueControls.entryOnly;
+      if (entryOnlyMode === 'off') {
         throw new HttpError(409, '入場専用券の受付は停止中です。');
       }
 
