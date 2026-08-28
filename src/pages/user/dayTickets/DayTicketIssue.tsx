@@ -37,6 +37,13 @@ const getJstDateKey = (date: Date): string =>
   date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
 
 const gymPerformanceSnapshot = performancesSnapshot as {
+  performances?: Array<{ id: number; title?: string | null }>;
+  schedules?: Array<{ id: number; start_at?: string | null }>;
+  ticketTypes?: Array<{
+    id: number;
+    name: string;
+    type?: string | null;
+  }>;
   gymPerformances?: Array<{
     id: number;
     start_at?: string | null;
@@ -162,24 +169,15 @@ const DayTicketIssue = () => {
   }, []);
 
   useEffect(() => {
-    const loadTicketTypes = async () => {
-      const { data, error } = await supabase
-        .from('ticket_types')
-        .select('id, name, type')
-        .eq('type', '当日券')
-        .in('id', [CLASS_DAY_TICKET_ID, GYM_DAY_TICKET_ID])
-        .order('id', { ascending: true });
-
-      if (error) {
-        alert('当日券種別の読み込みに失敗しました。');
-        return;
-      }
-
-      const nextTypes = (data ?? []) as TicketTypeOption[];
-      setTicketTypes(nextTypes);
-    };
-
-    void loadTicketTypes();
+    setTicketTypes(
+      (gymPerformanceSnapshot.ticketTypes ?? [])
+        .filter(
+          (ticketType) =>
+            ticketType.type === '当日券' &&
+            [CLASS_DAY_TICKET_ID, GYM_DAY_TICKET_ID].includes(ticketType.id),
+        )
+        .map((ticketType) => ({ ...ticketType, is_active: false })),
+    );
   }, []);
 
   // ticket_issue_controls に基づいて有効な当日券種を計算
@@ -373,25 +371,28 @@ const DayTicketIssue = () => {
       { data: configData },
     ] = await Promise.all([
       !isGymSelection
-        ? supabase
-            .from('class_performances')
-            .select('title')
-            .eq('id', selectedPerformance.performanceId)
-            .maybeSingle()
+        ? Promise.resolve({
+            data:
+              (gymPerformanceSnapshot.performances ?? []).find(
+                (item) => item.id === selectedPerformance.performanceId,
+              ) ?? null,
+          })
         : { data: null },
       selectedPerformance.scheduleId > 0
-        ? supabase
-            .from('performances_schedule')
-            .select('start_at')
-            .eq('id', selectedPerformance.scheduleId)
-            .maybeSingle()
+        ? Promise.resolve({
+            data:
+              (gymPerformanceSnapshot.schedules ?? []).find(
+                (item) => item.id === selectedPerformance.scheduleId,
+              ) ?? null,
+          })
         : { data: null },
       isGymSelection
-        ? supabase
-            .from('gym_performances')
-            .select('start_at')
-            .eq('id', selectedPerformance.performanceId)
-            .maybeSingle()
+        ? Promise.resolve({
+            data:
+              (gymPerformanceSnapshot.gymPerformances ?? []).find(
+                (item) => item.id === selectedPerformance.performanceId,
+              ) ?? null,
+          })
         : { data: null },
       Promise.resolve({
         data: { show_length: gymPerformanceSnapshot.showLengthMinutes },

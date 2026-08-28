@@ -4,6 +4,13 @@ export type CachedAppData = {
   rehearsal_round_names: Array<Record<string, unknown>>;
   rehearsals: Array<Record<string, unknown>>;
   ticket_issue_controls: Array<Record<string, unknown>>;
+  performance_acceptance: Array<{
+    performance_type: 'class' | 'gym' | 'club';
+    performance_id: number;
+    is_accepting: boolean | null;
+    like_count: number;
+  }>;
+  admission_only_junior_account_count: number;
   updatedAt?: string;
 };
 
@@ -108,4 +115,7 @@ export const getCachedJuniorDashboard = () =>
 
 export const getCachedStudentIssueBootstrap = () =>
   getPrivateCachedData<{ data: unknown }>('student-issue-bootstrap');
+
+export const getCachedJuniorIssueBootstrap = () =>
+  getPrivateCachedData<{ data: unknown }>('junior-issue-bootstrap');
 import { supabase } from '../../lib/supabase';

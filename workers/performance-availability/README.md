@@ -13,6 +13,13 @@ than the whole ticket list. `/app-data-cache/user-counters` is separately
 cached by a hash of the authenticated user's token, so student counters are
 never shared between users.
 
+The same token-hashed private cache is used by
+`/app-data-cache/student-dashboard`, `/app-data-cache/junior-dashboard`,
+`/app-data-cache/student-issue-bootstrap`, and
+`/app-data-cache/junior-issue-bootstrap`. Browser-facing responses remain
+`private, no-store`; only an internal response stored under the hashed cache
+key is cacheable for three seconds.
+
 ## Deploy
 
 1. Ensure `api.gaiensai.com` is a proxied DNS record in the `gaiensai.com`

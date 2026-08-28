@@ -5,6 +5,7 @@ import styles from './InitialRegistration.module.css';
 import { useTitle } from '../../../hooks/useTitle';
 import Alert from '../../../components/ui/Alert';
 import Modal from '../../../components/ui/Modal';
+import performancesSnapshot from '../../../generated/performances-static.json';
 
 const STUDENT_ACCOUNT_CONFIRMATION_STORAGE_PREFIX =
   'student-account-confirmed:v1:';
@@ -30,18 +31,13 @@ const InitialRegistration = ({ onRegistered }: InitialRegistrationProps) => {
   const { route } = useLocation();
 
   useEffect(() => {
-    const fetchClubs = async () => {
-      const { data, error } = await supabase
-        .from('gym_performances')
-        .select('group_name');
-
-      if (!error && data) {
-        const names = data.map((d) => d.group_name).filter(Boolean);
-        const uniqueClubs = Array.from(new Set(names)).sort();
-        setAvailableClubs(uniqueClubs);
-      }
+    const snapshot = performancesSnapshot as {
+      gymPerformances?: Array<{ group_name?: string | null }>;
     };
-    void fetchClubs();
+    const names = (snapshot.gymPerformances ?? [])
+      .map((performance) => performance.group_name)
+      .filter((name): name is string => Boolean(name));
+    setAvailableClubs(Array.from(new Set(names)).sort());
   }, []);
 
   useEffect(() => {

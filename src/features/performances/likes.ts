@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { supabase } from '../../lib/supabase';
+import { getCachedAppData } from '../cache/appData';
 
 export type LikeType = 'class' | 'gym' | 'club';
 export type LikedPerformance = { type: LikeType; id: number };
@@ -46,11 +47,9 @@ export const getKnownLikeCount = (
 const loadLikeCounts = async () => {
   if (likeCountsLoaded) return;
   if (!likeCountsRequest) {
-    likeCountsRequest = Promise.resolve(
-      supabase.rpc('get_public_performance_acceptance'),
-    )
-      .then(({ data, error }) => {
-        if (!error && Array.isArray(data)) {
+    likeCountsRequest = getCachedAppData()
+      .then(({ performance_acceptance: data }) => {
+        if (Array.isArray(data)) {
           for (const row of data as Array<{
             performance_type: LikeType;
             performance_id: number;

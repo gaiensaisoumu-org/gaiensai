@@ -29,6 +29,7 @@ import {
   getCachedAppData,
   getCachedStudentDashboard,
 } from '../../../features/cache/appData';
+import { getPerformanceAvailability } from '../../../features/performances/performanceAvailability';
 
 const MAX_ISSUE_COUNT = 5;
 const PANEL_ANIMATION_MS = 360;
@@ -38,8 +39,24 @@ const CLASS_INVITE_TICKET_ID = 1;
 const GYM_INVITE_TICKET_ID = 3;
 
 const gymPerformanceSnapshot = performancesSnapshot as {
+  performances?: Array<{
+    id: number;
+    class_name: string;
+    title?: string | null;
+    total_capacity?: number | null;
+    junior_capacity?: number | null;
+  }>;
+  schedules?: Array<{
+    id: number;
+    round_name: string;
+    start_at?: string | null;
+  }>;
   gymPerformances?: Array<{
     id: number;
+    group_name: string;
+    round_name: string;
+    capacity?: number | null;
+    junior_capacity?: number | null;
     start_at?: string | null;
     end_at?: string | null;
   }>;
@@ -47,12 +64,15 @@ const gymPerformanceSnapshot = performancesSnapshot as {
 };
 
 type ClassTicketCounterRow = {
+  class_id?: number;
+  round_id?: number;
   issued_general: number | null;
   issued_junior: number | null;
   issued_other: number | null;
 };
 
 type GymTicketCounterRow = {
+  performance_id?: number;
   issued_general: number | null;
   issued_junior: number | null;
   issued_other: number | null;
@@ -608,16 +628,23 @@ const Issue = () => {
         ) {
           return;
         }
-        const { data: rehearsal, error } = await supabase
-          .from('rehearsals')
-          .select(
-            'class_id, round_id, round_name, capacity, active_ticket_count, type, is_active, is_ticket_accepting',
-          )
-          .eq('class_id', performanceId)
-          .eq('round_id', scheduleId)
-          .maybeSingle();
+        const appData = await getCachedAppData();
+        const rehearsal = (
+          appData.rehearsals as Array<{
+            class_id: number;
+            round_id: number;
+            round_name: string;
+            capacity: number;
+            active_ticket_count: number;
+            type: 'official' | 'unofficial';
+            is_active: boolean;
+            is_ticket_accepting: boolean;
+          }>
+        ).find(
+          (item) =>
+            item.class_id === performanceId && item.round_id === scheduleId,
+        );
         if (
-          error ||
           !rehearsal ||
           !rehearsal.is_active ||
           rehearsal.is_ticket_accepting === false ||
@@ -625,13 +652,10 @@ const Issue = () => {
         ) {
           return;
         }
-        const { data: classPerformance, error: classPerformanceError } =
-          await supabase
-            .from('class_performances')
-            .select('class_name, title')
-            .eq('id', rehearsal.class_id)
-            .maybeSingle();
-        if (classPerformanceError || !classPerformance) {
+        const classPerformance = (
+          gymPerformanceSnapshot.performances ?? []
+        ).find((performance) => performance.id === rehearsal.class_id);
+        if (!classPerformance) {
           return;
         }
         const rehearsalTicketType = ticketTypes.find(
@@ -663,35 +687,15 @@ const Issue = () => {
           return;
         }
 
-        const [
-          { data: performanceData, error: performanceError },
-          { data: counterData, error: counterError },
-          { data: configData, error: configError },
-        ] = await Promise.all([
-          supabase
-            .from('gym_performances')
-            .select('id, group_name, round_name, capacity, junior_capacity')
-            .eq('id', performanceId)
-            .maybeSingle(),
-          supabase
-            .from('gym_ticket_counters')
-            .select('issued_general, issued_junior, issued_other')
-            .eq('performance_id', performanceId)
-            .maybeSingle(),
-          supabase
-            .from('configs')
-            .select('junior_release_open')
-            .order('id', { ascending: true })
-            .limit(1)
-            .maybeSingle(),
-        ]);
-
-        if (
-          performanceError ||
-          counterError ||
-          configError ||
-          !performanceData
-        ) {
+        const availability = await getPerformanceAvailability();
+        const performanceData = (
+          gymPerformanceSnapshot.gymPerformances ?? []
+        ).find((performance) => performance.id === performanceId);
+        const counterData = (
+          availability.data?.gym_counters as GymTicketCounterRow[] | undefined
+        )?.find((counter) => counter.performance_id === performanceId);
+        const configData = availability.data?.config;
+        if (availability.error || !performanceData) {
           return;
         }
 
@@ -733,44 +737,24 @@ const Issue = () => {
         performanceId > 0 &&
         scheduleId > 0
       ) {
-        const [
-          { data: performanceData, error: performanceError },
-          { data: scheduleData, error: scheduleError },
-          { data: counterData, error: counterError },
-          { data: configData, error: configError },
-        ] = await Promise.all([
-          supabase
-            .from('class_performances')
-            .select('id, class_name, total_capacity, junior_capacity')
-            .eq('id', performanceId)
-            .maybeSingle(),
-          supabase
-            .from('performances_schedule')
-            .select('id, round_name')
-            .eq('id', scheduleId)
-            .maybeSingle(),
-          supabase
-            .from('class_ticket_counters')
-            .select('issued_general, issued_junior, issued_other')
-            .eq('class_id', performanceId)
-            .eq('round_id', scheduleId)
-            .maybeSingle(),
-          supabase
-            .from('configs')
-            .select('junior_release_open')
-            .order('id', { ascending: true })
-            .limit(1)
-            .maybeSingle(),
-        ]);
+        const availability = await getPerformanceAvailability();
+        const performanceData = (
+          gymPerformanceSnapshot.performances ?? []
+        ).find((performance) => performance.id === performanceId);
+        const scheduleData = (gymPerformanceSnapshot.schedules ?? []).find(
+          (schedule) => schedule.id === scheduleId,
+        );
+        const counterData = (
+          availability.data?.class_counters as
+            ClassTicketCounterRow[] | undefined
+        )?.find(
+          (counter) =>
+            counter.class_id === performanceId &&
+            counter.round_id === scheduleId,
+        );
+        const configData = availability.data?.config;
 
-        if (
-          !performanceError &&
-          !scheduleError &&
-          !counterError &&
-          !configError &&
-          performanceData &&
-          scheduleData
-        ) {
+        if (!availability.error && performanceData && scheduleData) {
           const counter = counterData as ClassTicketCounterRow | null;
           const remaining = calculateClassGeneralRemaining({
             totalCapacity: Number(performanceData.total_capacity ?? 0),
@@ -1179,25 +1163,28 @@ const Issue = () => {
       { data: configData },
     ] = await Promise.all([
       !isGymSelection && selectedPerformance.performanceId > 0
-        ? supabase
-            .from('class_performances')
-            .select('title')
-            .eq('id', selectedPerformance.performanceId)
-            .maybeSingle()
+        ? Promise.resolve({
+            data:
+              (gymPerformanceSnapshot.performances ?? []).find(
+                (item) => item.id === selectedPerformance.performanceId,
+              ) ?? null,
+          })
         : { data: null },
       selectedPerformance.scheduleId > 0 && !isRehearsalTicket
-        ? supabase
-            .from('performances_schedule')
-            .select('start_at')
-            .eq('id', selectedPerformance.scheduleId)
-            .maybeSingle()
+        ? Promise.resolve({
+            data:
+              (gymPerformanceSnapshot.schedules ?? []).find(
+                (item) => item.id === selectedPerformance.scheduleId,
+              ) ?? null,
+          })
         : { data: null },
       isGymSelection
-        ? supabase
-            .from('gym_performances')
-            .select('start_at')
-            .eq('id', selectedPerformance.performanceId)
-            .maybeSingle()
+        ? Promise.resolve({
+            data:
+              (gymPerformanceSnapshot.gymPerformances ?? []).find(
+                (item) => item.id === selectedPerformance.performanceId,
+              ) ?? null,
+          })
         : { data: null },
       Promise.resolve({
         data: { show_length: gymPerformanceSnapshot.showLengthMinutes },
@@ -1210,17 +1197,16 @@ const Issue = () => {
     let scheduleEndTime = '';
 
     if (isRehearsalTicket) {
-      const rehearsal = await supabase
-        .from('rehearsals')
-        .select('start_time,end_time')
-        .eq('class_id', selectedPerformance.performanceId)
-        .eq('round_id', selectedPerformance.scheduleId)
-        .maybeSingle();
-      const startAt = rehearsal.data?.start_time
-        ? new Date(rehearsal.data.start_time)
+      const rehearsal = (await getCachedAppData()).rehearsals.find(
+        (item) =>
+          Number(item.class_id) === selectedPerformance.performanceId &&
+          Number(item.round_id) === selectedPerformance.scheduleId,
+      );
+      const startAt = rehearsal?.start_time
+        ? new Date(String(rehearsal.start_time))
         : null;
-      const endAt = rehearsal.data?.end_time
-        ? new Date(rehearsal.data.end_time)
+      const endAt = rehearsal?.end_time
+        ? new Date(String(rehearsal.end_time))
         : null;
       scheduleDate = startAt?.toLocaleDateString('ja-JP') ?? '-';
       scheduleTime =

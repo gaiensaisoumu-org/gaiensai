@@ -22,6 +22,7 @@ import NormalSection from '../../../components/ui/NormalSection';
 import type { Session } from '../../../types/types';
 import { IoMdHelpCircleOutline } from 'react-icons/io';
 import Alert from '../../../components/ui/Alert';
+import { getCachedAppData } from '../../../features/cache/appData';
 
 const SELF_RELATIONSHIP_ID = 1;
 const ALPHANUMERIC_ID_PATTERN = /^[A-Za-z0-9]+$/;
@@ -100,26 +101,10 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
       setAdmissionOnlyStatusError(null);
 
       try {
-        const [
-          { data: configData, error: configError },
-          { data: countData, error: countError },
-        ] = await Promise.all([
-          supabase
-            .from('configs')
-            .select('max_admission_only_junior_accounts')
-            .order('id', { ascending: true })
-            .limit(1)
-            .maybeSingle(),
-          supabase.rpc('get_admission_only_junior_account_count'),
-        ]);
-
-        if (configError || countError) {
-          throw new Error(
-            configError?.message ??
-              countError?.message ??
-              '設定の取得に失敗しました。',
-          );
-        }
+        const appData = await getCachedAppData();
+        const configData = appData.configs[0] as
+          { max_admission_only_junior_accounts?: number } | undefined;
+        const countData = appData.admission_only_junior_account_count;
 
         const maxCount = Number(
           configData?.max_admission_only_junior_accounts ?? 0,
@@ -286,26 +271,10 @@ const JuniorSignUp = ({ onRegistered }: JuniorSignUpProps) => {
       !admissionOnlyStatusError
     ) {
       try {
-        const [
-          { data: configData, error: configError },
-          { data: countData, error: countError },
-        ] = await Promise.all([
-          supabase
-            .from('configs')
-            .select('max_admission_only_junior_accounts')
-            .order('id', { ascending: true })
-            .limit(1)
-            .maybeSingle(),
-          supabase.rpc('get_admission_only_junior_account_count'),
-        ]);
-
-        if (configError || countError) {
-          throw new Error(
-            configError?.message ??
-              countError?.message ??
-              '設定の取得に失敗しました。',
-          );
-        }
+        const appData = await getCachedAppData();
+        const configData = appData.configs[0] as
+          { max_admission_only_junior_accounts?: number } | undefined;
+        const countData = appData.admission_only_junior_account_count;
 
         const maxCount = Number(
           configData?.max_admission_only_junior_accounts ?? 0,

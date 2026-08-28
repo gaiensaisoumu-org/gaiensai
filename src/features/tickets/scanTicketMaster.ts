@@ -1,7 +1,8 @@
-import { supabase } from '../../lib/supabase';
 import type { TicketDecodedDisplaySeed } from './ticketCodeDecode';
 import { formatTicketTypeLabel } from './formatTicketTypeLabel';
 import { resolveJuniorRelationshipName } from './juniorRelationship';
+import performancesSnapshot from '../../generated/performances-static.json';
+import { getCachedAppData } from '../cache/appData';
 
 const SCAN_TICKET_MASTER_CACHE_KEY = 'scan-ticket-master:v4';
 const SCAN_TICKET_MASTER_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -121,70 +122,33 @@ const writeCache = (master: ScanTicketMaster): void => {
   }
 };
 
-const fetchMasterFromSupabase = async (): Promise<ScanTicketMaster> => {
-  const [
-    performancesRes,
-    gymPerformancesRes,
-    schedulesRes,
-    rehearsalsRes,
-    ticketTypesRes,
-    relationshipsRes,
-    configRes,
-  ] = await Promise.all([
-    supabase
-      .from('class_performances')
-      .select('id, class_name, title')
-      .order('id', { ascending: true }),
-    supabase
-      .from('gym_performances')
-      .select('id, group_name, round_name, start_at, end_at')
-      .order('id', { ascending: true }),
-    supabase
-      .from('performances_schedule')
-      .select('id, round_name, start_at')
-      .order('id', { ascending: true }),
-    supabase
-      .from('rehearsals')
-      .select('class_id, round_id, round_name, start_time, end_time')
-      .eq('type', 'unofficial')
-      .eq('is_active', true)
-      .order('start_time', { ascending: true }),
-    supabase
-      .from('ticket_types')
-      .select('id, name, type')
-      .order('id', { ascending: true }),
-    supabase
-      .from('relationships')
-      .select('id, name')
-      .order('id', { ascending: true }),
-    supabase
-      .from('configs')
-      .select('show_length')
-      .order('id', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  if (
-    performancesRes.error ||
-    gymPerformancesRes.error ||
-    schedulesRes.error ||
-    rehearsalsRes.error ||
-    ticketTypesRes.error ||
-    relationshipsRes.error ||
-    configRes.error
-  ) {
-    throw new Error('failed_to_fetch_scan_ticket_master');
-  }
-
+const fetchMasterFromCache = async (): Promise<ScanTicketMaster> => {
+  const snapshot = performancesSnapshot as {
+    performances?: ScanPerformance[];
+    gymPerformances?: ScanGymPerformance[];
+    schedules?: ScanSchedule[];
+    ticketTypes?: ScanTicketType[];
+    relationships?: ScanNamedMaster[];
+    showLengthMinutes?: number | null;
+  };
+  const appData = await getCachedAppData();
   return {
-    performances: (performancesRes.data ?? []) as ScanPerformance[],
-    gymPerformances: (gymPerformancesRes.data ?? []) as ScanGymPerformance[],
-    schedules: (schedulesRes.data ?? []) as ScanSchedule[],
-    rehearsals: (rehearsalsRes.data ?? []) as ScanRehearsal[],
-    ticketTypes: (ticketTypesRes.data ?? []) as ScanTicketType[],
-    relationships: (relationshipsRes.data ?? []) as ScanNamedMaster[],
-    showLengthMinutes: Number(configRes.data?.show_length ?? 0),
+    performances: snapshot.performances ?? [],
+    gymPerformances: snapshot.gymPerformances ?? [],
+    schedules: snapshot.schedules ?? [],
+    rehearsals: (
+      appData.rehearsals as Array<
+        ScanRehearsal & {
+          type: string;
+          is_active: boolean;
+        }
+      >
+    ).filter(
+      (rehearsal) => rehearsal.type === 'unofficial' && rehearsal.is_active,
+    ),
+    ticketTypes: snapshot.ticketTypes ?? [],
+    relationships: snapshot.relationships ?? [],
+    showLengthMinutes: Number(snapshot.showLengthMinutes ?? 0),
     fetchedAt: Date.now(),
   };
 };
@@ -200,7 +164,7 @@ export const preloadScanTicketMaster = async (): Promise<ScanTicketMaster> => {
     return cached;
   }
 
-  const fetched = await fetchMasterFromSupabase();
+  const fetched = await fetchMasterFromCache();
   inMemoryMaster = fetched;
   writeCache(fetched);
   return fetched;

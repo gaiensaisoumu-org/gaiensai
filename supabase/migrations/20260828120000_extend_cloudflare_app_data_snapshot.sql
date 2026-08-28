@@ -1,5 +1,4 @@
--- Cloudflare Worker が共有可能な読み取りデータを一度に取得するための
--- スナップショット。認証情報や個人情報は返さない。
+-- 20260828110000 適用済み環境にも、追加した共有キャッシュ項目を反映する。
 CREATE OR REPLACE FUNCTION public.get_cloudflare_app_data_snapshot()
 RETURNS jsonb
 LANGUAGE sql
@@ -50,7 +49,6 @@ AS $$
       FROM junior_admission_only_account_counts
       WHERE id = 1
     ), 0),
-    -- QR の有効性確認に必要な列だけを公開する。
     'tickets', COALESCE((
       SELECT jsonb_agg(jsonb_build_object(
         'code', t.code,
@@ -63,16 +61,14 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.get_cloudflare_app_data_snapshot() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_cloudflare_app_data_snapshot() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_cloudflare_app_data_snapshot()
+  TO anon, authenticated, service_role;
 
--- Worker の Realtime 購読でキャッシュを即時更新できるようにする。
 DO $$
 DECLARE table_name text;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
-    'flappy_leaderboard', 'rehearsal_round_names', 'rehearsals',
-    'ticket_issue_controls', 'tickets', 'class_performances',
-    'gym_performances', 'exhibition_clubs',
+    'class_performances', 'gym_performances', 'exhibition_clubs',
     'junior_admission_only_account_counts'
   ] LOOP
     IF NOT EXISTS (
@@ -80,7 +76,10 @@ BEGIN
       WHERE pubname = 'supabase_realtime' AND schemaname = 'public'
         AND tablename = table_name
     ) THEN
-      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', table_name);
+      EXECUTE format(
+        'ALTER PUBLICATION supabase_realtime ADD TABLE public.%I',
+        table_name
+      );
     END IF;
   END LOOP;
 END $$;

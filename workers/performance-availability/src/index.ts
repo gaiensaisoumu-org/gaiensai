@@ -40,6 +40,10 @@ const APP_DATA_REALTIME_TABLES = [
   'rehearsals',
   'ticket_issue_controls',
   'tickets',
+  'class_performances',
+  'gym_performances',
+  'exhibition_clubs',
+  'junior_admission_only_account_counts',
 ] as const;
 
 const jsonResponse = (body: AvailabilitySnapshot, init?: ResponseInit) =>
@@ -51,6 +55,24 @@ const jsonResponse = (body: AvailabilitySnapshot, init?: ResponseInit) =>
       'cache-control': `public, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`,
       'access-control-allow-origin': '*',
       ...(init?.headers ?? {}),
+    },
+  });
+
+const privateJsonResponse = (body: BodyInit | null) =>
+  new Response(body, {
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'private, max-age=0, no-store',
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'authorization, content-type',
+    },
+  });
+
+const cacheablePrivateJsonResponse = (body: string) =>
+  new Response(body, {
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': `public, max-age=${CACHE_TTL_SECONDS}`,
     },
   });
 
@@ -102,7 +124,8 @@ export default {
     if (
       url.pathname === '/app-data-cache/student-dashboard' ||
       url.pathname === '/app-data-cache/junior-dashboard' ||
-      url.pathname === '/app-data-cache/student-issue-bootstrap'
+      url.pathname === '/app-data-cache/student-issue-bootstrap' ||
+      url.pathname === '/app-data-cache/junior-issue-bootstrap'
     ) {
       const cacheBucket = Math.floor(Date.now() / (CACHE_TTL_SECONDS * 1_000));
       const cacheKey = await getUserCounterCacheKey(request, cacheBucket);
@@ -112,7 +135,7 @@ export default {
       const cache = caches.default;
       const cached = await cache.match(cacheKey);
       if (cached) {
-        return cached;
+        return privateJsonResponse(cached.body);
       }
       const authorization = request.headers.get('authorization')!;
       const rpc = async (name: string) =>
@@ -142,7 +165,9 @@ export default {
             ])
           : url.pathname === '/app-data-cache/student-issue-bootstrap'
             ? [await rpc('get_student_issue_bootstrap')]
-            : [await rpc('get_junior_my_page')];
+            : url.pathname === '/app-data-cache/junior-issue-bootstrap'
+              ? [await rpc('get_junior_issue_bootstrap')]
+              : [await rpc('get_junior_my_page')];
       if (responses.some((response) => !response.ok)) {
         return new Response('Unable to load dashboard', { status: 502 });
       }
@@ -155,16 +180,11 @@ export default {
             })
           : url.pathname === '/app-data-cache/student-issue-bootstrap'
             ? JSON.stringify({ data: await responses[0].json() })
-            : JSON.stringify({ dashboard: await responses[0].json() });
-      const privateResponse = new Response(body, {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-          'cache-control': `private, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`,
-          'access-control-allow-origin': '*',
-          'access-control-allow-headers': 'authorization, content-type',
-        },
-      });
-      await cache.put(cacheKey, privateResponse.clone());
+            : url.pathname === '/app-data-cache/junior-issue-bootstrap'
+              ? JSON.stringify({ data: await responses[0].json() })
+              : JSON.stringify({ dashboard: await responses[0].json() });
+      const privateResponse = privateJsonResponse(body);
+      await cache.put(cacheKey, cacheablePrivateJsonResponse(body));
       await cache.delete(
         (await getUserCounterCacheKey(request, cacheBucket - 1)) as Request,
       );
@@ -182,7 +202,7 @@ export default {
       if (cached) {
         return cached;
       }
-      const id = env.APP_DATA_CACHE.idFromName('app-data-v1');
+      const id = env.APP_DATA_CACHE.idFromName('app-data-v2');
       const response = await env.APP_DATA_CACHE.get(id).fetch(
         `https://app-data.internal/ticket?code=${encodeURIComponent(code)}`,
       );
@@ -206,7 +226,7 @@ export default {
       if (!cacheKey) return new Response('Unauthorized', { status: 401 });
       const cache = caches.default;
       const cached = await cache.match(cacheKey);
-      if (cached) return cached;
+      if (cached) return privateJsonResponse(cached.body);
       const authorization = request.headers.get('authorization')!;
       const response = await fetch(
         `${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/student_ticket_issue_counters?select=performance_type,performance_id,issued_count`,
@@ -219,19 +239,12 @@ export default {
       const body = JSON.stringify({
         student_ticket_issue_counters: await response.json(),
       });
-      const publicResponse = new Response(body, {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-          'cache-control': `private, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`,
-          'access-control-allow-origin': '*',
-          'access-control-allow-headers': 'authorization, content-type',
-        },
-      });
-      await cache.put(cacheKey, publicResponse.clone());
+      const privateResponse = privateJsonResponse(body);
+      await cache.put(cacheKey, cacheablePrivateJsonResponse(body));
       await cache.delete(
         (await getUserCounterCacheKey(request, cacheBucket - 1)) as Request,
       );
-      return publicResponse;
+      return privateResponse;
     }
     if (
       url.pathname !== '/performances-availability' &&
@@ -255,7 +268,7 @@ export default {
       ? env.APP_DATA_CACHE
       : env.PERFORMANCE_AVAILABILITY;
     const id = namespace.idFromName(
-      isAppData ? 'app-data-v1' : 'availability-v2',
+      isAppData ? 'app-data-v2' : 'availability-v2',
     );
     const response = await namespace
       .get(id)

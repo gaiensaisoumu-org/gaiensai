@@ -1,8 +1,6 @@
-import { supabase } from '../../lib/supabase';
+import { getCachedJuniorIssueBootstrap } from '../cache/appData';
 
-type BootstrapResponse = Awaited<
-  ReturnType<typeof supabase.rpc<'get_junior_issue_bootstrap'>>
->;
+type BootstrapResponse = { data: unknown; error: Error | null };
 
 let inFlightRequest: Promise<BootstrapResponse> | null = null;
 let cachedResponse: { value: BootstrapResponse; expiresAt: number } | null =
@@ -13,9 +11,15 @@ export const getJuniorIssueBootstrap = async (): Promise<BootstrapResponse> => {
     return cachedResponse.value;
   }
   if (!inFlightRequest) {
-    inFlightRequest = Promise.resolve(
-      supabase.rpc('get_junior_issue_bootstrap'),
-    );
+    inFlightRequest = getCachedJuniorIssueBootstrap()
+      .then((response) => ({ data: response.data, error: null }))
+      .catch((error) => ({
+        data: null,
+        error:
+          error instanceof Error
+            ? error
+            : new Error('Junior issue bootstrap request failed'),
+      }));
     void inFlightRequest.finally(() => {
       inFlightRequest = null;
     });
