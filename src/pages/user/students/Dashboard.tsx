@@ -1278,13 +1278,6 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
   return (
     <>
       <h1 className={subPageStyles.pageTitle}>ダッシュボード</h1>
-      <Alert type='info'>
-        <h3>リハーサル機能が追加されました!</h3>
-        <p>
-          各クラス監督団に配布した、クラス用管理者ページから非公式公開リハーサルを追加できます。整理券を使いたい時に活用してください。
-        </p>
-        <p>※ 今年度は公開リハは整理券なしで行います。</p>
-      </Alert>
       <section>
         <h2 className={sharedStyles.normalH2}>
           {Math.floor(userData.affiliation / 10000)}-

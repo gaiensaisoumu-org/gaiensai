@@ -1208,14 +1208,6 @@ const OrganizationAdmin = () => {
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
       <div className={styles.shell} key='organization-admin-dashboard'>
-        <Alert type='info'>
-          <ul>
-            <li>非公式公開リハーサル機能を追加しました</li>
-            <li>
-              公演詳細ページにリンク・ギャラリーを追加できるようにしました。準備風景などをあげられます。
-            </li>
-          </ul>
-        </Alert>
         <div className={styles.heading}>
           <div>
             <h2 className={subPageStyles.linedH2}>{name}</h2>
