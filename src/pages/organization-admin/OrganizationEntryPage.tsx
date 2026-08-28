@@ -58,7 +58,7 @@ const RESULT_EXIT_DURATION_MS = 1000;
 const AUDIO_SETTINGS_STORAGE_KEY = 'organization_entry_audio_settings:v1';
 const SCAN_RECORDS_STORAGE_KEY = 'organization_entry_scan_records:v1';
 const NEXT_SCAN_RECORD_ID_STORAGE_KEY = 'organization_entry_next_record_id:v1';
-const TICKETLESS_ENTRY_COUNTS_STORAGE_KEY =
+export const TICKETLESS_ENTRY_COUNTS_STORAGE_KEY =
   'organization_entry_ticketless_counts:v1';
 const TICKET_STATUS_CACHE_STORAGE_KEY =
   'organization_entry_ticket_status_cache:v1';

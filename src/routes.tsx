@@ -39,6 +39,9 @@ export const OrganizationScan = lazy(
 export const OrganizationRegister = lazy(
   () => import('./pages/organization-admin/OrganizationRegister'),
 );
+export const OrganizationCounter = lazy(
+  () => import('./pages/organization-admin/OrganizationCounter'),
+);
 export const OrganizationScanHistory = lazy(
   () => import('./pages/organization-admin/OrganizationScanHistory'),
 );

@@ -8,13 +8,14 @@ import OrganizationEntryPage, {
   SCAN_TARGET_STORAGE_KEY,
   type ScanTarget,
 } from './OrganizationEntryPage';
+import OrganizationAttendanceCounter from './OrganizationAttendanceCounter';
 import styles from './OrganizationScan.module.css';
 import performancesSnapshot from '../../generated/performances-static.json';
 import ScanLayout from '../../layout/ScanLayout';
 import NormalSection from '../../components/ui/NormalSection';
 
 type AutoSlot = { target: ScanTarget; label: string; start: Date; end: Date };
-type OrganizationEntryMode = 'scan' | 'register';
+type OrganizationEntryMode = 'scan' | 'register' | 'counter';
 
 const toTokyoDateKey = (timestamp: number) =>
   new Intl.DateTimeFormat('en-CA', {
@@ -65,8 +66,13 @@ const OrganizationScan = ({
   mode?: OrganizationEntryMode;
 }) => {
   const isRegisterMode = mode === 'register';
+  const isCounterMode = mode === 'counter';
   useTitle(
-    isRegisterMode ? 'チケット使用 - 管理画面' : 'チケットスキャン - 管理画面',
+    isCounterMode
+      ? '入場者数カウンター - 管理画面'
+      : isRegisterMode
+        ? 'チケット使用 - 管理画面'
+        : 'チケットスキャン - 管理画面',
   );
   const queryTarget = useMemo(readTargetFromQuery, []);
   const queryUsesAutoRound = useMemo(hasAutoRoundQuery, []);
@@ -207,6 +213,28 @@ const OrganizationScan = ({
   ]);
   const activeAutoSlot = autoSlots[autoSlotIndex] ?? null;
   const entryTarget = activeAutoSlot?.target ?? selection;
+  const counterPerformanceName =
+    entryTarget.kind === 'gym'
+      ? (master?.gymPerformances.find(
+          (performance) => performance.id === entryTarget.performanceId,
+        )?.group_name ?? '団体未選択')
+      : (master?.performances.find(
+          (performance) => performance.id === entryTarget.performanceId,
+        )?.class_name ?? 'クラス未選択');
+  const counterRoundName =
+    entryTarget.kind === 'gym'
+      ? (master?.gymPerformances.find(
+          (performance) => performance.id === entryTarget.performanceId,
+        )?.round_name ?? '回未選択')
+      : entryTarget.kind === 'rehearsal'
+        ? (master?.rehearsals.find(
+            (rehearsal) =>
+              rehearsal.class_id === entryTarget.performanceId &&
+              rehearsal.round_id === entryTarget.scheduleId,
+          )?.round_name ?? 'リハーサル未選択')
+        : (master?.schedules.find(
+            (schedule) => schedule.id === entryTarget.scheduleId,
+          )?.round_name ?? '回未選択');
 
   useEffect(() => {
     // 受付中は時刻更新で演目一覧が再計算されても、準備中へ戻さない。
@@ -239,13 +267,21 @@ const OrganizationScan = ({
   if (isReadyToScan && (!isAutoMode || isAutoScanning)) {
     return (
       <ScanLayout>
-        <OrganizationEntryPage
-          key={`${entryTarget.kind}:${entryTarget.performanceId ?? 'none'}:${entryTarget.scheduleId ?? 'none'}`}
-          mode={mode}
-          isPerformanceInProgress={Boolean(
-            activeAutoSlot && now >= activeAutoSlot.start.getTime(),
-          )}
-        />
+        {isCounterMode ? (
+          <OrganizationAttendanceCounter
+            target={entryTarget}
+            performanceName={counterPerformanceName}
+            roundName={counterRoundName}
+          />
+        ) : (
+          <OrganizationEntryPage
+            key={`${entryTarget.kind}:${entryTarget.performanceId ?? 'none'}:${entryTarget.scheduleId ?? 'none'}`}
+            mode={mode}
+            isPerformanceInProgress={Boolean(
+              activeAutoSlot && now >= activeAutoSlot.start.getTime(),
+            )}
+          />
+        )}
       </ScanLayout>
     );
   }
@@ -295,7 +331,13 @@ const OrganizationScan = ({
     <ScanLayout>
       <main className={styles.targetSelectionShell}>
         <NormalSection className={styles.targetSelectionCard}>
-          <h2>{isRegisterMode ? '登録対象を選択' : 'スキャン対象を選択'}</h2>
+          <h2>
+            {isCounterMode
+              ? 'カウント対象を選択'
+              : isRegisterMode
+                ? '登録対象を選択'
+                : 'スキャン対象を選択'}
+          </h2>
           <p>
             受付するクラス公演・非公式公開リハーサル・部活と、公演回を選択してください。
           </p>
@@ -460,7 +502,9 @@ const OrganizationScan = ({
                 {isReadyToScan
                   ? '受付を開始'
                   : isRegisterMode
-                    ? '登録を開始'
+                  ? '登録を開始'
+                  : isCounterMode
+                    ? 'カウンターを開始'
                     : 'スキャンを開始'}
               </button>
             </div>

@@ -1201,6 +1201,9 @@ const OrganizationAdmin = () => {
   const organizationRegisterHref = `/organization-register${
     organizationScanQuery ? `?${organizationScanQuery}` : ''
   }`;
+  const organizationCounterHref = `/organization-counter${
+    organizationScanQuery ? `?${organizationScanQuery}` : ''
+  }`;
   return (
     <>
       <h1 className={subPageStyles.pageTitle}>クラス・部活用管理ページ</h1>
@@ -1232,6 +1235,9 @@ const OrganizationAdmin = () => {
             </a>
             <a className={styles.linkButton} href={organizationRegisterHref}>
               QRコードリーダー用スキャンページ
+            </a>
+            <a className={styles.linkButton} href={organizationCounterHref}>
+              入場者数カウンター
             </a>
           </NormalSection>
         )}

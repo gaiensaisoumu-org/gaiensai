@@ -31,6 +31,7 @@ import {
   AdminAvailability,
   Availability,
   OrganizationRegister,
+  OrganizationCounter,
   OrganizationScanHistory,
 } from './routes';
 import LineCallback from './features/auth/Line';
@@ -224,6 +225,8 @@ const InnerApp = () => {
       preload(OrganizationScan);
     } else if (path.startsWith('/organization-register')) {
       preload(OrganizationScan);
+    } else if (path.startsWith('/organization-counter')) {
+      preload(OrganizationScan);
     } else if (path.startsWith('/organization-scan-history')) {
       preload(OrganizationScan);
     } else if (path.startsWith('/admin')) {
@@ -240,6 +243,7 @@ const InnerApp = () => {
       <Route path='/admin/availability' component={AdminAvailability} />
       <Route path='/organization-scan' component={OrganizationScan} />
       <Route path='/organization-register' component={OrganizationRegister} />
+      <Route path='/organization-counter' component={OrganizationCounter} />
       <Route path='/admin/*' component={AdminPageLayout} />
       <Route path='/admin' component={AdminPageLayout} />
       <Route path='/junior/*' component={Junior} />
