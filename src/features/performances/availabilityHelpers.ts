@@ -65,3 +65,31 @@ export const getPublicRemainingMode = (
       ? 'junior'
       : 'total';
 };
+
+/** Returns whether an availability slot has finished. Invalid or missing times
+ * deliberately remain visible, so unavailable schedule metadata never hides a
+ * slot by mistake. */
+export const isPerformanceEnded = (
+  endAt?: string | Date | null,
+  now = Date.now(),
+) => {
+  if (!endAt) {
+    return false;
+  }
+  const endTime =
+    endAt instanceof Date ? endAt.getTime() : new Date(endAt).getTime();
+  return Number.isFinite(endTime) && now >= endTime;
+};
+
+export const getClassPerformanceEndAt = (
+  startAt?: string | null,
+  showLengthMinutes?: number | null,
+) => {
+  if (!startAt || !Number.isFinite(showLengthMinutes) || !showLengthMinutes) {
+    return null;
+  }
+  const startTime = new Date(startAt).getTime();
+  return Number.isFinite(startTime)
+    ? new Date(startTime + showLengthMinutes * 60_000)
+    : null;
+};

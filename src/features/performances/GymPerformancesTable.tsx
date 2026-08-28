@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from 'react-icons/ri';
+import { FaMinus } from 'react-icons/fa6';
 import styles from './PerformancesTable.module.css';
 import { useLocation } from 'preact-iso';
 import type { AvailableSeatSelection } from '../../types/types';
@@ -15,6 +16,7 @@ import {
   getAvailabilityStatus,
   getCapacityForMode,
   getGymRemaining,
+  isPerformanceEnded,
 } from './availabilityHelpers';
 
 type GymPerformanceRow = {
@@ -22,6 +24,7 @@ type GymPerformanceRow = {
   group_name: string;
   round_name: string;
   start_at: string;
+  end_at?: string | null;
   capacity: number;
   junior_capacity: number;
 };
@@ -98,6 +101,7 @@ const GymPerformancesTable = ({
   const [currentRemainingMode, setCurrentRemainingMode] = useState<
     'general' | 'total' | 'junior'
   >(remainingMode);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const { route } = useLocation();
 
   const tableWrapperRef = useRef<HTMLDivElement>(null);
@@ -105,6 +109,11 @@ const GymPerformancesTable = ({
   useEffect(() => {
     setCurrentRemainingMode(remainingMode);
   }, [remainingMode]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (availabilitySource !== 'monitor') {
@@ -359,6 +368,7 @@ const GymPerformancesTable = ({
         performanceId: number;
         roundName: string;
         groupName: string;
+        endAt: string | null;
       }
     >();
 
@@ -370,6 +380,7 @@ const GymPerformancesTable = ({
         performanceId: performance.id,
         roundName: performance.round_name,
         groupName: performance.group_name,
+        endAt: performance.end_at ?? null,
       };
       const capacity = getCapacityForMode(
         performance.capacity,
@@ -385,6 +396,13 @@ const GymPerformancesTable = ({
         performanceId: previous.performanceId,
         roundName: previous.roundName,
         groupName: previous.groupName,
+        endAt:
+          !previous.endAt ||
+          (performance.end_at &&
+            new Date(performance.end_at).getTime() >
+              new Date(previous.endAt).getTime())
+            ? (performance.end_at ?? previous.endAt)
+            : previous.endAt,
       });
     }
 
@@ -679,23 +697,27 @@ const GymPerformancesTable = ({
                   }
 
                   const isInteractive =
+                    !isPerformanceEnded(cell.endAt, currentTime) &&
                     cell.remaining > 0 &&
                     !nonInteractivePerformanceIds?.has(cell.performanceId) &&
                     (enableIssueJump || Boolean(onAvailableCellClick));
                   const selectedKey = `${cell.performanceId}-0`;
                   const isSelected = selectedCellKey === selectedKey;
+                  const ended = isPerformanceEnded(cell.endAt, currentTime);
 
                   return (
                     <td
-                      className={`${styles.td} ${getStatusClass(
-                        cell.remaining,
-                        cell.capacity,
-                      )} ${isInteractive ? styles.jumpableCell : ''} ${
+                      className={`${styles.td} ${
+                        ended
+                          ? styles.emptyCell
+                          : getStatusClass(cell.remaining, cell.capacity)
+                      } ${isInteractive ? styles.jumpableCell : ''} ${
                         isInteractive ? styles.interactiveCell : ''
                       } ${isSelected ? styles.selectedCell : ''}`}
                       key={key}
                       onClick={() => {
                         if (
+                          ended ||
                           cell.remaining <= 0 ||
                           nonInteractivePerformanceIds?.has(cell.performanceId)
                         ) {
@@ -733,12 +755,23 @@ const GymPerformancesTable = ({
                           : undefined
                       }
                     >
-                      <div className={styles.mark}>
-                        {getMark(cell.remaining, cell.capacity)}
-                      </div>
-                      <div className={styles.remaining}>
-                        残り{cell.remaining}席
-                      </div>
+                      {ended ? (
+                        <>
+                          <div className={styles.mark}>
+                            <FaMinus />
+                          </div>
+                          <div className={styles.remaining}>終了済み</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className={styles.mark}>
+                            {getMark(cell.remaining, cell.capacity)}
+                          </div>
+                          <div className={styles.remaining}>
+                            残り{cell.remaining}席
+                          </div>
+                        </>
+                      )}
                     </td>
                   );
                 })}

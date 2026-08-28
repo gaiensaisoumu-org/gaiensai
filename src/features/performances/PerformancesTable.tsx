@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import styles from './PerformancesTable.module.css';
 import { RiCircleLine, RiCloseLargeLine, RiTriangleLine } from 'react-icons/ri';
+import { FaMinus } from 'react-icons/fa6';
 import { useLocation } from 'preact-iso';
 
 import type { AvailableSeatSelection } from '../../types/types';
@@ -16,6 +17,8 @@ import {
   getAvailabilityStatus,
   getCapacityForMode,
   getClassRemaining,
+  getClassPerformanceEndAt,
+  isPerformanceEnded,
 } from './availabilityHelpers';
 
 type PerformanceRow = {
@@ -43,7 +46,10 @@ type PerformanceAvailabilityData = {
   class_performances?: Array<PerformanceRow & { is_accepting?: boolean }>;
   schedules?: Array<PerformanceSchedule & { is_active?: boolean }>;
   class_counters?: ClassTicketCounterRow[];
-  config?: { junior_release_open?: boolean | null };
+  config?: {
+    junior_release_open?: boolean | null;
+    show_length?: number | null;
+  };
 };
 
 const PERFORMANCES_CACHE_KEY = 'performances-table-cache:v1';
@@ -112,6 +118,9 @@ const PerformancesTable = ({
   const [remainingSeatMap, setRemainingSeatMap] = useState<Map<string, number>>(
     new Map(),
   );
+  const [showLengthMinutes, setShowLengthMinutes] = useState<number | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cacheNotice, setCacheNotice] = useState<string | null>(null);
@@ -119,6 +128,7 @@ const PerformancesTable = ({
   const [currentRemainingMode, setCurrentRemainingMode] = useState<
     'general' | 'junior' | 'total'
   >(remainingMode);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const { route } = useLocation();
 
@@ -127,6 +137,11 @@ const PerformancesTable = ({
   useEffect(() => {
     setCurrentRemainingMode(remainingMode);
   }, [remainingMode]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (availabilitySource !== 'monitor') {
@@ -394,6 +409,10 @@ const PerformancesTable = ({
       setRemainingSeatMap(seatMap);
       setPerformances(loadedPerformances);
       setSchedules(loadedSchedules);
+      const showLength = configData?.show_length;
+      setShowLengthMinutes(
+        Number.isFinite(showLength) ? Number(showLength) : null,
+      );
       hasLoadedAvailabilityRef.current = true;
       lastSuccessfulAvailabilityAtRef.current = Date.now();
       setCacheNotice(
@@ -597,15 +616,22 @@ const PerformancesTable = ({
     const key = `${performance.id}-${schedule.id}`;
     const remaining = remainingSeatMap.get(key) ?? 0;
     const status = statusByKey.get(key) ?? 'cross';
+    const endAt = getClassPerformanceEndAt(
+      schedule.start_at,
+      showLengthMinutes,
+    );
+    const ended = isPerformanceEnded(endAt, currentTime);
     const canIssue =
-      remaining > 0 && !nonInteractivePerformanceIds?.has(performance.id);
+      !ended &&
+      remaining > 0 &&
+      !nonInteractivePerformanceIds?.has(performance.id);
     const isInteractive =
       canIssue && (enableIssueJump || Boolean(onAvailableCellClick));
     const isSelected = selectedCellKey === key;
 
     return (
       <td
-        className={`${styles.td} ${getStatusClass(status)} ${
+        className={`${styles.td} ${ended ? styles.emptyCell : getStatusClass(status)} ${
           isInteractive ? styles.jumpableCell : ''
         } ${isInteractive ? styles.interactiveCell : ''} ${
           isSelected ? styles.selectedCell : ''
@@ -644,8 +670,19 @@ const PerformancesTable = ({
             : undefined
         }
       >
-        <div className={styles.mark}>{getMark(status)}</div>
-        <div className={styles.remaining}>残り{remaining}席</div>
+        {ended ? (
+          <>
+            <div className={styles.mark}>
+              <FaMinus />
+            </div>
+            <div className={styles.remaining}>終了済み</div>
+          </>
+        ) : (
+          <>
+            <div className={styles.mark}>{getMark(status)}</div>
+            <div className={styles.remaining}>残り{remaining}席</div>
+          </>
+        )}
       </td>
     );
   };
@@ -665,7 +702,85 @@ const PerformancesTable = ({
   if (filteredPerformances.length === 0 || filteredSchedules.length === 0) {
     return (
       <div className={styles.container}>
-        {showFilters && <div className={styles.filters}>
+        {showFilters && (
+          <div className={styles.filters}>
+            <label className={styles.filterLabel} htmlFor='class-filter'>
+              クラス
+              <select
+                id='class-filter'
+                className={styles.filterSelect}
+                value={String(selectedPerformanceId)}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setSelectedPerformanceId(
+                    value === 'all' ? 'all' : Number(value),
+                  );
+                }}
+              >
+                <option value='all'>すべて</option>
+                {performances.map((performance) => (
+                  <option key={performance.id} value={performance.id}>
+                    {performance.class_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.filterLabel} htmlFor='schedule-filter'>
+              公演回
+              <select
+                id='schedule-filter'
+                className={styles.filterSelect}
+                value={String(selectedScheduleId)}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setSelectedScheduleId(
+                    value === 'all' ? 'all' : Number(value),
+                  );
+                }}
+              >
+                <option value='all'>すべて</option>
+                {schedules.map((schedule) => (
+                  <option key={schedule.id} value={schedule.id}>
+                    {schedule.round_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {showToggleRemainingMode && (
+              <label
+                className={styles.filterLabel}
+                htmlFor='remaining-mode-toggle'
+              >
+                中学生の残席も表示する
+                <select
+                  id='remaining-mode-toggle'
+                  className={styles.filterSelect}
+                  value={currentRemainingMode}
+                  onChange={(event) =>
+                    setCurrentRemainingMode(
+                      event.currentTarget.value === 'total'
+                        ? 'total'
+                        : 'general',
+                    )
+                  }
+                >
+                  <option value='general'>招待券枠のみ</option>
+                  <option value='total'>招待券枠＋中学生枠</option>
+                </select>
+              </label>
+            )}
+          </div>
+        )}
+        <p className={styles.emptyState}>該当するデータがありません。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.container}>
+      {cacheNotice && <p>{cacheNotice}</p>}
+      {showFilters && (
+        <div className={styles.filters}>
           <label className={styles.filterLabel} htmlFor='class-filter'>
             クラス
             <select
@@ -706,96 +821,31 @@ const PerformancesTable = ({
               ))}
             </select>
           </label>
+
           {showToggleRemainingMode && (
             <label
               className={styles.filterLabel}
               htmlFor='remaining-mode-toggle'
             >
-              中学生の残席も表示する
+              残席表示対象
               <select
                 id='remaining-mode-toggle'
                 className={styles.filterSelect}
                 value={currentRemainingMode}
                 onChange={(event) =>
                   setCurrentRemainingMode(
-                    event.currentTarget.value === 'total' ? 'total' : 'general',
+                    event.currentTarget.value as 'general' | 'junior' | 'total',
                   )
                 }
               >
                 <option value='general'>招待券枠のみ</option>
+                <option value='junior'>中学生のみ</option>
                 <option value='total'>招待券枠＋中学生枠</option>
               </select>
             </label>
           )}
-        </div>}
-        <p className={styles.emptyState}>該当するデータがありません。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.container}>
-      {cacheNotice && <p>{cacheNotice}</p>}
-      {showFilters && <div className={styles.filters}>
-        <label className={styles.filterLabel} htmlFor='class-filter'>
-          クラス
-          <select
-            id='class-filter'
-            className={styles.filterSelect}
-            value={String(selectedPerformanceId)}
-            onChange={(event) => {
-              const value = event.currentTarget.value;
-              setSelectedPerformanceId(value === 'all' ? 'all' : Number(value));
-            }}
-          >
-            <option value='all'>すべて</option>
-            {performances.map((performance) => (
-              <option key={performance.id} value={performance.id}>
-                {performance.class_name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.filterLabel} htmlFor='schedule-filter'>
-          公演回
-          <select
-            id='schedule-filter'
-            className={styles.filterSelect}
-            value={String(selectedScheduleId)}
-            onChange={(event) => {
-              const value = event.currentTarget.value;
-              setSelectedScheduleId(value === 'all' ? 'all' : Number(value));
-            }}
-          >
-            <option value='all'>すべて</option>
-            {schedules.map((schedule) => (
-              <option key={schedule.id} value={schedule.id}>
-                {schedule.round_name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {showToggleRemainingMode && (
-          <label className={styles.filterLabel} htmlFor='remaining-mode-toggle'>
-            残席表示対象
-            <select
-              id='remaining-mode-toggle'
-              className={styles.filterSelect}
-              value={currentRemainingMode}
-              onChange={(event) =>
-                setCurrentRemainingMode(
-                  event.currentTarget.value as 'general' | 'junior' | 'total',
-                )
-              }
-            >
-              <option value='general'>招待券枠のみ</option>
-              <option value='junior'>中学生のみ</option>
-              <option value='total'>招待券枠＋中学生枠</option>
-            </select>
-          </label>
-        )}
-      </div>}
+        </div>
+      )}
       {showLegend && (
         <div className={styles.legend}>
           <span className={`${styles.legendItem} ${styles.statusCircle}`}>
