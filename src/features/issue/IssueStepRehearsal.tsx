@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import NormalSection from '../../components/ui/NormalSection';
-import { supabase } from '../../lib/supabase';
 import { getCachedAppData } from '../cache/appData';
 import type { SelectedPerformance } from '../../types/Issue.types';
 import styles from '../../pages/user/students/Issue.module.css';
@@ -70,12 +69,7 @@ export default function IssueStepRehearsal({
   const [sortOrder, setSortOrder] = useState<SortOrder>('time');
   const officialTableWrapperRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    void Promise.all([
-      getCachedAppData(),
-      supabase
-        .from('student_rehearsal_issue_counters')
-        .select('rehearsal_type, issued_count'),
-    ]).then(([appData]) => {
+    void getCachedAppData().then((appData) => {
       setRows(
         (appData.rehearsals as unknown as RehearsalRow[])
           .filter((row) => row.is_active)

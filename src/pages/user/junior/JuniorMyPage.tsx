@@ -45,6 +45,7 @@ import {
   formatMaintenanceEndAt,
   saveMaintenanceConfig,
 } from '../../../features/tickets/maintenanceMode';
+import { getCachedJuniorDashboard } from '../../../features/cache/appData';
 
 type TicketSnapshot = {
   performances?: Array<{
@@ -517,16 +518,11 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
       let pageResponse: unknown;
       try {
         const result = await withTimeout(
-          supabase.rpc('get_junior_my_page'),
+          getCachedJuniorDashboard(),
           SUPABASE_RESPONSE_TIMEOUT_MS,
           true,
         );
-        if (result.error) {
-          setTicketError('チケット情報の取得に失敗しました。');
-          setTicketLoading(false);
-          return;
-        }
-        pageResponse = result.data;
+        pageResponse = result.dashboard;
       } catch (error) {
         const isOffline = error instanceof OfflineError;
         if (isOffline) {

@@ -99,6 +99,72 @@ export default {
     }
 
     const url = new URL(request.url);
+    if (
+      url.pathname === '/app-data-cache/student-dashboard' ||
+      url.pathname === '/app-data-cache/junior-dashboard'
+    ) {
+      const cacheBucket = Math.floor(Date.now() / (CACHE_TTL_SECONDS * 1_000));
+      const cacheKey = await getUserCounterCacheKey(request, cacheBucket);
+      if (!cacheKey) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const cache = caches.default;
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        return cached;
+      }
+      const authorization = request.headers.get('authorization')!;
+      const rpc = async (name: string) =>
+        fetch(`${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/rpc/${name}`, {
+          method: 'POST',
+          headers: {
+            apikey: env.SUPABASE_PUBLISHABLE_KEY,
+            authorization,
+            'content-type': 'application/json',
+          },
+          body: '{}',
+        });
+      const responses =
+        url.pathname === '/app-data-cache/student-dashboard'
+          ? await Promise.all([
+              rpc('get_student_dashboard'),
+              rpc('get_student_performance_ticket_remaining'),
+              fetch(
+                `${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/student_rehearsal_issue_counters?select=rehearsal_type,issued_count`,
+                {
+                  headers: {
+                    apikey: env.SUPABASE_PUBLISHABLE_KEY,
+                    authorization,
+                  },
+                },
+              ),
+            ])
+          : [await rpc('get_junior_my_page')];
+      if (responses.some((response) => !response.ok)) {
+        return new Response('Unable to load dashboard', { status: 502 });
+      }
+      const body =
+        url.pathname === '/app-data-cache/student-dashboard'
+          ? JSON.stringify({
+              dashboard: await responses[0].json(),
+              remaining: await responses[1].json(),
+              rehearsalCounters: await responses[2].json(),
+            })
+          : JSON.stringify({ dashboard: await responses[0].json() });
+      const privateResponse = new Response(body, {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': `private, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`,
+          'access-control-allow-origin': '*',
+          'access-control-allow-headers': 'authorization, content-type',
+        },
+      });
+      await cache.put(cacheKey, privateResponse.clone());
+      await cache.delete(
+        (await getUserCounterCacheKey(request, cacheBucket - 1)) as Request,
+      );
+      return privateResponse;
+    }
     if (url.pathname === '/app-data-cache/ticket') {
       const code = url.searchParams.get('code')?.trim();
       if (!code || code.length > 256) {

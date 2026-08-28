@@ -25,6 +25,10 @@ import Alert from '../../../components/ui/Alert';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useTitle } from '../../../hooks/useTitle';
 import { getStudentIssueBootstrap } from '../../../features/tickets/studentIssueBootstrap';
+import {
+  getCachedAppData,
+  getCachedStudentDashboard,
+} from '../../../features/cache/appData';
 
 const MAX_ISSUE_COUNT = 5;
 const PANEL_ANIMATION_MS = 360;
@@ -209,29 +213,27 @@ const Issue = () => {
   useTitle('チケット発券 - 生徒用ページ');
 
   useEffect(() => {
-    void Promise.all([
-      supabase
-        .from('configs')
-        .select('max_official_rehearsal_tickets_per_user')
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('student_rehearsal_issue_counters')
-        .select('issued_count')
-        .eq('rehearsal_type', 'official')
-        .maybeSingle(),
-    ]).then(([configResult, counterResult]) => {
-      if (
-        typeof configResult.data?.max_official_rehearsal_tickets_per_user ===
-        'number'
-      ) {
-        setOfficialRehearsalIssueLimit(
-          configResult.data.max_official_rehearsal_tickets_per_user,
-        );
-      }
-      setOfficialRehearsalIssueCount(counterResult.data?.issued_count ?? 0);
-    });
+    void Promise.all([getCachedAppData(), getCachedStudentDashboard()]).then(
+      ([appData, dashboardData]) => {
+        const configResult = appData.configs[0] as
+          { max_official_rehearsal_tickets_per_user?: number } | undefined;
+        const counterResult = (
+          dashboardData.rehearsalCounters as Array<{
+            rehearsal_type: string;
+            issued_count: number;
+          }>
+        ).find((counter) => counter.rehearsal_type === 'official');
+        if (
+          typeof configResult?.max_official_rehearsal_tickets_per_user ===
+          'number'
+        ) {
+          setOfficialRehearsalIssueLimit(
+            configResult.max_official_rehearsal_tickets_per_user,
+          );
+        }
+        setOfficialRehearsalIssueCount(counterResult?.issued_count ?? 0);
+      },
+    );
   }, []);
 
   useEffect(() => {

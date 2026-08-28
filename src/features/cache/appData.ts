@@ -61,3 +61,48 @@ export const getCachedTicketStatus = async (
   return ((await response.json()) as { ticket: CachedTicketStatus | null })
     .ticket;
 };
+
+const privateRequests = new Map<string, Promise<unknown>>();
+
+const getPrivateCachedData = async <T>(path: string): Promise<T> => {
+  const existing = privateRequests.get(path);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+  const request = (async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not authenticated');
+    }
+    const response = await fetch(
+      new URL(`${getAppDataUrl()}/${path}`, window.location.origin).toString(),
+      {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`Private app data API returned ${response.status}`);
+    }
+    return (await response.json()) as T;
+  })().finally(() => {
+    privateRequests.delete(path);
+  });
+  privateRequests.set(path, request);
+  return request;
+};
+
+export const getCachedStudentDashboard = () =>
+  getPrivateCachedData<{
+    dashboard: unknown;
+    remaining: unknown;
+    rehearsalCounters: unknown;
+  }>('student-dashboard');
+
+export const getCachedJuniorDashboard = () =>
+  getPrivateCachedData<{ dashboard: unknown }>('junior-dashboard');
+import { supabase } from '../../lib/supabase';

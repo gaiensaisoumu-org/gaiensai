@@ -46,6 +46,10 @@ import {
   formatMaintenanceEndAt,
   saveMaintenanceConfig,
 } from '../../../features/tickets/maintenanceMode';
+import {
+  getCachedAppData,
+  getCachedStudentDashboard,
+} from '../../../features/cache/appData';
 
 const STUDENT_TICKETS_CACHE_PREFIX = 'ticket-display-cache:v1:';
 const STUDENT_ACCOUNT_CONFIRMATION_STORAGE_PREFIX =
@@ -250,10 +254,10 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
 
   useEffect(() => {
     const loadRemaining = async () => {
-      const { data, error } = await supabase.rpc(
-        'get_student_performance_ticket_remaining',
-      );
-      if (error) {
+      let data: unknown;
+      try {
+        data = (await getCachedStudentDashboard()).remaining;
+      } catch {
         return;
       }
       const result = data as {
@@ -382,12 +386,12 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
       let ticketsError: unknown;
       try {
         const result = await withTimeout(
-          supabase.rpc('get_student_dashboard'),
+          getCachedStudentDashboard(),
           SUPABASE_RESPONSE_TIMEOUT_MS,
           true,
         );
-        ticketsData = result.data;
-        ticketsError = result.error;
+        ticketsData = result.dashboard;
+        ticketsError = null;
       } catch (error) {
         const isOffline = error instanceof OfflineError;
         if (isOffline) {
@@ -456,14 +460,17 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
         schedules?: unknown[];
       };
       const controls = dashboard.controls;
-      const { data: officialRehearsalConfig } = await supabase
-        .from('configs')
-        .select(
-          'max_official_rehearsal_tickets_per_user, show_public_rehearsal_dashboard, show_unofficial_rehearsal_dashboard',
-        )
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      const { configs, rehearsals } = await getCachedAppData().catch(() => ({
+        configs: [] as Array<Record<string, unknown>>,
+        rehearsals: [] as Array<Record<string, unknown>>,
+      }));
+      const officialRehearsalConfig = configs[0] as
+        | {
+            max_official_rehearsal_tickets_per_user?: number;
+            show_public_rehearsal_dashboard?: boolean;
+            show_unofficial_rehearsal_dashboard?: boolean;
+          }
+        | undefined;
       if (
         typeof officialRehearsalConfig?.max_official_rehearsal_tickets_per_user ===
         'number'
@@ -648,14 +655,18 @@ const Dashboard = ({ userData, isOfflineMode = false }: DashboardProps) => {
             .map((decoded) => decoded.performanceId),
         ),
       );
-      const { data: rehearsalData } = rehearsalIds.length
-        ? await supabase
-            .from('rehearsals')
-            .select(
-              'class_id, round_id, round_name, start_time, end_time, type',
-            )
-            .in('class_id', rehearsalIds)
-        : { data: [] };
+      const rehearsalData = rehearsalIds.length
+        ? (
+            rehearsals as Array<{
+              class_id: number;
+              round_id: number;
+              round_name: string;
+              start_time: string;
+              end_time: string | null;
+              type: 'official' | 'unofficial';
+            }>
+          ).filter((rehearsal) => rehearsalIds.includes(rehearsal.class_id))
+        : [];
       const rehearsalMap = new Map(
         (rehearsalData ?? []).map((rehearsal) => [
           `${rehearsal.class_id}-${rehearsal.round_id}`,
