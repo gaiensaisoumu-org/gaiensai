@@ -122,7 +122,7 @@ const writeCache = (master: ScanTicketMaster): void => {
   }
 };
 
-const fetchMasterFromCache = async (): Promise<ScanTicketMaster> => {
+export const getStaticScanTicketMaster = (): ScanTicketMaster => {
   const snapshot = performancesSnapshot as {
     performances?: ScanPerformance[];
     gymPerformances?: ScanGymPerformance[];
@@ -131,11 +131,23 @@ const fetchMasterFromCache = async (): Promise<ScanTicketMaster> => {
     relationships?: ScanNamedMaster[];
     showLengthMinutes?: number | null;
   };
-  const appData = await getCachedAppData();
   return {
     performances: snapshot.performances ?? [],
     gymPerformances: snapshot.gymPerformances ?? [],
     schedules: snapshot.schedules ?? [],
+    rehearsals: [],
+    ticketTypes: snapshot.ticketTypes ?? [],
+    relationships: snapshot.relationships ?? [],
+    showLengthMinutes: Number(snapshot.showLengthMinutes ?? 0),
+    fetchedAt: Date.now(),
+  };
+};
+
+const fetchMasterFromCache = async (): Promise<ScanTicketMaster> => {
+  const master = getStaticScanTicketMaster();
+  const appData = await getCachedAppData();
+  return {
+    ...master,
     rehearsals: (
       appData.rehearsals as Array<
         ScanRehearsal & {
@@ -146,10 +158,6 @@ const fetchMasterFromCache = async (): Promise<ScanTicketMaster> => {
     ).filter(
       (rehearsal) => rehearsal.type === 'unofficial' && rehearsal.is_active,
     ),
-    ticketTypes: snapshot.ticketTypes ?? [],
-    relationships: snapshot.relationships ?? [],
-    showLengthMinutes: Number(snapshot.showLengthMinutes ?? 0),
-    fetchedAt: Date.now(),
   };
 };
 

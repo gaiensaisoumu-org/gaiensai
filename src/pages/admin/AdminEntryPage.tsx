@@ -11,7 +11,7 @@ import {
 } from '../../features/tickets/ticketCodeDecode';
 import Alert from '../../components/ui/Alert';
 import {
-  preloadScanTicketMaster,
+  getStaticScanTicketMaster,
   resolveScanTicketDisplay,
   type ResolvedScanTicketDisplay,
   type ScanTicketMaster,
@@ -24,7 +24,7 @@ import {
   FaPlus,
 } from 'react-icons/fa6';
 import { TiDelete } from 'react-icons/ti';
-import { MdCameraswitch } from 'react-icons/md';
+import { MdCameraswitch, MdClose } from 'react-icons/md';
 import { ServerUrlModal } from '../../components/admin/ServerUrlModal';
 import {
   SCAN_SERVER_URL_STORAGE_KEY,
@@ -83,13 +83,13 @@ import { IoWarning } from 'react-icons/io5';
 import { useEventConfig } from '../../hooks/useEventConfig';
 import { isJuniorTicketTypeId } from '../../features/tickets/juniorRelationship';
 
-const RESULT_CLEAR_DELAY_MS = 4000;
-const RESULT_EXIT_DURATION_MS = 1000;
+const RESULT_CLEAR_DELAY_MS = 3000;
+const RESULT_EXIT_DURATION_MS = 100;
 const AUDIO_SETTINGS_STORAGE_KEY = 'admin_register_audio_settings:v1';
 const ADMIN_TICKETS_CACHE_STORAGE_KEY = 'admin_ticket_status_cache:v1';
 const ADMIN_TICKETS_WARNING_DISMISSED_KEY =
   'admin_ticket_status_cache_warning_dismissed:v1';
-const TIMEOUT_RESCAN = 4000;
+const TIMEOUT_RESCAN = 3000;
 const TICKET_CACHE_PAGE_SIZE = 1000;
 
 type VoiceVariant = '1' | '2' | '3' | 'sfxOnly';
@@ -213,6 +213,10 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
 
   const hasResultContent =
     Boolean(decodedTicket || decodeError) && !autoHideRequested;
+
+  const dismissResult = useCallback(() => {
+    setAutoHideRequested(true);
+  }, []);
 
   const formatIssuerDisplay = (ticket: TicketDecodedDisplaySeed): string => {
     if (ticket.affiliation === '1600') {
@@ -754,6 +758,24 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
     };
   }, [autoHideRequested]);
 
+  useEffect(() => {
+    if (!hasResultContent) {
+      return () => {
+        // noop
+      };
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        dismissResult();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dismissResult, hasResultContent]);
+
   const handleResolvedTicket = async (
     decoded: TicketDecodedDisplaySeed,
     options?: { reentry?: boolean },
@@ -761,19 +783,9 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
     setIsReentryResult(Boolean(options?.reentry));
     setDecodeError(undefined);
     setDecodedTicket(decoded);
-    let master = ticketMaster;
-    if (!master) {
-      try {
-        master = await preloadScanTicketMaster();
-        setTicketMaster(master);
-      } catch {
-        master = null;
-      }
-    }
-
-    if (master) {
-      setResolvedTicket(resolveScanTicketDisplay(decoded, master));
-    }
+    const master = ticketMaster ?? getStaticScanTicketMaster();
+    setTicketMaster(master);
+    setResolvedTicket(resolveScanTicketDisplay(decoded, master));
   };
 
   const checkIsTicketThisYear = (ticketYear: number): boolean => {
@@ -850,15 +862,8 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
         return;
       }
 
-      let master = ticketMaster;
-      if (!master) {
-        try {
-          master = await preloadScanTicketMaster();
-          setTicketMaster(master);
-        } catch {
-          master = null;
-        }
-      }
+      const master = ticketMaster ?? getStaticScanTicketMaster();
+      setTicketMaster(master);
       const isRehearsalTicket = master?.ticketTypes.some(
         (ticketType) =>
           ticketType.id === decoded.ticketTypeId &&
@@ -2021,6 +2026,8 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
               className={`${styles.resultSuccessOverlay} ${
                 isReentryResult ? styles.resultSuccessOverlayReentry : ''
               }`}
+              onClick={dismissResult}
+              aria-hidden='true'
             ></div>
             <section
               className={`${styles.resultCard} ${
@@ -2028,7 +2035,18 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
                   ? styles.resultCardExit
                   : styles.resultCardEnter
               } ${isReentryResult ? styles.resultCardReentry : ''}`}
+              role='dialog'
+              aria-modal='true'
+              aria-label='読み取り成功'
             >
+              <button
+                type='button'
+                className={styles.resultCloseButton}
+                onClick={dismissResult}
+                aria-label='読み取り結果を閉じる'
+              >
+                <MdClose />
+              </button>
               <h2 className={styles.resultTitle}>
                 <FaCircleCheck />
                 読み取り成功{isReentryResult && ' (再入場)'}
@@ -2113,10 +2131,25 @@ const AdminEntryPage = ({ mode }: { mode: EntryMode }) => {
 
         {shouldRenderResultCard && decodeError && (
           <>
-            <div className={styles.resultErrorOverlay}></div>
+            <div
+              className={styles.resultErrorOverlay}
+              onClick={dismissResult}
+              aria-hidden='true'
+            ></div>
             <section
               className={`${styles.resultCard} ${isResultCardExiting ? styles.resultCardExit : styles.resultCardEnter} ${styles.resultCardError}`}
+              role='dialog'
+              aria-modal='true'
+              aria-label='読み取り失敗'
             >
+              <button
+                type='button'
+                className={styles.resultCloseButton}
+                onClick={dismissResult}
+                aria-label='読み取り結果を閉じる'
+              >
+                <MdClose />
+              </button>
               <h2 className={styles.resultTitle}>
                 <FaCircleXmark />
                 読み取り失敗
