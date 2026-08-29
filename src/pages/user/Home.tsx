@@ -228,42 +228,10 @@ const Home = () => {
           体育館公演をご覧になる方は、<strong>上履き</strong>をご持参ください。
           クラス公演・展示部活のみをご覧になる方は上履きは不要です。
         </p>
-      </NormalSection>
-      <NormalSection className={styles.scrollSection} data-scroll-section=''>
-        <h2>中学生の皆様へ</h2>
+        <h3>外苑祭2日目のご来場について</h3>
         <p>
-          現在、抽選結果のメールが届かないというお問い合わせを多数いただいております。まずは迷惑メールフォルダに振り分けられていないかご確認ください。メールが届かない場合は、
-          <a href='https://docs.google.com/forms/d/e/1FAIpQLSfGsEXv2e1IoDbF2RjhrCyK5myHU0Dq-YJ4_3dHMhNeLAvjUg/viewform?usp=dialog'>
-            お問い合わせ
-          </a>
-          より、受付番号と申し込んだ公演についてご連絡ください。こちらで確認の上、申し込み方法についてご案内いたします。
-        </p>
-
-        <h3>2026/8/14 追記</h3>
-        <p>
-          <a href='https://www.metro.ed.jp/aoyama-h/news/2026/08/newsentry_83.html'>
-            青山高校ホームページ
-          </a>
-          に、抽選結果を8/17（月）に再送するとの案内がございます。お問い合わせの前に、
-          <ul>
-            <li>
-              gaiensaiok@aoko.ed.jp、あるいはgaiensaing@aoko.ed.jpのメール受信をブロックしない設定をする
-            </li>
-            <li>
-              迷惑メール、ジャンクメール等のフォルダを確認する（Gmailの応募者の中には、迷惑メールに届いていた例が確認されています）
-            </li>
-          </ul>
-          をご確認ください。
-        </p>
-      </NormalSection>
-      <NormalSection className={styles.scrollSection} data-scroll-section=''>
-        <h2>申し込みをしてない中学生の方へ</h2>
-        <p>
-          <h3>2026/8/19 更新</h3>
-          <p>
-            中学生向けの追加受付は、予定数に達したため終了いたしました。
-            何卒ご了承ください。
-          </p>
+          外苑祭2日目は、2日目の公演のチケットを持っていなくても、1日目のチケットがあれば入場可能です。
+          その際、機能も入場したことを係員にお伝えください。また、入場に使用するチケットは使用済みでも未使用でも大丈夫です。
         </p>
       </NormalSection>
       <NormalSection className={styles.scrollSection} data-scroll-section=''>
@@ -287,11 +255,27 @@ const Home = () => {
         </p>
       </NormalSection>
       <NormalSection className={styles.scrollSection} data-scroll-section=''>
+        <h2>公演空き状況</h2>
+        <p>
+          公演の空き状況は
+          <a href='/availability' onMouseEnter={() => preload(Students)}>
+            こちら
+          </a>
+          からご確認ください。また、各学年フロアのオープンスペースにモニターでも掲示しております。
+        </p>
+      </NormalSection>
+      <NormalSection className={styles.scrollSection} data-scroll-section=''>
         <h2>チケット</h2>
         <p>
           招待券は、お使いのデバイスで表示したことのあるもののみ表示できます。まだ閲覧していない場合は、招待URLよりアクセスしてください。
         </p>
         <a href='/t'>チケットを表示する</a>
+      </NormalSection>
+      <NormalSection className={styles.scrollSection} data-scroll-section=''>
+        <h2>お問い合わせについて</h2>
+        <p>
+          外苑祭当日にいただいたお問い合わせは、当日中の返信はできません。お急ぎの方は、3階総務室へお越しください。
+        </p>
       </NormalSection>
       <section
         className={`${styles.buttonLinkWrap} ${styles.scrollSection}`}
