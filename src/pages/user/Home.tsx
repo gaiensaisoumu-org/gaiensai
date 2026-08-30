@@ -209,6 +209,10 @@ const Home = () => {
         </div>
       </section>
 
+      <Alert type='info'>
+        今年の外苑祭は無事終了いたしました。ご来場いただいた6130人の皆様、ありがとうございました。
+      </Alert>
+
       <Alert
         className={styles.scrollSection}
         type='warning'
