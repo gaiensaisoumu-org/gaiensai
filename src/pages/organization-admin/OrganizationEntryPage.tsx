@@ -24,7 +24,7 @@ import {
   FaPlus,
 } from 'react-icons/fa6';
 import { TiDelete } from 'react-icons/ti';
-import { MdCameraswitch } from 'react-icons/md';
+import { MdCameraswitch, MdClose } from 'react-icons/md';
 import { YEAR_BITS } from '../../../supabase/functions/_shared/ticketDataType';
 import celebrationSound from '../../assets/sounds/celebration.mp3';
 import cautionSound from '../../assets/sounds/caution.mp3';
@@ -53,8 +53,8 @@ import {
   getGymRemaining,
 } from '../../features/performances/availabilityHelpers';
 
-const RESULT_CLEAR_DELAY_MS = 4000;
-const RESULT_EXIT_DURATION_MS = 1000;
+const RESULT_CLEAR_DELAY_MS = 3000;
+const RESULT_EXIT_DURATION_MS = 100;
 const AUDIO_SETTINGS_STORAGE_KEY = 'organization_entry_audio_settings:v1';
 const SCAN_RECORDS_STORAGE_KEY = 'organization_entry_scan_records:v1';
 const NEXT_SCAN_RECORD_ID_STORAGE_KEY = 'organization_entry_next_record_id:v1';
@@ -65,7 +65,7 @@ const TICKET_STATUS_CACHE_STORAGE_KEY =
 const TICKET_STATUS_CACHE_WARNING_DISMISSED_KEY =
   'organization_entry_ticket_status_cache_warning_dismissed:v1';
 export const SCAN_TARGET_STORAGE_KEY = 'organization_entry_scan_target:v1';
-const TIMEOUT_RESCAN = 4000;
+const TIMEOUT_RESCAN = 3000;
 const TICKET_CACHE_PAGE_SIZE = 1000;
 
 type VoiceVariant = '1' | '2' | '3' | 'sfxOnly';
@@ -239,6 +239,11 @@ const OrganizationEntryPage = ({
 
   const hasResultContent =
     Boolean(decodedTicket || decodeError) && !autoHideRequested;
+
+  const dismissResult = useCallback(() => {
+    setAutoHideRequested(true);
+  }, []);
+
   const selectedScanPerformance = ticketMaster?.performances.find(
     (performance) => performance.id === scanTarget.performanceId,
   );
@@ -812,7 +817,7 @@ const OrganizationEntryPage = ({
     timeoutId = window.setTimeout(() => {
       setShouldRenderResultCard(false);
       setIsResultCardExiting(false);
-    }, 1000);
+    }, RESULT_EXIT_DURATION_MS);
 
     return () => {
       if (timeoutId !== null) {
@@ -872,6 +877,24 @@ const OrganizationEntryPage = ({
       window.clearTimeout(timeoutId);
     };
   }, [autoHideRequested]);
+
+  useEffect(() => {
+    if (!hasResultContent) {
+      return () => {
+        // noop
+      };
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        dismissResult();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dismissResult, hasResultContent]);
 
   const handleResolvedTicket = async (
     decoded: TicketDecodedDisplaySeed,
@@ -1952,6 +1975,8 @@ const OrganizationEntryPage = ({
               className={`${styles.resultSuccessOverlay} ${
                 isReentryResult ? styles.resultSuccessOverlayReentry : ''
               }`}
+              onClick={dismissResult}
+              aria-hidden='true'
             ></div>
             <section
               className={`${styles.resultCard} ${
@@ -1959,7 +1984,18 @@ const OrganizationEntryPage = ({
                   ? styles.resultCardExit
                   : styles.resultCardEnter
               } ${isReentryResult ? styles.resultCardReentry : ''}`}
+              role='dialog'
+              aria-modal='true'
+              aria-label='読み取り成功'
             >
+              <button
+                type='button'
+                className={styles.resultCloseButton}
+                onClick={dismissResult}
+                aria-label='読み取り結果を閉じる'
+              >
+                <MdClose />
+              </button>
               <h2 className={styles.resultTitle}>
                 <FaCircleCheck />
                 読み取り成功{isReentryResult && ' (再入場)'}
@@ -2044,10 +2080,25 @@ const OrganizationEntryPage = ({
 
         {shouldRenderResultCard && decodeError && (
           <>
-            <div className={styles.resultErrorOverlay}></div>
+            <div
+              className={styles.resultErrorOverlay}
+              onClick={dismissResult}
+              aria-hidden='true'
+            ></div>
             <section
               className={`${styles.resultCard} ${isResultCardExiting ? styles.resultCardExit : styles.resultCardEnter} ${styles.resultCardError}`}
+              role='dialog'
+              aria-modal='true'
+              aria-label='読み取り失敗'
             >
+              <button
+                type='button'
+                className={styles.resultCloseButton}
+                onClick={dismissResult}
+                aria-label='読み取り結果を閉じる'
+              >
+                <MdClose />
+              </button>
               <h2 className={styles.resultTitle}>
                 <FaCircleXmark />
                 読み取り失敗
