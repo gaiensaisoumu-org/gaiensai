@@ -750,12 +750,14 @@ const JuniorMyPage = ({ userData }: JuniorMyPageProps) => {
     <>
       <section>
         <h1 className={subPageStyles.pageTitle}>中学生用マイページ</h1>
-<Alert type='info'>
-            <h2>アンケートにご協力ください</h2>
-            <p>
+        <Alert type='info'>
+          <h3>アンケートにご協力ください</h3>
+          <p>
             アプリ改善のために、こちらのGoogleフォームよりアンケートにご協力をお願いします。
-            <a href='https://docs.google.com/forms/d/e/1FAIpQLSdsIYLhIaY2OOErwup96h8cJqR9DBnOaJ3wwby-U0OrGfWR5A/viewform?usp=dialog'>アンケートフォームはこちら</a>
-                </p>
+            <a href='https://docs.google.com/forms/d/e/1FAIpQLSdsIYLhIaY2OOErwup96h8cJqR9DBnOaJ3wwby-U0OrGfWR5A/viewform?usp=dialog'>
+              アンケートフォームはこちら
+            </a>
+          </p>
         </Alert>
         <h2 className={sharedStyles.normalH2}>
           ID: {loginId}{' '}
